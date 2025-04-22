@@ -52,3 +52,30 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Файлы сборки и бинарники
+*.exe
+*.dll
+*.pdb
+*.cache
+*.suo
+*.user
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+
+# Логи и временные файлы
+*.log
+*.tlog
+*.tmp
+*.temp
+
+# Настройки IDE
+.vs/
+.idea/
+.vscode/
+*.swp
+*.swo
