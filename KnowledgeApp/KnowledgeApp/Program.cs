@@ -24,6 +24,8 @@ builder.Services.AddScoped<StatusService>();
 builder.Services.AddScoped<StatusRepository>();
 builder.Services.AddScoped<StudentRepository>();
 builder.Services.AddScoped<StudentService>();
+builder.Services.AddScoped<SemesterRepository>();
+builder.Services.AddScoped<SemesterService>();
 
 var app = builder.Build();
 
