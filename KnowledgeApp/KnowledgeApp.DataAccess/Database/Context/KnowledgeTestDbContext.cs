@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using KnowledgeApp.DataAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
@@ -24,6 +25,8 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<DisciplineTeacher> DisciplineTeachers { get; set; }
 
     public virtual DbSet<Faculty> Faculties { get; set; }
+
+    public virtual DbSet<FacultyStatistic> FacultyStatistics { get; set; }
 
     public virtual DbSet<Report> Reports { get; set; }
 
@@ -130,6 +133,28 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.FacultyName)
                 .HasMaxLength(255)
                 .HasColumnName("faculty_name");
+            entity.HasMany(e => e.FacultyStatistics).WithOne(f => f.Faculty).HasForeignKey(f => f.FacultyName);
+        });
+
+        modelBuilder.Entity<FacultyStatistic>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("faculty_statistic");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FacultyName)
+                .HasMaxLength(255)
+                .HasColumnName("faculty_name");
+            entity.Property(e => e.GroupCountMust).HasColumnName("group_count_must");
+            entity.Property(e => e.GroupCountFact).HasColumnName("group_count_fact");
+            entity.Property(e => e.DisciplineCountMust).HasColumnName("discipline_count_must");
+            entity.Property(e => e.DisciplineCountFact).HasColumnName("discipline_count_fact");
+            entity.Property(e => e.EReportDoneCount).HasColumnName("e_report_done_count");
+            entity.Property(e => e.EReportRevCount).HasColumnName("e_report_rev_count");
+            entity.Property(e => e.PapReportDoneCount).HasColumnName("pap_report_done_count");
+            entity.Property(e => e.PapReportRevCount).HasColumnName("pap_report_rev_count");
+            entity.Property(e => e.AllDone).HasColumnName("all_done");
+            entity.HasOne(e => e.Faculty).WithMany(f => f.FacultyStatistics).HasForeignKey(e => e.Id);
         });
 
         modelBuilder.Entity<Report>(entity =>
