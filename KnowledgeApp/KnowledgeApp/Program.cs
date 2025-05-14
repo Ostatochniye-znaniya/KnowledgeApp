@@ -30,6 +30,8 @@ builder.Services.AddScoped<StudyGroupRepository>();
 builder.Services.AddScoped<StudyProgramRepository>();
 builder.Services.AddScoped<StudyGroupService>();
 builder.Services.AddScoped<StudyProgramService>();
+builder.Services.AddScoped<FacultyStatisticRepository>();
+builder.Services.AddScoped<FacultyStatisticService>();
 
 var app = builder.Build();
 
