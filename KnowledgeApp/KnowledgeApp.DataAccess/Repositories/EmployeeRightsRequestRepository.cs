@@ -166,7 +166,7 @@ namespace KnowledgeApp.DataAccess.Repositories
             emp.StructuralDivision = req.StructuralDivision;
             emp.CategoryName = req.CategoryName;
             emp.FullName = req.FullName;
-            emp.UpdatedAt = req.UpdatedAt;
+            emp.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
     }
