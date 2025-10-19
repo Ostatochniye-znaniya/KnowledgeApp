@@ -43,11 +43,25 @@ namespace KnowledgeApp.API.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<IResult> GetAllEmployeeRightsRequestsByUserId(int userId, int page = 1, int pageSize = 50)
+        {
+            try
+            {
+                List<EmployeeRightsRequestModel> requests = await _employeeRightsRequestService.GetAllEmployeeRightsRequestsByUserId(userId, page, pageSize);
+                return Results.Json(requests);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
+
         [HttpPost]
         public async Task<IResult> CreateEmployeeRightsRequest(EmployeeRightsRequestModel request)
         {
             try
-            { 
+            {
                 await _employeeRightsRequestService.CreateEmployeeRightsRequest(request);
                 return Results.Ok("Запрос прав сотрудника успешно создан");
             }
@@ -100,11 +114,39 @@ namespace KnowledgeApp.API.Controllers
         }
 
         [HttpGet]
+        public async Task<IResult> GetActiveEmployeeRightsRequestsByUser(int userId, int page = 1, int pageSize = 50)
+        {
+            try
+            {
+                List<EmployeeRightsRequestModel> activeRequests = await _employeeRightsRequestService.GetActiveEmployeeRightsRequestsByUser(userId, page, pageSize);
+                return Results.Json(activeRequests);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
+
+        [HttpGet]
         public async Task<IResult> GetEmployeeRightsRequestsByDivision(string structuralDivision, int page = 1, int pageSize = 50)
         {
             try
             {
                 List<EmployeeRightsRequestModel> divisionRequests = await _employeeRightsRequestService.GetEmployeeRightsRequestsByDivision(structuralDivision, page, pageSize);
+                return Results.Json(divisionRequests);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IResult> GetEmployeeRightsRequestsByDivisionAndUserId(string structuralDivision, int userId, int page = 1, int pageSize = 50)
+        {
+            try
+            {
+                List<EmployeeRightsRequestModel> divisionRequests = await _employeeRightsRequestService.GetEmployeeRightsRequestsByDivisionAndUserId(structuralDivision, userId, page, pageSize);
                 return Results.Json(divisionRequests);
             }
             catch (Exception e)

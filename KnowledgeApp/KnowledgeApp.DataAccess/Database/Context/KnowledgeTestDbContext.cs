@@ -16,6 +16,7 @@ public partial class KnowledgeTestDbContext : DbContext
     public KnowledgeTestDbContext(DbContextOptions<KnowledgeTestDbContext> options)
         : base(options)
     {
+        Database.EnsureCreated();
     }
 
     public virtual DbSet<Department> Departments { get; set; }
@@ -187,6 +188,14 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
             entity.Property(e => e.Id).HasColumnName("id");
+
+            entity.HasOne(e => e.User)
+                  .WithMany(e=>e.EmployeeRightsRequests)
+                  .HasForeignKey(e => e.UserId)
+                  .IsRequired() 
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.UserId).HasColumnName("user_id");
             entity.Property(e => e.FullName)
                 .HasMaxLength(255)
                 .HasColumnName("employee_name");

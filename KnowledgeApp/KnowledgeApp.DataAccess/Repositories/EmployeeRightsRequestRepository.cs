@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using KnowledgeApp.Core.Models;
@@ -26,6 +27,81 @@ namespace KnowledgeApp.DataAccess.Repositories
                 new EmployeeRightsRequestModel()
                 {
                     Id = r.Id,
+                    UserId = r.UserId,
+                    StructuralDivision = r.StructuralDivision,
+                    CategoryName = r.CategoryName,
+                    FullName = r.FullName,
+                    IsActive = r.IsActive,
+                    JobEnd = r.JobEnd,
+                    JobStart = r.JobStart,
+                    JobName = r.JobName,
+                    UpdatedAt = r.UpdatedAt,
+                }
+                ).ToListAsync();
+        }
+        public async Task<List<EmployeeRightsRequestModel>> GetAllByDivision(string division, int page = 1, int pageSize = 50, int? userId = null)
+        {
+            var query = _context.EmployeeRightsRequests.Where(e => e.StructuralDivision == division);
+
+            if (userId.HasValue)
+            {
+                query = query.Where(e => e.UserId == userId.Value);
+            }
+
+            return await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(r => new EmployeeRightsRequestModel()
+                {
+                    Id = r.Id,
+                    UserId = r.UserId,
+                    StructuralDivision = r.StructuralDivision,
+                    CategoryName = r.CategoryName,
+                    FullName = r.FullName,
+                    IsActive = r.IsActive,
+                    JobEnd = r.JobEnd,
+                    JobStart = r.JobStart,
+                    JobName = r.JobName,
+                    UpdatedAt = r.UpdatedAt,
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<EmployeeRightsRequestModel>> GetAllActive(int page = 1, int pageSize = 50, int? userId = null)
+        {
+            var query = _context.EmployeeRightsRequests.Where(u => u.IsActive == true);
+
+            if (userId.HasValue)
+            {
+                query = query.Where(u => u.UserId == userId.Value);
+            }
+
+            return await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(r => new EmployeeRightsRequestModel()
+                {
+                    Id = r.Id,
+                    UserId = r.UserId,
+                    StructuralDivision = r.StructuralDivision,
+                    CategoryName = r.CategoryName,
+                    FullName = r.FullName,
+                    IsActive = r.IsActive,
+                    JobEnd = r.JobEnd,
+                    JobStart = r.JobStart,
+                    JobName = r.JobName,
+                    UpdatedAt = r.UpdatedAt,
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<EmployeeRightsRequestModel>> GetAllByUserId(int userId, int page = 1, int pageSize = 50)
+        {
+            return await _context.EmployeeRightsRequests.Where(r=> r.UserId == userId).Skip((page - 1) * pageSize).Take(pageSize).Select(r =>
+                new EmployeeRightsRequestModel()
+                {
+                    Id = r.Id,
+                    UserId = r.UserId,
                     StructuralDivision = r.StructuralDivision,
                     CategoryName = r.CategoryName,
                     FullName = r.FullName,
@@ -62,13 +138,14 @@ namespace KnowledgeApp.DataAccess.Repositories
         }
         public async Task AddEmployee(EmployeeRightsRequestModel emp)
         {
+            
             await _context.EmployeeRightsRequests.AddAsync(new EmployeeRightsRequest()
             {
                 JobEnd = emp.JobEnd,
                 JobStart = emp.JobStart,
                 JobName = emp.JobName,
                 IsActive = emp.IsActive,
-                Id = emp.Id,
+                Id = emp.Id.Value,
                 StructuralDivision = emp.StructuralDivision,
                 CategoryName= emp.CategoryName,
                 FullName = emp.FullName,

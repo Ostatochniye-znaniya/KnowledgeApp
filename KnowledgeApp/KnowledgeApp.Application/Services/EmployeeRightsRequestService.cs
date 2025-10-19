@@ -39,6 +39,17 @@ namespace KnowledgeApp.Application.Services
         }
 
         /// <summary>
+        /// Получить все запросы прав сотрудников с пагинацией для определнного пользователя
+        /// </summary>
+        /// <param name="page">Номер страницы</param>
+        /// <param name="pageSize">Размер страницы</param>
+        /// <returns>Список запросов прав сотрудников</returns>
+        public async Task<List<EmployeeRightsRequestModel>> GetAllEmployeeRightsRequestsByUserId(int userId,int page = 1, int pageSize = 50)
+        {
+            return await _employeeRightsRequestRepository.GetAllByUserId(userId, page, pageSize);
+        }
+
+        /// <summary>
         /// Создать новый запрос прав сотрудника
         /// </summary>
         /// <param name="employeeRequest">Модель запроса прав сотрудника</param>
@@ -47,7 +58,6 @@ namespace KnowledgeApp.Application.Services
         {
             if (employeeRequest == null)
                 throw new ArgumentNullException(nameof(employeeRequest), "Запрос не может быть null");
-
             await _employeeRightsRequestRepository.AddEmployee(employeeRequest);
         }
 
@@ -82,8 +92,20 @@ namespace KnowledgeApp.Application.Services
         /// <returns>Список активных запросов</returns>
         public async Task<List<EmployeeRightsRequestModel>> GetActiveEmployeeRightsRequests(int page = 1, int pageSize = 50)
         {
-            var allRequests = await _employeeRightsRequestRepository.GetAll(page, pageSize);
-            return allRequests.Where(r => r.IsActive).ToList();
+            var allRequests = await _employeeRightsRequestRepository.GetAllActive(page, pageSize);
+            return allRequests;
+        }
+
+        /// <summary>
+        /// Получить активные запросы прав сотрудников для определнного пользователя
+        /// </summary>
+        /// <param name="page">Номер страницы</param>
+        /// <param name="pageSize">Размер страницы</param>
+        /// <returns>Список активных запросов</returns>
+        public async Task<List<EmployeeRightsRequestModel>> GetActiveEmployeeRightsRequestsByUser(int userId, int page = 1, int pageSize = 50)
+        {
+            var allRequests = await _employeeRightsRequestRepository.GetAllActive(page, pageSize, userId);
+            return allRequests;
         }
 
         /// <summary>
@@ -95,8 +117,13 @@ namespace KnowledgeApp.Application.Services
         /// <returns>Список запросов по подразделению</returns>
         public async Task<List<EmployeeRightsRequestModel>> GetEmployeeRightsRequestsByDivision(string structuralDivision, int page = 1, int pageSize = 50)
         {
-            var allRequests = await _employeeRightsRequestRepository.GetAll(page, pageSize);
-            return allRequests.Where(r => r.StructuralDivision == structuralDivision).ToList();
+            var allRequests = await _employeeRightsRequestRepository.GetAllByDivision(structuralDivision,page, pageSize);
+            return allRequests;
+        }
+        public async Task<List<EmployeeRightsRequestModel>> GetEmployeeRightsRequestsByDivisionAndUserId(string structuralDivision,int userId, int page = 1, int pageSize = 50)
+        {
+            var allRequests = await _employeeRightsRequestRepository.GetAllByDivision(structuralDivision, page, pageSize,userId);
+            return allRequests;
         }
     }
 }

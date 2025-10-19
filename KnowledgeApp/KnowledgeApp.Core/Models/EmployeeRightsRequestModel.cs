@@ -9,6 +9,7 @@ namespace KnowledgeApp.Core.Models
     public class EmployeeRightsRequestModel
     {
         public int? Id { get; set; }
+        public int UserId { get; set; }
         public string FullName { get; set; }
         public string StructuralDivision { get; set; }
         public string JobName { get; set; }
