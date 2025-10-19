@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using KnowledgeApp.DataAccess.Database.Entities;
 using KnowledgeApp.DataAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
@@ -44,6 +45,8 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
+
+    public virtual DbSet<EmployeeRightsRequest> EmployeeRightsRequests { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -177,6 +180,16 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.RoleName)
                 .HasMaxLength(255)
                 .HasColumnName("role_name");
+        });
+
+        modelBuilder.Entity<EmployeeRightsRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FullName)
+                .HasMaxLength(255)
+                .HasColumnName("employee_name");
         });
 
         modelBuilder.Entity<Semester>(entity =>
