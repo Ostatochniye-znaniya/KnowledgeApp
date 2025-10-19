@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 namespace KnowledgeApp.DataAccess.Database.Entities
 {
-    [Table("EmployeeRigthsRequests")]
+    [Table("employee_rigths_requests")]
     public class EmployeeRightsRequest
     {
         public int Id { get; set; }
