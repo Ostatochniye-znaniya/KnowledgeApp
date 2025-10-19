@@ -190,15 +190,43 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
 
             entity.HasOne(e => e.User)
-                  .WithMany(e=>e.EmployeeRightsRequests)
+                  .WithMany(e => e.EmployeeRightsRequests)
                   .HasForeignKey(e => e.UserId)
-                  .IsRequired() 
+                  .IsRequired()
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.Property(e => e.UserId).HasColumnName("user_id");
+
             entity.Property(e => e.FullName)
                 .HasMaxLength(255)
-                .HasColumnName("employee_name");
+                .HasColumnName("full_name");
+
+            entity.Property(e => e.StructuralDivision)
+                .HasMaxLength(255)
+                .HasColumnName("structural_division");
+
+            entity.Property(e => e.JobName)
+                .HasMaxLength(255)
+                .HasColumnName("job_name");
+
+            entity.Property(e => e.JobStart)
+                .HasColumnName("job_start");
+
+            entity.Property(e => e.JobEnd)
+                .HasColumnName("job_end");
+
+            entity.Property(e => e.IsActive)
+                .HasColumnName("is_active");
+
+            entity.Property(e => e.CategoryName)
+                .HasMaxLength(255)
+                .HasColumnName("category_name");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at");
         });
 
         modelBuilder.Entity<Semester>(entity =>
