@@ -16,6 +16,8 @@ builder.Services.AddScoped<DepartmentService>();
 builder.Services.AddScoped<DepartmentRepository>();
 builder.Services.AddScoped<DisciplineRepository>();
 builder.Services.AddScoped<DisciplineService>();
+builder.Services.AddScoped<FacultyRepository>();
+builder.Services.AddScoped<FacultyService>();
 builder.Services.AddScoped<ReportRepository>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<RoleRepository>();

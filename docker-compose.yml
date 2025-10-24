@@ -1,0 +1,33 @@
+version: '3.9'
+
+services:
+  api:
+    container_name: knowledgeapp-api
+    build:
+      context: .
+      dockerfile: KnowledgeApp/KnowledgeApp/Dockerfile
+    ports:
+      - "5000:8080"    # внешний порт VPS : внутренний порт контейнера
+    depends_on:
+      - db
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development #Production
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "server=db;port=3306;database=knowledge_test_db;user=root;password=admin"
+    restart: always
+
+  db:
+    container_name: mysql-db
+    image: mysql:9.1
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: knowledge_test_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./DbBackups/DB_KnowledgeApp_Backup_10.04.25.sql:/docker-entrypoint-initdb.d/DB_KnowledgeApp_Backup_10.04.25.sql:ro
+
+volumes:
+  db_data:
