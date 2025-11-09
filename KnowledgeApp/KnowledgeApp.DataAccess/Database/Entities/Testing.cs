@@ -11,9 +11,11 @@ public partial class Testing
 
     public int? DisciplineId { get; set; }
 
-    public DateOnly? ScheduledDate { get; set; }
+    public int? SemesterId { get; set; }
 
-    public TimeOnly? ScheduledTime { get; set; }
+    public DateTime? ScheduledDate { get; set; }
+
+    public TimeSpan? ScheduledTime { get; set; }
 
     public string? Status { get; set; }
 

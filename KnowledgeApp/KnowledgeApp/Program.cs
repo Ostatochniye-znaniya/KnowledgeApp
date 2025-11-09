@@ -14,6 +14,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<KnowledgeTestDbContext>();
 builder.Services.AddScoped<DepartmentService>();
 builder.Services.AddScoped<DepartmentRepository>();
+builder.Services.AddScoped<TestingService>();
+builder.Services.AddScoped<TestingRepository>();
 builder.Services.AddScoped<DisciplineRepository>();
 builder.Services.AddScoped<DisciplineService>();
 builder.Services.AddScoped<FacultyRepository>();

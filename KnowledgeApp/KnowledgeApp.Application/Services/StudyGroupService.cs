@@ -38,7 +38,7 @@ namespace KnowledgeApp.Application.Services
             await _repository.DeleteAsync(id);
         }
 
-        public async Task CreateGroupAsync(StudyGroupModel studyGroupModel)
+        public Task CreateGroupAsync(StudyGroupModel studyGroupModel)
         {
             throw new NotImplementedException();
         }
