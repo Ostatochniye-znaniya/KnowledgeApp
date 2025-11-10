@@ -285,6 +285,7 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.DisciplineId).HasColumnName("discipline_id");
             entity.Property(e => e.GroupId).HasColumnName("group_id");
             entity.Property(e => e.ReportId).HasColumnName("report_id");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
             entity.Property(e => e.ResultOfTesting)
                 .HasColumnType("text")
                 .HasColumnName("result_of_testing");
@@ -296,20 +297,25 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasMaxLength(50)
                 .HasColumnName("status");
 
+            entity.HasOne(d => d.Group).WithMany(p => p.Testings)
+                .HasForeignKey(d => d.GroupId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("testing_ibfk_1");
+            
             entity.HasOne(d => d.Discipline).WithMany(p => p.Testings)
                 .HasForeignKey(d => d.DisciplineId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_2");
 
-            entity.HasOne(d => d.Group).WithMany(p => p.Testings)
-                .HasForeignKey(d => d.GroupId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("testing_ibfk_1");
-
             entity.HasOne(d => d.Report).WithMany(p => p.Testings)
                 .HasForeignKey(d => d.ReportId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_3");
+            
+            entity.HasOne(d => d.Report).WithMany(p => p.Testings)
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("testing_ibfk_4");
         });
 
         modelBuilder.Entity<User>(entity =>

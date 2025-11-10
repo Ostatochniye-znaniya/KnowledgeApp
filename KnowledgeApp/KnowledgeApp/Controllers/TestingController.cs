@@ -21,7 +21,7 @@ namespace KnowledgeApp.API.Controllers
         {
             try
             {
-                List<TestingModel> testings = await _testingService.GetAll();
+                var testings = await _testingService.GetAll();
                 return Results.Json(testings);
             }
             catch (Exception e)

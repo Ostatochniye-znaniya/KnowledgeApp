@@ -1,3 +1,4 @@
+using KnowledgeApp.DataAccess.Entities;
 using KnowledgeApp.DataAccess.Repositories;
 using KnowledgeApp.Core.Models;
 
@@ -12,7 +13,7 @@ namespace KnowledgeApp.Application.Services
             _testingRepository = testingRepository;
         }
 
-        public async Task<List<TestingModel>> GetAll()
+        public async Task<IEnumerable<Testing>> GetAll()
         {
             return await _testingRepository.GetAll();
         }

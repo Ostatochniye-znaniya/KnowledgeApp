@@ -14,13 +14,14 @@ namespace KnowledgeApp.DataAccess.Repositories
             _context = context;
         }
 
-        public async Task<List<TestingModel>> GetAll()
+        public async Task<IEnumerable<Testing>> GetAll()
         {
-            var testingEntities = await _context.Testings
-                .AsNoTracking()
-                .ToListAsync();
+            return await _context.Set<Testing>().ToListAsync();
+            // var testingEntities = await _context.Testings
+            //     .AsNoTracking()
+            //     .ToListAsync();
 
-            return testingEntities.Select(e => ToModel(e)).ToList();
+            // return testingEntities.Select(e => ToModel(e)).ToList();
         }
 
         public async Task<TestingModel> GetById(int id)
