@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using KnowledgeApp.Core.Models;
+using KnowledgeApp.DataAccess.Database.Entities;
 using KnowledgeApp.DataAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
@@ -15,6 +17,7 @@ public partial class KnowledgeTestDbContext : DbContext
     public KnowledgeTestDbContext(DbContextOptions<KnowledgeTestDbContext> options)
         : base(options)
     {
+        Database.EnsureCreated();
     }
 
     public virtual DbSet<Department> Departments { get; set; }
@@ -45,8 +48,9 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
 
+    public virtual DbSet<EmployeeRightsRequest> EmployeeRightsRequests { get; set; }
+    public virtual DbSet<RecommendationHistory> RecommendationHistory { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseMySql("server=localhost;database=knowledge_test_db;user=root;password=admin", Microsoft.EntityFrameworkCore.ServerVersion.Parse("9.1.0-mysql"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -179,6 +183,74 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("role_name");
         });
 
+        modelBuilder.Entity<EmployeeRightsRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+
+            entity.HasOne(e => e.User)
+                  .WithMany(e => e.EmployeeRightsRequests)
+                  .HasForeignKey(e => e.UserId)
+                  .IsRequired()
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+
+            entity.Property(e => e.FullName)
+                .HasMaxLength(255)
+                .HasColumnName("full_name");
+
+            entity.Property(e => e.StructuralDivision)
+                .HasMaxLength(255)
+                .HasColumnName("structural_division");
+
+            entity.Property(e => e.JobName)
+                .HasMaxLength(255)
+                .HasColumnName("job_name");
+
+            entity.Property(e => e.JobStart)
+                .HasColumnName("job_start");
+
+            entity.Property(e => e.JobEnd)
+                .HasColumnName("job_end");
+
+            entity.Property(e => e.IsActive)
+                .HasColumnName("is_active");
+
+            entity.Property(e => e.CategoryName)
+                .HasMaxLength(255)
+                .HasColumnName("category_name");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at");
+        });
+
+        modelBuilder.Entity<RecommendationHistory>(entity =>
+        {
+            entity.ToTable("recommendation_history");
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+
+            entity.Property(e => e.UserId)
+                .HasMaxLength(255)
+                .HasColumnName("user_id");
+
+            entity.Property(e => e.RecommendedAt)
+            .HasDefaultValue(DateTime.UtcNow)
+            .HasColumnName("recommended_at");
+
+            entity.Property(e => e.SemesterId)
+            .HasColumnName("semester_id");
+
+            entity.Property(e => e.StudyGroupId)
+            .HasColumnName("study_group_id");
+        });
+        
         modelBuilder.Entity<Semester>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -285,6 +357,7 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.DisciplineId).HasColumnName("discipline_id");
             entity.Property(e => e.GroupId).HasColumnName("group_id");
             entity.Property(e => e.ReportId).HasColumnName("report_id");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
             entity.Property(e => e.ResultOfTesting)
                 .HasColumnType("text")
                 .HasColumnName("result_of_testing");
@@ -296,20 +369,25 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasMaxLength(50)
                 .HasColumnName("status");
 
+            entity.HasOne(d => d.Group).WithMany(p => p.Testings)
+                .HasForeignKey(d => d.GroupId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("testing_ibfk_1");
+            
             entity.HasOne(d => d.Discipline).WithMany(p => p.Testings)
                 .HasForeignKey(d => d.DisciplineId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_2");
 
-            entity.HasOne(d => d.Group).WithMany(p => p.Testings)
-                .HasForeignKey(d => d.GroupId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("testing_ibfk_1");
-
             entity.HasOne(d => d.Report).WithMany(p => p.Testings)
                 .HasForeignKey(d => d.ReportId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_3");
+            
+            entity.HasOne(d => d.Report).WithMany(p => p.Testings)
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("testing_ibfk_4");
         });
 
         modelBuilder.Entity<User>(entity =>

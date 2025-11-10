@@ -18,7 +18,7 @@ namespace KnowledgeApp.DataAccess.Repositories
         public async Task<StatusModel> CreateStatus(StatusModel statusModel)
         {
             var status = await _context.Statuses.SingleOrDefaultAsync(f => f.StatusName == statusModel.StatusName);
-            if (status == null) throw new Exception("Такого status не существует");
+            if (status != null) throw new Exception("Такой status уже существует");
             var statusEntity = new Status
             {
                 StatusName = statusModel.StatusName,

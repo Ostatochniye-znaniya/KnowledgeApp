@@ -14,8 +14,14 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<KnowledgeTestDbContext>();
 builder.Services.AddScoped<DepartmentService>();
 builder.Services.AddScoped<DepartmentRepository>();
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<TestingService>();
+builder.Services.AddScoped<TestingRepository>();
 builder.Services.AddScoped<DisciplineRepository>();
 builder.Services.AddScoped<DisciplineService>();
+builder.Services.AddScoped<FacultyRepository>();
+builder.Services.AddScoped<FacultyService>();
 builder.Services.AddScoped<ReportRepository>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<RoleRepository>();
@@ -40,7 +46,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseAuthorization();
 

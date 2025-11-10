@@ -1,4 +1,5 @@
-﻿using KnowledgeApp.DataAccess.Context;
+﻿using KnowledgeApp.Core.Models;
+using KnowledgeApp.DataAccess.Context;
 using KnowledgeApp.DataAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +30,24 @@ namespace KnowledgeApp.DataAccess.Repositories
             await _context.SaveChangesAsync();
         }
 
+        public async Task<StudyGroupModel> CreateStudyGroup(StudyGroupModel studyGroupModel)
+        {
+            var groupNumber = await _context.StudyGroups.SingleOrDefaultAsync(f => f.GroupNumber == studyGroupModel.GroupNumber);
+            var studyProgramId = await _context.StudyGroups.SingleOrDefaultAsync(f => f.StudyProgramId == studyGroupModel.StudyProgramId);
+            if (groupNumber != null || studyProgramId != null) throw new Exception("Учебная группа с такими groupNumber или studyProgramId уже существует");
+            var studyGroupEntity = new StudyGroup
+            {
+                Id = studyGroupModel.Id,
+                GroupNumber = studyGroupModel.GroupNumber,
+                StudyProgramId = studyGroupModel.StudyProgramId,
+            };
+
+            await _context.StudyGroups.AddAsync(studyGroupEntity);
+            await _context.SaveChangesAsync();
+
+            StudyGroupModel createdStudent = new StudyGroupModel(studyGroupEntity.Id, studyGroupEntity.GroupNumber, studyGroupEntity.StudyProgramId);
+            return createdStudent;
+        }
         public async Task UpdateAsync(StudyGroup studyGroup)
         {
             _context.Set<StudyGroup>().Update(studyGroup);
