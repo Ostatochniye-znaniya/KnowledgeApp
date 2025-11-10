@@ -1,4 +1,5 @@
-﻿using System;
+﻿using KnowledgeApp.DataAccess.Database.Entities;
+using System;
 using System.Collections.Generic;
 
 namespace KnowledgeApp.DataAccess.Entities;
@@ -28,4 +29,5 @@ public partial class User
     public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public virtual ICollection<EmployeeRightsRequest> EmployeeRightsRequests { get; set; } = new List<EmployeeRightsRequest>();
 }
