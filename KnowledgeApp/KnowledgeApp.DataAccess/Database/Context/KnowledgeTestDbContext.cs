@@ -49,7 +49,7 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<UserRole> UserRoles { get; set; }
 
     public virtual DbSet<EmployeeRightsRequest> EmployeeRightsRequests { get; set; }
-
+    public virtual DbSet<RecommendationHistory> RecommendationHistory { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseMySql("server=localhost;database=knowledge_test_db;user=root;password=admin", Microsoft.EntityFrameworkCore.ServerVersion.Parse("9.1.0-mysql"));
 
@@ -229,6 +229,28 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("created_at");
         });
 
+        modelBuilder.Entity<RecommendationHistory>(entity =>
+        {
+            entity.ToTable("recommendation_history");
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+
+            entity.Property(e => e.UserId)
+                .HasMaxLength(255)
+                .HasColumnName("user_id");
+
+            entity.Property(e => e.RecommendedAt)
+            .HasDefaultValue(DateTime.UtcNow)
+            .HasColumnName("recommended_at");
+
+            entity.Property(e => e.SemesterId)
+            .HasColumnName("semester_id");
+
+            entity.Property(e => e.StudyGroupId)
+            .HasColumnName("study_group_id");
+        });
+        
         modelBuilder.Entity<Semester>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");

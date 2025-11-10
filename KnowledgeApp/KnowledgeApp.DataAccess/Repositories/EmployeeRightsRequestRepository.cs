@@ -115,7 +115,8 @@ namespace KnowledgeApp.DataAccess.Repositories
         }
         public async Task<EmployeeRightsRequestModel> GetById(int id)
         {
-            var r = await _context.EmployeeRightsRequests.FirstOrDefaultAsync(r=>r.Id == id);
+            var r = await _context.EmployeeRightsRequests.FirstOrDefaultAsync(r => r.Id == id);
+            if (r == null) throw new Exception("EmployeeRightsRequest с таким id не существует");
             return new EmployeeRightsRequestModel()
             {
                 Id = r.Id,
@@ -145,7 +146,7 @@ namespace KnowledgeApp.DataAccess.Repositories
                 JobStart = emp.JobStart,
                 JobName = emp.JobName,
                 IsActive = emp.IsActive,
-                Id = emp.Id.Value,
+                Id = emp.Id,
                 StructuralDivision = emp.StructuralDivision,
                 CategoryName= emp.CategoryName,
                 FullName = emp.FullName,
