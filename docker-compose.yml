@@ -27,7 +27,7 @@ services:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-      - ./DbBackups/DB_KnowledgeApp_Backup_29.10.25.sql:/docker-entrypoint-initdb.d/DB_KnowledgeApp_Backup_29.10.25.sql:ro
+      - ./DbBackups/DB_KnowledgeApp_Backup_07.11.25.sql:/docker-entrypoint-initdb.d/DB_KnowledgeApp_Backup_07.11.25.sql:ro
 
 volumes:
   db_data:
