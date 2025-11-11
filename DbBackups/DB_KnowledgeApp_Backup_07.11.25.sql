@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS `knowledge_test_db`.`reports` (
   `teacher_id` INT NULL DEFAULT NULL,
   `file_path` VARCHAR(255) NULL DEFAULT NULL,
   `is_correct` TINYINT(1) NULL DEFAULT NULL,
-  `result_of_attestation` VARCHAR(255) NULL DEFAULT NULL,
+  `result_of_attestation` TEXT NULL DEFAULT NULL,
   `done_in_paper_form` TINYINT(1) NULL DEFAULT NULL,
   `done_in_electronic_form` TINYINT(1) NULL DEFAULT NULL,
   `all_done` TINYINT(1) NULL DEFAULT NULL,
