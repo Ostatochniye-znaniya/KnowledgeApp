@@ -36,6 +36,10 @@ builder.Services.AddScoped<StudyGroupRepository>();
 builder.Services.AddScoped<StudyProgramRepository>();
 builder.Services.AddScoped<StudyGroupService>();
 builder.Services.AddScoped<StudyProgramService>();
+builder.Services.AddScoped<EmployeeRightsRequestRepository>();
+builder.Services.AddScoped<EmployeeRightsRequestService>();
+builder.Services.AddScoped<RecommendationHistoryRepository>();
+builder.Services.AddScoped<RecommendationHistoryService>();
 
 var app = builder.Build();
 
