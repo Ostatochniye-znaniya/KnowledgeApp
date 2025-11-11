@@ -6,7 +6,8 @@
         public DateTime RecommendedAt { get; set; }
         public string? RecommendedBy { get; set; } = string.Empty;
         public int SemesterId { get; set; }
-        public string? SemesterName { get; set; } = string.Empty;
+        public int? SemesterYear { get; set; }
+        public int? SemesterPart { get; set; }
         public int StudyGroupId { get; set; }
         public string? StudyGroupName { get; set; } = string.Empty;
     }

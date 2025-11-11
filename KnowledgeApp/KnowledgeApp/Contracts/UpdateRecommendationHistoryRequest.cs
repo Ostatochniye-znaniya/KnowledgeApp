@@ -8,7 +8,7 @@ namespace KnowledgeApp.API.Contracts
         public DateTime RecommendedAt { get; set; }
 
         [Required]
-        public string RecommendedBy { get; set; } = string.Empty;
+        public int RecommendedById { get; set; }
 
         [Required]
         public int SemesterId { get; set; }

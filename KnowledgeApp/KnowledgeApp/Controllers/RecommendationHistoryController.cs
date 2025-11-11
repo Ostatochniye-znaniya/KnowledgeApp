@@ -30,7 +30,8 @@ namespace KnowledgeApp.API.Controllers
                 RecommendedAt = r.RecommendedAt,
                 RecommendedBy = r.RecommendedBy,
                 SemesterId = r.SemesterId,
-                SemesterName = r.SemesterName,
+                SemesterPart = r.SemesterPart,
+                SemesterYear = r.SemesterYear,
                 StudyGroupId = r.StudyGroupId,
                 StudyGroupName = r.StudyGroupName
             });
@@ -51,7 +52,8 @@ namespace KnowledgeApp.API.Controllers
                     RecommendedAt = recommendation.RecommendedAt,
                     RecommendedBy = recommendation.RecommendedBy,
                     SemesterId = recommendation.SemesterId,
-                    SemesterName = recommendation.SemesterName,
+                    SemesterPart = recommendation.SemesterPart,
+                    SemesterYear = recommendation.SemesterYear,
                     StudyGroupId = recommendation.StudyGroupId,
                     StudyGroupName = recommendation.StudyGroupName
                 };
@@ -90,7 +92,8 @@ namespace KnowledgeApp.API.Controllers
                 RecommendedAt = createdRecommendation.RecommendedAt,
                 RecommendedBy = createdRecommendation.RecommendedBy,
                 SemesterId = createdRecommendation.SemesterId,
-                SemesterName = createdRecommendation.SemesterName,
+                SemesterPart = createdRecommendation.SemesterPart,
+                SemesterYear = createdRecommendation.SemesterYear,
                 StudyGroupId = createdRecommendation.StudyGroupId,
                 StudyGroupName = createdRecommendation.StudyGroupName
             };
@@ -109,7 +112,7 @@ namespace KnowledgeApp.API.Controllers
                 {
                     Id = id,
                     RecommendedAt = request.RecommendedAt,
-                    RecommendedBy = request.RecommendedBy,
+                    RecommendedById = request.RecommendedById,
                     SemesterId = request.SemesterId,
                     StudyGroupId = request.StudyGroupId
                 };

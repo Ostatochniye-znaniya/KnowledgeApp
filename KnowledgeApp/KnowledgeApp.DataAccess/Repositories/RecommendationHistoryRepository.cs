@@ -47,7 +47,8 @@ namespace KnowledgeApp.DataAccess.Repositories
                 RecommendedAt = res.RecommendedAt,
                 RecommendedBy = res.User?.Name,
                 SemesterId = res.SemesterId,
-                SemesterName = res.Semester?.SemesterName,
+                SemesterPart = res.Semester?.SemesterPart,
+                SemesterYear = res.Semester?.SemesterYear,
                 StudyGroupId = res.StudyGroupId,
                 StudyGroupName = res.StudyGroup?.GroupNumber
             };
@@ -63,6 +64,7 @@ namespace KnowledgeApp.DataAccess.Repositories
             existing.RecommendedAt = model.RecommendedAt;
             existing.SemesterId = model.SemesterId;
             existing.StudyGroupId = model.StudyGroupId;
+            existing.UserId = model.RecommendedById; 
 
             await _context.SaveChangesAsync();
         }
@@ -104,7 +106,8 @@ namespace KnowledgeApp.DataAccess.Repositories
                 RecommendedAt = res.RecommendedAt,
                 RecommendedBy = res.User?.Name,
                 SemesterId = res.SemesterId,
-                SemesterName = res.Semester?.SemesterName,
+                SemesterPart = res.Semester?.SemesterPart,
+                SemesterYear = res.Semester?.SemesterYear,
                 StudyGroupId = res.StudyGroupId,
                 StudyGroupName = res.StudyGroup?.GroupNumber
             }).ToList();

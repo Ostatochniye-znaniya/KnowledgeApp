@@ -14,7 +14,8 @@ namespace KnowledgeApp.Core.Models
         public int? RecommendedById { get; set; }
         public int SemesterId { get; set; }
         public int StudyGroupId { get; set; }
-        public string? SemesterName { get; set; }
+        public int? SemesterYear { get; set; }
+        public int? SemesterPart { get; set; }
         public string? StudyGroupName { get; set; }
     }
 

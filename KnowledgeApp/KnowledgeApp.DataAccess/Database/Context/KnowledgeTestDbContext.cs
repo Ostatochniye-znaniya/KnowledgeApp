@@ -234,7 +234,7 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.ToTable("recommendation_history");
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
 
             entity.Property(e => e.UserId)
                 .HasMaxLength(255)
@@ -258,9 +258,10 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.ToTable("semesters");
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.SemesterName)
-                .HasMaxLength(255)
-                .HasColumnName("semester_name");
+            entity.Property(e => e.SemesterYear)
+                .HasColumnName("semester_year");
+            entity.Property(e => e.SemesterPart)
+                .HasColumnName("semester_part");
         });
 
         modelBuilder.Entity<Status>(entity =>

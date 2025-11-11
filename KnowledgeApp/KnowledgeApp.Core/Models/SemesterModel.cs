@@ -2,17 +2,20 @@ namespace KnowledgeApp.Core.Models;
 
 public class SemesterModel
 {
-    public SemesterModel(string semesterName)
+    public SemesterModel(int semesterYear, int semesterPart)
     {
-        SemesterName = semesterName;
+        SemesterPart = semesterPart;
+        SemesterYear = semesterYear;
     }
-    public SemesterModel(int id, string semesterName)
+    public SemesterModel(int id, int semesterYear, int semesterPart)
     {
         Id = id;
-        SemesterName = semesterName;
+        SemesterPart = semesterPart;
+        SemesterYear = semesterYear;
     }
 
     public int Id { get; set; }
 
-    public string SemesterName { get; set; } = null!;
+    public int SemesterYear { get; set; }
+    public int SemesterPart { get; set; }
 }

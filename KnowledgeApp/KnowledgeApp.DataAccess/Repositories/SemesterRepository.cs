@@ -20,13 +20,14 @@ namespace KnowledgeApp.DataAccess.Repositories
         {
             var semesterEntity = new Semester
             {
-                SemesterName = semesterModel.SemesterName
+                SemesterPart = semesterModel.SemesterPart,
+                SemesterYear = semesterModel.SemesterYear,
             };
 
             await _context.Semesters.AddAsync(semesterEntity);
             await _context.SaveChangesAsync();
 
-            SemesterModel createdSemester = new SemesterModel(semesterEntity.Id, semesterEntity.SemesterName);
+            SemesterModel createdSemester = new SemesterModel(semesterEntity.Id, semesterEntity.SemesterYear, semesterEntity.SemesterPart);
             return createdSemester;
         }
 
@@ -43,7 +44,9 @@ namespace KnowledgeApp.DataAccess.Repositories
                 {
                     var semesterModel = new SemesterModel(
                         semesterEntity.Id,
-                        semesterEntity.SemesterName);
+                        semesterEntity.SemesterPart,
+                        semesterEntity.SemesterYear
+                        );
                     
                     return semesterModel;
                 })
@@ -56,7 +59,7 @@ namespace KnowledgeApp.DataAccess.Repositories
         {
             var semesterEntity = await _context.Semesters.SingleOrDefaultAsync(s => s.Id == semesterId);
             if (semesterEntity == null) throw new Exception("Semester с таким id не существует");
-            SemesterModel semester = new SemesterModel(semesterEntity.Id, semesterEntity.SemesterName);
+            SemesterModel semester = new SemesterModel(semesterEntity.Id, semesterEntity.SemesterYear, semesterEntity.SemesterPart);
             return semester;
         }
 
@@ -65,9 +68,10 @@ namespace KnowledgeApp.DataAccess.Repositories
             var semesterEntity = await _context.Semesters.SingleOrDefaultAsync(s => s.Id == semesterModel.Id);
             if (semesterEntity == null) throw new Exception("Semester с таким id не существует");
 
-            semesterEntity.SemesterName = semesterModel.SemesterName;
+            semesterEntity.SemesterPart = semesterModel.SemesterPart;
+            semesterEntity.SemesterYear = semesterModel.SemesterYear;
             _context.SaveChanges();
-            var semester = new SemesterModel(semesterEntity.Id, semesterEntity.SemesterName);
+            var semester = new SemesterModel(semesterEntity.Id, semesterEntity.SemesterYear, semesterEntity.SemesterPart);
             return semester;
         }
 
