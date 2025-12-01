@@ -39,5 +39,9 @@ namespace KnowledgeApp.Application.Services
         {
             await _recommendationHistoryRepository.DeleteRecommendationAsync(recommendationId);
         }
+        public async Task UpdateIsChosenFlag(int recId, bool isChosen)
+        {
+            await _recommendationHistoryRepository.UpdateIsChosenGroup(recId, isChosen);
+        }
     }
 }

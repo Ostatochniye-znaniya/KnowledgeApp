@@ -249,6 +249,9 @@ public partial class KnowledgeTestDbContext : DbContext
 
             entity.Property(e => e.StudyGroupId)
             .HasColumnName("study_group_id");
+
+            entity.Property(e => e.IsChosenForTesting)
+            .HasColumnName("is_chosen");
         });
         
         modelBuilder.Entity<Semester>(entity =>

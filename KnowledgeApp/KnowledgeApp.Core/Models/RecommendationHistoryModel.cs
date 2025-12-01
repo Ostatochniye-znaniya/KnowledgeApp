@@ -16,6 +16,7 @@ namespace KnowledgeApp.Core.Models
         public int StudyGroupId { get; set; }
         public int? SemesterYear { get; set; }
         public int? SemesterPart { get; set; }
+        public bool? IsChosenForTesting { get; set; } = false;
         public string? StudyGroupName { get; set; }
     }
 

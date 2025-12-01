@@ -10,5 +10,7 @@
         public int? SemesterPart { get; set; }
         public int StudyGroupId { get; set; }
         public string? StudyGroupName { get; set; } = string.Empty;
+        public bool? IsChosenForTesting { get; set; }
+
     }
 }

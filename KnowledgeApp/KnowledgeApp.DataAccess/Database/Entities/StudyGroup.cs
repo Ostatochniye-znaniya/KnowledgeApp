@@ -1,4 +1,5 @@
-﻿using System;
+﻿using KnowledgeApp.DataAccess.Database.Entities;
+using System;
 using System.Collections.Generic;
 
 namespace KnowledgeApp.DataAccess.Entities;
@@ -16,4 +17,5 @@ public partial class StudyGroup
     public virtual StudyProgram? StudyProgram { get; set; }
 
     public virtual ICollection<Testing> Testings { get; set; } = new List<Testing>();
+    public virtual ICollection<RecommendationHistory> RecommendationHistory { get; set; } = new List<RecommendationHistory>();
 }

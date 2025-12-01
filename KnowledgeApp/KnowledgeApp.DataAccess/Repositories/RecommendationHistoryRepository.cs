@@ -50,7 +50,8 @@ namespace KnowledgeApp.DataAccess.Repositories
                 SemesterPart = res.Semester?.SemesterPart,
                 SemesterYear = res.Semester?.SemesterYear,
                 StudyGroupId = res.StudyGroupId,
-                StudyGroupName = res.StudyGroup?.GroupNumber
+                StudyGroupName = res.StudyGroup?.GroupNumber,
+                IsChosenForTesting = res.IsChosenForTesting
             };
         }
         public async Task UpdateRecommendationAsync(RecommendationHistoryModel model)
@@ -64,8 +65,19 @@ namespace KnowledgeApp.DataAccess.Repositories
             existing.RecommendedAt = model.RecommendedAt;
             existing.SemesterId = model.SemesterId;
             existing.StudyGroupId = model.StudyGroupId;
-            existing.UserId = model.RecommendedById; 
+            existing.UserId = model.RecommendedById;
+            existing.IsChosenForTesting = model.IsChosenForTesting;
 
+            await _context.SaveChangesAsync();
+        }
+        public async Task UpdateIsChosenGroup(int recId, bool isChosen)
+        {
+            var existing = await _context.RecommendationHistory
+                .FirstOrDefaultAsync(r => r.Id == recId);
+
+            if (existing == null)
+                throw new Exception("Не найдена запись рекоммендации с таким Id");
+            existing.IsChosenForTesting = isChosen;
             await _context.SaveChangesAsync();
         }
 
@@ -109,7 +121,9 @@ namespace KnowledgeApp.DataAccess.Repositories
                 SemesterPart = res.Semester?.SemesterPart,
                 SemesterYear = res.Semester?.SemesterYear,
                 StudyGroupId = res.StudyGroupId,
-                StudyGroupName = res.StudyGroup?.GroupNumber
+                StudyGroupName = res.StudyGroup?.GroupNumber,
+                IsChosenForTesting = res.IsChosenForTesting
+               
             }).ToList();
         }
     }

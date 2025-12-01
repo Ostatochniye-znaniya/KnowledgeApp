@@ -15,6 +15,7 @@ namespace KnowledgeApp.DataAccess.Database.Entities
         public int? UserId { get; set; }
         public User? User { get; set; }
         public int SemesterId { get; set; }
+        public bool? IsChosenForTesting { get; set; } = false;
         public Semester? Semester { get; set; }
         public int StudyGroupId { get; set; }
         public StudyGroup? StudyGroup { get; set; }

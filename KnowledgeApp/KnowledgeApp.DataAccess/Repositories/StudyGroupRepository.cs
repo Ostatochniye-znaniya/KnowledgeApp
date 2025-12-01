@@ -18,6 +18,10 @@ namespace KnowledgeApp.DataAccess.Repositories
         {
             return await _context.Set<StudyGroup>().ToListAsync();
         }
+        public async Task<IEnumerable<StudyGroup>> GetAllChosenAsync(int semId)
+        {
+            return await _context.Set<StudyGroup>().Include(s=>s.RecommendationHistory).Where(s=>s.RecommendationHistory.Any(s=>s.SemesterId == semId && s.IsChosenForTesting == true)).ToListAsync();
+        }
 
         public async Task<StudyGroup?> GetByIdAsync(int id)
         {

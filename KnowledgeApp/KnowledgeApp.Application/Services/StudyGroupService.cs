@@ -17,6 +17,10 @@ namespace KnowledgeApp.Application.Services
         {
             return await _repository.GetAllAsync();
         }
+        public async Task<IEnumerable<StudyGroup>> GetAllChosenGroupsAsync(int semId)
+        {
+            return await _repository.GetAllChosenAsync(semId);
+        }
 
         public async Task<StudyGroup?> GetGroupByIdAsync(int id)
         {

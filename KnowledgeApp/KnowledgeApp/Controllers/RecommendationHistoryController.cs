@@ -125,6 +125,20 @@ namespace KnowledgeApp.API.Controllers
                 return NotFound(ex.Message);
             }
         }
+        [HttpPut]
+        public async Task<ActionResult> UpdateChosenFLag(
+            [FromBody] UpdateChosenFlagInRecHistory request)
+        {
+            try
+            {
+                await _recommendationHistoryService.UpdateIsChosenFlag(request.recId, request.isChosen);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
 
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(int id)
