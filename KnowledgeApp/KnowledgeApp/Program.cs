@@ -40,6 +40,7 @@ builder.Services.AddScoped<EmployeeRightsRequestRepository>();
 builder.Services.AddScoped<EmployeeRightsRequestService>();
 builder.Services.AddScoped<RecommendationHistoryRepository>();
 builder.Services.AddScoped<RecommendationHistoryService>();
+builder.Services.AddScoped<TestingOrderService>();
 
 var app = builder.Build();
 

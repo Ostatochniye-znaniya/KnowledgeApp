@@ -50,6 +50,7 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<EmployeeRightsRequest> EmployeeRightsRequests { get; set; }
     public virtual DbSet<RecommendationHistory> RecommendationHistory { get; set; }
+    public virtual DbSet<TestingOrder> TestingOrders { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseMySql("server=localhost;database=knowledge_test_db;user=root;password=admin", Microsoft.EntityFrameworkCore.ServerVersion.Parse("9.1.0-mysql"));
 
@@ -169,6 +170,41 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasForeignKey(d => d.TeacherId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("reports_ibfk_2");
+        });
+
+        modelBuilder.Entity<TestingOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("testing_orders");
+
+            entity.HasIndex(e => e.SemesterId, "semester_id");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.OrderDate)
+                .HasColumnName("order_date");
+            entity.Property(e => e.Number)
+                .HasColumnName("number");
+            entity.Property(e => e.EducationControlEmployeeName)
+                .HasMaxLength(255)
+                .HasColumnName("education_control_employee_name");
+            entity.Property(e => e.EducationMethodEmployeeName)
+                .HasMaxLength(255)
+                .HasColumnName("education_method_employee_name");
+            entity.Property(e => e.TestingSummaryReportUpTo)
+                .HasColumnName("testing_summary_report_up_to");
+            entity.Property(e => e.QuestionnaireSummaryReportUpTo)
+                .HasColumnName("questionnaire_summary_report_up_to");
+            entity.Property(e => e.PaperReportUpTo)
+                .HasColumnName("paper_report_up_to");
+            entity.Property(e => e.DigitalReportUpTo)
+                .HasColumnName("digital_report_up_to");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+
+            entity.HasOne(d => d.Semester).WithMany(p => p.TestingOrders)
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("testing_orders_ibfk_1");
         });
 
         modelBuilder.Entity<Role>(entity =>
