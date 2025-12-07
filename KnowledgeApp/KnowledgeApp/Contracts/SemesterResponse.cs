@@ -3,6 +3,7 @@ namespace KnowledgeApp.API.Contracts
     public class SemesterResponse
     {
         public int Id { get; set; }
-        public string SemesterName { get; set; } = null!;
+        public int SemesterYear { get; set; }
+        public int SemesterPart { get; set; }
     }
 }
