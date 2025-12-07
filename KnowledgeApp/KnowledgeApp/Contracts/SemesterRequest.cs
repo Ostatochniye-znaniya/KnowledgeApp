@@ -2,6 +2,7 @@ namespace KnowledgeApp.API.Contracts
 {
     public class SemesterRequest
     {
-       public string SemesterName { get; set; } = null!;
+        public int SemesterYear { get; set; }
+        public int SemesterPart { get; set; }
     }
 }

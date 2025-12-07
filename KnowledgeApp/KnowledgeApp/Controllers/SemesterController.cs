@@ -49,7 +49,7 @@ namespace KnowledgeApp.API.Controllers
         {
             try
             {
-                var newSemesterModel = new SemesterModel(semesterRequest.SemesterName);
+                var newSemesterModel = new SemesterModel(semesterRequest.SemesterYear, semesterRequest.SemesterPart);
                 SemesterModel newSemesterId = await _semesterService.CreateSemester(newSemesterModel);
                 return Results.Json(newSemesterId);
             }
@@ -64,7 +64,7 @@ namespace KnowledgeApp.API.Controllers
         {
             try
             {
-                var updatedSemesterModel = new SemesterModel(semesterId, semesterRequest.SemesterName);
+                var updatedSemesterModel = new SemesterModel(semesterId, semesterRequest.SemesterYear, semesterRequest.SemesterPart);
                 var updatedSemester = await _semesterService.UpdateSemester(updatedSemesterModel);
                 return Results.Json(updatedSemester);
             }

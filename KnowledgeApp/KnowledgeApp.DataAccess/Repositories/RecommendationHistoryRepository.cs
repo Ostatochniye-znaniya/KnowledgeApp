@@ -47,7 +47,6 @@ namespace KnowledgeApp.DataAccess.Repositories
                 RecommendedAt = res.RecommendedAt,
                 RecommendedBy = res.User?.Name,
                 SemesterId = res.SemesterId,
-                SemesterName = res.Semester?.SemesterName,
                 StudyGroupId = res.StudyGroupId,
                 StudyGroupName = res.StudyGroup?.GroupNumber
             };
@@ -104,7 +103,6 @@ namespace KnowledgeApp.DataAccess.Repositories
                 RecommendedAt = res.RecommendedAt,
                 RecommendedBy = res.User?.Name,
                 SemesterId = res.SemesterId,
-                SemesterName = res.Semester?.SemesterName,
                 StudyGroupId = res.StudyGroupId,
                 StudyGroupName = res.StudyGroup?.GroupNumber
             }).ToList();
