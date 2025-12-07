@@ -42,5 +42,10 @@ namespace KnowledgeApp.Application.Services
         {
             return await _testingRepository.GetByGroupId(groupId);
         }
+
+        public async Task<List<TestingModel>> GetByDepartmentId(int departmentId)
+        {
+            return await _testingRepository.GetByDepartmentId(departmentId);
+        }
     }
 }

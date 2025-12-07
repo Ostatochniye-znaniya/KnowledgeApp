@@ -3,7 +3,7 @@ namespace KnowledgeApp.API.Contracts;
 public class TestingRequest
 {
     public int? GroupId { get; set; }
-    public int? DisciplineId { get; set; }
+    public int DisciplineId { get; set; }
     public DateTime? ScheduledDate { get; set; }
     public TimeSpan? ScheduledTime { get; set; }
     public string? Status { get; set; }

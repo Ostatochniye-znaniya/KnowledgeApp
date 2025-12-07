@@ -123,5 +123,19 @@ namespace KnowledgeApp.API.Controllers
                 return Results.Problem(e.Message);
             }
         }
+
+        [HttpGet("department/{departmentId}")]
+        public async Task<IResult> GetTestingsByDepartment(int departmentId)
+        {
+            try
+            {
+                List<TestingModel> testings = await _testingService.GetByDepartmentId(departmentId);
+                return Results.Json(testings);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
     }
 }

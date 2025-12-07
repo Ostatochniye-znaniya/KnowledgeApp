@@ -4,7 +4,7 @@ public class TestingModel
 {
     public TestingModel(
         int? groupId,
-        int? disciplineId,
+        int disciplineId,
         DateTime? scheduledDate,
         TimeSpan? scheduledTime,
         string? status,
@@ -25,7 +25,7 @@ public class TestingModel
     public TestingModel(
         int id,
         int? groupId,
-        int? disciplineId,
+        int disciplineId,
         DateTime? scheduledDate,
         TimeSpan? scheduledTime,
         string? status,
@@ -46,7 +46,7 @@ public class TestingModel
 
     public int Id { get; set; }
     public int? GroupId { get; set; }
-    public int? DisciplineId { get; set; }
+    public int DisciplineId { get; set; }
     public DateTime? ScheduledDate { get; set; }
     public TimeSpan? ScheduledTime { get; set; }
     public string? Status { get; set; }
