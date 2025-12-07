@@ -94,6 +94,24 @@ namespace KnowledgeApp.DataAccess.Repositories
 
             return entities.Select(e => ToModel(e)).ToList();
         }
+        public async Task<List<TestingModel>> GetByDepartmentId(int departmentId)
+        {
+            List<int> disciplineIds = await _context.Disciplines
+                .Where(d => d.DepartmentId == departmentId)
+                .Select(d => d.Id)
+                .ToListAsync();
+
+            if (!disciplineIds.Any())
+            {
+                return new List<TestingModel>();
+            }
+
+            var testings = await _context.Testings
+                .Where(t => disciplineIds.Contains(t.DisciplineId))
+                .ToListAsync();
+
+            return testings.Select(e => ToModel(e)).ToList();
+        }
 
         private void ValidateModel(TestingModel model)
         {
