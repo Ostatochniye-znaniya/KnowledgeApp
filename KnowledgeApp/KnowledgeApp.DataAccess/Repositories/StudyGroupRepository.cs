@@ -37,8 +37,7 @@ namespace KnowledgeApp.DataAccess.Repositories
         public async Task<StudyGroupModel> CreateStudyGroup(StudyGroupModel studyGroupModel)
         {
             var groupNumber = await _context.StudyGroups.SingleOrDefaultAsync(f => f.GroupNumber == studyGroupModel.GroupNumber);
-            var studyProgramId = await _context.StudyGroups.SingleOrDefaultAsync(f => f.StudyProgramId == studyGroupModel.StudyProgramId);
-            if (groupNumber != null || studyProgramId != null) throw new Exception("Учебная группа с такими groupNumber или studyProgramId уже существует");
+            if (groupNumber != null) throw new Exception("Учебная группа с такими groupNumber уже существует");
             var studyGroupEntity = new StudyGroup
             {
                 Id = studyGroupModel.Id,

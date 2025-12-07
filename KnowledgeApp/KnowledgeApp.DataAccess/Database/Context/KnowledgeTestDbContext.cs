@@ -297,10 +297,10 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.ToTable("semesters");
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.SemesterYear)
-                .HasColumnName("semester_year");
-            entity.Property(e => e.SemesterPart)
-                .HasColumnName("semester_part");
+
+            entity.Property(e => e.SemesterYear).HasColumnName("semester_year");
+            entity.Property(e => e.SemesterPart).HasColumnName("semester_part");
+
         });
 
         modelBuilder.Entity<Status>(entity =>

@@ -20,8 +20,8 @@ namespace KnowledgeApp.DataAccess.Repositories
         {
             var semesterEntity = new Semester
             {
-                SemesterPart = semesterModel.SemesterPart,
                 SemesterYear = semesterModel.SemesterYear,
+                SemesterPart = semesterModel.SemesterPart
             };
 
             await _context.Semesters.AddAsync(semesterEntity);
@@ -44,9 +44,8 @@ namespace KnowledgeApp.DataAccess.Repositories
                 {
                     var semesterModel = new SemesterModel(
                         semesterEntity.Id,
-                        semesterEntity.SemesterPart,
-                        semesterEntity.SemesterYear
-                        );
+                        semesterEntity.SemesterYear,
+                        semesterEntity.SemesterPart);
                     
                     return semesterModel;
                 })
@@ -68,8 +67,8 @@ namespace KnowledgeApp.DataAccess.Repositories
             var semesterEntity = await _context.Semesters.SingleOrDefaultAsync(s => s.Id == semesterModel.Id);
             if (semesterEntity == null) throw new Exception("Semester с таким id не существует");
 
-            semesterEntity.SemesterPart = semesterModel.SemesterPart;
             semesterEntity.SemesterYear = semesterModel.SemesterYear;
+            semesterEntity.SemesterPart = semesterModel.SemesterPart;
             _context.SaveChanges();
             var semester = new SemesterModel(semesterEntity.Id, semesterEntity.SemesterYear, semesterEntity.SemesterPart);
             return semester;

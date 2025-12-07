@@ -1,4 +1,4 @@
-﻿using KnowledgeApp.Core.Models;
+using KnowledgeApp.Core.Models;
 using KnowledgeApp.DataAccess.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
