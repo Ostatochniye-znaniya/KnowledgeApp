@@ -221,6 +221,7 @@ public partial class KnowledgeTestDbContext : DbContext
 
         modelBuilder.Entity<EmployeeRightsRequest>(entity =>
         {
+            entity.ToTable("employee_rights_request");
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
             entity.Property(e => e.Id).HasColumnName("id");
