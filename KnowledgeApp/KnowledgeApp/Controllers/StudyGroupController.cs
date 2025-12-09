@@ -32,9 +32,30 @@ namespace KnowledgeApp.API.Controllers
             return Ok(response);
         }
         [HttpGet]
+        public async Task<ActionResult<IEnumerable<StudyGroupFilteredRecommResponse>>> GetAllFiltered([FromQuery]GetAllStudyGroupsFilteredRequest req)
+        {
+            var groups = await _studyGroupService.GetGroupsWithTimelineAsync(req.FacultyId,req.StudyProgrammId);
+            return Ok(groups);
+        }
+        [HttpGet]
         public async Task<ActionResult<IEnumerable<StudyGroupResponse>>> GetAllChosen([FromQuery] int semId)
         {
             var groups = await _studyGroupService.GetAllChosenGroupsAsync(semId);
+            var response = groups.Select(g => new StudyGroupResponse
+            {
+                Id = g.Id,
+                GroupNumber = g.GroupNumber,
+                StudyProgramId = g.StudyProgramId,
+                StudentIds = g.Students.Select(s => s.Id).ToList(),
+                TestingIds = g.Testings.Select(t => t.Id).ToList()
+            });
+
+            return Ok(response);
+        }
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<StudyGroupResponse>>> GetAllRecommended([FromQuery] GetAllRecStudyGroupsFilteredRequest req)
+        {
+            var groups = await _studyGroupService.GetAllRecommendedAsync(req.SemseterId,req.FacultyId,req.StudyProgrammId);
             var response = groups.Select(g => new StudyGroupResponse
             {
                 Id = g.Id,

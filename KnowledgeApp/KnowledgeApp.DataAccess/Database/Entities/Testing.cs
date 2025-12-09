@@ -24,6 +24,7 @@ public partial class Testing
     public int? ReportId { get; set; }
 
     public virtual Discipline? Discipline { get; set; }
+    public virtual Semester? Semester { get; set; }
 
     public virtual StudyGroup? Group { get; set; }
 

@@ -73,8 +73,13 @@ builder.Services.AddScoped<RecommendationHistoryRepository>();
 builder.Services.AddScoped<RecommendationHistoryService>();
 builder.Services.AddScoped<TestingOrderService>();
 
-var app = builder.Build();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(p=>p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
 
+var app = builder.Build();
+app.UseCors();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

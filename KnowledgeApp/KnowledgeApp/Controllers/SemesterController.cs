@@ -43,6 +43,32 @@ namespace KnowledgeApp.API.Controllers
                 return Results.Problem(e.Message);
             }
         }
+        [HttpGet]
+        public async Task<IResult> GetCurrentSemester()
+        {
+            try
+            {
+                SemesterModel semester = await _semesterService.Get—urrentSemester();
+                return Results.Json(semester);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
+        [HttpGet]
+        public async Task<IResult> GetSemesterTimeline([FromQuery]GetSemesterTimelineRequest request)
+        {
+            try
+            {
+                List<SemesterModel> semesters = await _semesterService.GetSemestersTimeline(request.FromYear,request.FromPart,request.ToYear,request.ToPart);
+                return Results.Json(semesters);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
 
         [HttpPost]
         public async Task<IResult> CreateSemester(SemesterRequest semesterRequest)

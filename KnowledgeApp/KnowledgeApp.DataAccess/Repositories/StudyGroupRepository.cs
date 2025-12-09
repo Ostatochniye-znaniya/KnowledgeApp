@@ -18,9 +18,36 @@ namespace KnowledgeApp.DataAccess.Repositories
         {
             return await _context.Set<StudyGroup>().ToListAsync();
         }
+        public async Task<IEnumerable<StudyGroup>> GetAllFilteredAsync(int? facultyId, int? studyProgrammId)
+        {
+            var query = _context.StudyGroups.AsQueryable();
+            if(facultyId != null)
+            {
+                query= query.Include(g => g.StudyProgram).ThenInclude(g => g.Department).Where(u => u.StudyProgram.Department.FacultyId == facultyId);
+            }
+            if(studyProgrammId != null)
+            {
+                query=query.Where(g=>g.StudyProgramId == studyProgrammId);
+            }
+            return await query.Include(g => g.RecommendationHistory).ThenInclude(g=>g.Semester).ToListAsync();
+        }
+
         public async Task<IEnumerable<StudyGroup>> GetAllChosenAsync(int semId)
         {
             return await _context.Set<StudyGroup>().Include(s=>s.RecommendationHistory).Where(s=>s.RecommendationHistory.Any(s=>s.SemesterId == semId && s.IsChosenForTesting == true)).ToListAsync();
+        }
+        public async Task<IEnumerable<StudyGroup>> GetAllRecommendedAsync(int semId, int? facultyId, int? studyProgrammId)
+        {
+            var query = _context.StudyGroups.AsQueryable();
+            if (facultyId != null)
+            {
+                query = query.Include(g => g.StudyProgram).ThenInclude(g => g.Department).Where(u => u.StudyProgram.Department.FacultyId == facultyId);
+            }
+            if (studyProgrammId != null)
+            {
+                query = query.Where(g => g.StudyProgramId == studyProgrammId);
+            }
+            return await query.Include(g => g.RecommendationHistory).ThenInclude(g => g.Semester).Where(s => s.RecommendationHistory.Any(s => s.SemesterId == semId)).ToListAsync();
         }
 
         public async Task<StudyGroup?> GetByIdAsync(int id)

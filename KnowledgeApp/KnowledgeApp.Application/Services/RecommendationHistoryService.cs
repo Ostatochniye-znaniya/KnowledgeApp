@@ -29,6 +29,10 @@ namespace KnowledgeApp.Application.Services
         {
             await _recommendationHistoryRepository.AddRecommendationAsync(recommendationModel);
         }
+        public async Task<List<RecommendationHistoryModel>> AddOrChangeRecommendationAsync(List<RecommendationHistoryModel> recommendationModels)
+        {
+            return await _recommendationHistoryRepository.AddOrChangeRecommendationAsync(recommendationModels);
+        }
 
         public async Task UpdateRecommendationAsync(RecommendationHistoryModel recommendationModel)
         {
@@ -38,6 +42,10 @@ namespace KnowledgeApp.Application.Services
         public async Task DeleteRecommendationAsync(int recommendationId)
         {
             await _recommendationHistoryRepository.DeleteRecommendationAsync(recommendationId);
+        }
+        public async Task DeleteRecommendationBulkAsync(List<int> recommendationId)
+        {
+            await _recommendationHistoryRepository.DeleteRecommendationBulkAsync(recommendationId);
         }
         public async Task UpdateIsChosenFlag(int recId, bool isChosen)
         {

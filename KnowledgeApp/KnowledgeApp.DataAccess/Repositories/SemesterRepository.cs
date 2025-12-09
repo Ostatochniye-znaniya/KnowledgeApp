@@ -30,7 +30,24 @@ namespace KnowledgeApp.DataAccess.Repositories
             SemesterModel createdSemester = new SemesterModel(semesterEntity.Id, semesterEntity.SemesterYear, semesterEntity.SemesterPart);
             return createdSemester;
         }
+        public async Task<SemesterModel> GetCurrentSemesterAsync()
+        {
+            var now = DateTime.Now;
+            int year = now.Month == 1 ? now.Year - 1 : now.Year; 
+            int part = (now.Month >= 9 || now.Month <= 1) ? 2 : 1; 
 
+            var entity = await _context.Semesters
+                .FirstOrDefaultAsync(s => s.SemesterYear == year && s.SemesterPart == part);
+
+            if (entity == null)
+            {
+                entity = new Semester { SemesterYear = year, SemesterPart = part };
+                _context.Semesters.Add(entity);
+                await _context.SaveChangesAsync();
+            }
+
+            return new SemesterModel(entity.Id, entity.SemesterYear, entity.SemesterPart);
+        }
         public async Task<List<SemesterModel>> GetAllSemesters()
         {
             //достаем данные из бд
@@ -51,6 +68,26 @@ namespace KnowledgeApp.DataAccess.Repositories
                 })
                 .ToList();
             
+            return semesters;
+        }
+        public async Task<List<SemesterModel>> GetSemestersTimeline(int fromYear,int fromPart,int toYear,int toPart)
+        {
+            var semesterEntities = await _context.Semesters
+                .AsNoTracking()
+                .Where(s=> (s.SemesterYear>fromYear && s.SemesterYear<toYear) || (s.SemesterYear==fromYear && s.SemesterPart>=fromPart) || (s.SemesterYear == toYear && s.SemesterPart<=toPart)).ToListAsync();
+
+            var semesters = semesterEntities
+                .Select(semesterEntity =>
+                {
+                    var semesterModel = new SemesterModel(
+                        semesterEntity.Id,
+                        semesterEntity.SemesterYear,
+                        semesterEntity.SemesterPart);
+
+                    return semesterModel;
+                })
+                .ToList();
+
             return semesters;
         }
 

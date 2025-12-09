@@ -72,7 +72,7 @@ namespace KnowledgeApp.API.Controllers
         {
             var model = new RecommendationHistoryModel
             {
-                RecommendedAt = request.RecommendedAt,
+                RecommendedAt = DateTime.UtcNow,
                 RecommendedById = request.RecommendedById,
                 SemesterId = request.SemesterId,
                 StudyGroupId = request.StudyGroupId
@@ -99,6 +99,29 @@ namespace KnowledgeApp.API.Controllers
             };
 
             return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
+        }
+        [HttpPost]
+        public async Task<ActionResult<RecommendationHistoryResponse>> CreateOrChangeBulk(
+            [FromBody] List<CreateOrChangeRecommendationHistoryRequest> request)
+        {
+            var models = request.Select(r =>
+            {
+                var md = new RecommendationHistoryModel
+                {
+                    RecommendedAt = DateTime.UtcNow,
+                    RecommendedById = r.RecommendedById,
+                    SemesterId = r.SemesterId,
+                    StudyGroupId = r.StudyGroupId
+                };
+                if (r.Id != null)
+                {
+                    md.Id = r.Id.Value;
+                }
+                return md;
+            }
+            ).ToList();
+            var resp = await _recommendationHistoryService.AddOrChangeRecommendationAsync(models);
+            return Ok(resp);
         }
 
         [HttpPut("{id}")]
@@ -146,6 +169,19 @@ namespace KnowledgeApp.API.Controllers
             try
             {
                 await _recommendationHistoryService.DeleteRecommendationAsync(id);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+        [HttpDelete]
+        public async Task<ActionResult> DeleteBulk(List<int> ids)
+        {
+            try
+            {
+                await _recommendationHistoryService.DeleteRecommendationBulkAsync(ids);
                 return NoContent();
             }
             catch (Exception ex)

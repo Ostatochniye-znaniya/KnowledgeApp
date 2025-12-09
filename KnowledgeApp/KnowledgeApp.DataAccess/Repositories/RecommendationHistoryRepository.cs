@@ -30,6 +30,65 @@ namespace KnowledgeApp.DataAccess.Repositories
             });
             await _context.SaveChangesAsync();
         }
+        public async Task<List<RecommendationHistoryModel>> AddOrChangeRecommendationAsync(List<RecommendationHistoryModel> models)
+        {
+            var result = new List<RecommendationHistoryModel>();
+
+            foreach (var model in models)
+            {
+                Database.Entities.RecommendationHistory? entity;
+
+                if (model.Id > 0)
+                {
+                    entity = await _context.RecommendationHistory
+                        .FirstOrDefaultAsync(r => r.Id == model.Id);
+
+                    if (entity != null)
+                    {
+                        entity.RecommendedAt = model.RecommendedAt;
+                        entity.UserId = model.RecommendedById;
+                        entity.SemesterId = model.SemesterId;
+                        entity.StudyGroupId = model.StudyGroupId;
+                    }
+                    else
+                    {
+                        entity = new Database.Entities.RecommendationHistory
+                        {
+                            RecommendedAt = model.RecommendedAt,
+                            UserId = model.RecommendedById,
+                            SemesterId = model.SemesterId,
+                            StudyGroupId = model.StudyGroupId
+                        };
+                        await _context.RecommendationHistory.AddAsync(entity);
+                    }
+                }
+                else
+                {
+                    entity = new Database.Entities.RecommendationHistory
+                    {
+                        RecommendedAt = model.RecommendedAt,
+                        UserId = model.RecommendedById,
+                        SemesterId = model.SemesterId,
+                        StudyGroupId = model.StudyGroupId
+                    };
+                    await _context.RecommendationHistory.AddAsync(entity);
+                }
+
+                result.Add(new RecommendationHistoryModel
+                {
+                    Id = entity.Id,
+                    RecommendedAt = entity.RecommendedAt,
+                    RecommendedById = entity.UserId,
+                    SemesterId = entity.SemesterId,
+                    StudyGroupId = entity.StudyGroupId
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+
         public async Task DeleteRecommendationAsync(int recommendationId)
         {
             var res = await _context.RecommendationHistory.FirstOrDefaultAsync(r => r.Id == recommendationId);
@@ -37,6 +96,21 @@ namespace KnowledgeApp.DataAccess.Repositories
             _context.RecommendationHistory.Remove(res);
             await _context.SaveChangesAsync();
         }
+        public async Task DeleteRecommendationBulkAsync(List<int> recommendationIds)
+        {
+            if (recommendationIds == null || recommendationIds.Count == 0)
+                throw new ArgumentException("Список Id пустой");
+            var recommendations = await _context.RecommendationHistory
+                .Where(r => recommendationIds.Contains(r.Id))
+                .ToListAsync();
+
+            if (!recommendations.Any())
+                throw new Exception("Не найдены записи рекоммендаций с указанными Id");
+
+            _context.RecommendationHistory.RemoveRange(recommendations);
+            await _context.SaveChangesAsync();
+        }
+
         public async Task<RecommendationHistoryModel> GetById(int recommendationId)
         {
             var res = await _context.RecommendationHistory.Include(u => u.StudyGroup).Include(u => u.Semester).Include(r=>r.User).FirstOrDefaultAsync(r => r.Id == recommendationId);
