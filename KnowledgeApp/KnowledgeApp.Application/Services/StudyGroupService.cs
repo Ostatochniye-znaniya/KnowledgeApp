@@ -36,6 +36,7 @@ namespace KnowledgeApp.Application.Services
                 {
                     Id = group.Id,
                     GroupNumber = group.GroupNumber,
+                    StudyProgramId = group.StudyProgramId,
                     Testings = GetSemesterRange(recDict, currentYear, currentPart, -1, 3),
                     TestingNow = GetSemesterTesting(recDict, currentYear, currentPart),
                     TestingsPlanned = GetSemesterRange(recDict, currentYear, currentPart, 1, 2)
@@ -82,7 +83,7 @@ namespace KnowledgeApp.Application.Services
 
                 result.Add(GetSemesterTesting(dict, year, part));
             }
-
+            result.Reverse();
             return result;
         }
 

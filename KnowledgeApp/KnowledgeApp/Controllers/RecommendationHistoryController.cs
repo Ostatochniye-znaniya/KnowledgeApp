@@ -33,7 +33,8 @@ namespace KnowledgeApp.API.Controllers
                 SemesterPart = r.SemesterPart,
                 SemesterYear = r.SemesterYear,
                 StudyGroupId = r.StudyGroupId,
-                StudyGroupName = r.StudyGroupName
+                StudyGroupName = r.StudyGroupName,
+                IsChosenForTesting = r.IsChosenForTesting
             });
 
             return Ok(response);
@@ -55,7 +56,8 @@ namespace KnowledgeApp.API.Controllers
                     SemesterPart = recommendation.SemesterPart,
                     SemesterYear = recommendation.SemesterYear,
                     StudyGroupId = recommendation.StudyGroupId,
-                    StudyGroupName = recommendation.StudyGroupName
+                    StudyGroupName = recommendation.StudyGroupName,
+                    IsChosenForTesting = recommendation.IsChosenForTesting
                 };
 
                 return Ok(response);
