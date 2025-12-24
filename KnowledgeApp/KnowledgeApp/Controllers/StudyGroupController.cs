@@ -20,11 +20,17 @@ namespace KnowledgeApp.API.Controllers
         public async Task<ActionResult<IEnumerable<StudyGroupResponse>>> GetAll()
         {
             var groups = await _studyGroupService.GetAllGroupsAsync();
-            var response = groups.Select(g => new StudyGroupResponse
+            var response = groups.Select(g => new StudyGroupWithProgramResponse
             {
                 Id = g.Id,
                 GroupNumber = g.GroupNumber,
-                StudyProgramId = g.StudyProgramId,
+                StudyProgram = g.StudyProgram is null || g.StudyProgramId is null ? null : new StudyProgramResponse()
+                {
+                    Name = g.StudyProgram.Name,
+                    DepartmentId = g.StudyProgram.DepartmentId,
+                    Id = g.StudyProgramId.Value,
+                    CypherOfTheDirection = g.StudyProgram.CypherOfTheDirection
+                },
                 StudentIds = g.Students.Select(s => s.Id).ToList(),
                 TestingIds = g.Testings.Select(t => t.Id).ToList()
             });

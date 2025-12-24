@@ -16,7 +16,7 @@ namespace KnowledgeApp.DataAccess.Repositories
 
         public async Task<IEnumerable<StudyGroup>> GetAllAsync()
         {
-            return await _context.Set<StudyGroup>().ToListAsync();
+            return await _context.Set<StudyGroup>().Include(s=>s.StudyProgram).ToListAsync();
         }
         public async Task<IEnumerable<StudyGroup>> GetAllFilteredAsync(int? facultyId, int? studyProgrammId)
         {
