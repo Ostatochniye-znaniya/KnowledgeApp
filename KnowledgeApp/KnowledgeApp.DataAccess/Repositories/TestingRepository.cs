@@ -96,9 +96,21 @@ namespace KnowledgeApp.DataAccess.Repositories
         }
         public async Task<List<TestingModel>> GetByDepartmentId(int departmentId)
         {
+            List<int> studyProgramIds = await _context.StudyPrograms
+                .Where(sp => sp.DepartmentId == departmentId)
+                .Select(sp => sp.Id)
+                .ToListAsync();
+            List<int> studyGroupIds = await _context.StudyGroups
+                .Where(sg => studyProgramIds.Contains(sg.StudyProgramId))
+                .Select(sg => sg.Id)
+                .ToListAsync();
             List<int> disciplineIds = await _context.Disciplines
                 .Where(d => d.DepartmentId == departmentId)
                 .Select(d => d.Id)
+                .ToListAsync();
+            List<int> reportIds = await _context.Reports
+                .Where(r => r.DisciplineId.HasValue && disciplineIds.Contains(r.DisciplineId.GetValueOrDefault()))
+                .Select(r => r.Id)
                 .ToListAsync();
 
             if (!disciplineIds.Any())
@@ -107,7 +119,7 @@ namespace KnowledgeApp.DataAccess.Repositories
             }
 
             var testings = await _context.Testings
-                .Where(t => disciplineIds.Contains(t.DisciplineId))
+                .Where(t => studyGroupIds.Contains(t.GroupId) || reportIds.Contains(t.ReportId))
                 .ToListAsync();
 
             return testings.Select(e => ToModel(e)).ToList();
@@ -116,7 +128,7 @@ namespace KnowledgeApp.DataAccess.Repositories
         private void ValidateModel(TestingModel model)
         {
             if (model.GroupId == 0 || model.DisciplineId == 0 || model.SemesterId == 0)
-                throw new Exception("Необходимо указать groupId, disciplineId и semesterId");
+                //throw new Exception("Необходимо указать groupId, disciplineId и semesterId");
 
             if (!_context.StudyGroups.Any(g => g.Id == model.GroupId))
                 throw new Exception($"Учебная группа с ID {model.GroupId} не существует");
@@ -127,7 +139,7 @@ namespace KnowledgeApp.DataAccess.Repositories
             if (!_context.Semesters.Any(s => s.Id == model.SemesterId))
                 throw new Exception($"Семестр с ID {model.SemesterId} не существует");
 
-            if (model.ReportId.HasValue && !_context.Reports.Any(r => r.Id == model.ReportId))
+            if (!_context.Reports.Any(r => r.Id == model.ReportId))
                 throw new Exception($"Отчет с ID {model.ReportId} не существует");
         }
 

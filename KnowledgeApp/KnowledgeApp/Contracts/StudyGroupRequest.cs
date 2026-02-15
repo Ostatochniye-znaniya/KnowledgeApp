@@ -3,6 +3,6 @@
     public class StudyGroupRequest
     {
         public string GroupNumber { get; set; } = null!;
-        public int? StudyProgramId { get; set; }
+        public int StudyProgramId { get; set; }
     }
 }

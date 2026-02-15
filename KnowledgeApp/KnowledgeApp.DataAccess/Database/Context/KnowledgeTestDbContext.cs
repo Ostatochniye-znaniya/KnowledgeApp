@@ -162,11 +162,13 @@ public partial class KnowledgeTestDbContext : DbContext
 
             entity.HasOne(d => d.Discipline).WithMany(p => p.Reports)
                 .HasForeignKey(d => d.DisciplineId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("reports_ibfk_1");
 
             entity.HasOne(d => d.Teacher).WithMany(p => p.Reports)
                 .HasForeignKey(d => d.TeacherId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("reports_ibfk_2");
         });

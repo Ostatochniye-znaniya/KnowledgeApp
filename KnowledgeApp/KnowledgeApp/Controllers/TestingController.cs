@@ -31,7 +31,7 @@ namespace KnowledgeApp.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<IResult> GetTesting(int id)
+        public async Task<IResult> GetTestingById(int id)
         {
             try
             {

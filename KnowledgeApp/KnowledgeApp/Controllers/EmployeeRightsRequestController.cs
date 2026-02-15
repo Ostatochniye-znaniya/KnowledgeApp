@@ -29,7 +29,7 @@ namespace KnowledgeApp.API.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpGet("{id}")]
         public async Task<IResult> GetEmployeeRightsRequestById(int id)
         {
             try

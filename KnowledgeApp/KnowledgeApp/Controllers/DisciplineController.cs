@@ -30,12 +30,12 @@ namespace KnowledgeApp.API.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IResult> GetDisciplineById(int disciplineId)
+        [HttpGet("{id}")]
+        public async Task<IResult> GetDisciplineById(int id)
         {
             try
             {
-                var discipline = await _disciplineService.GetDisciplineById(disciplineId);
+                var discipline = await _disciplineService.GetDisciplineById(id);
                 return Results.Json(discipline);
             }
             catch (Exception e)

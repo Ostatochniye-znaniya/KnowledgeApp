@@ -17,15 +17,8 @@ namespace KnowledgeApp.DataAccess.Repositories
 
         public async Task<ReportModel> CreateReport(ReportModel reportModel)
         {
-            var discipline = await _context.Disciplines.SingleOrDefaultAsync(d =>  d.Id == reportModel.DisciplineId);
-            var teacher = await _context.Users.SingleOrDefaultAsync(t => t.Id == reportModel.TeacherId);
-
-            if (discipline == null) throw new Exception("Дисциплины с таким id не существует");
-            if (teacher == null) throw new Exception("Преподавателя с таким id не существует");
-
-            var reportEntity = new Report
+            Report reportEntity = new Report
             {
-                Id = reportModel.Id,
                 DisciplineId = reportModel.DisciplineId,
                 TeacherId = reportModel.TeacherId,
                 FilePath = reportModel.FilePath,
@@ -39,17 +32,15 @@ namespace KnowledgeApp.DataAccess.Repositories
             await _context.Reports.AddAsync(reportEntity);
             await _context.SaveChangesAsync();
 
-            ReportModel createdReport = new ReportModel(reportEntity.Id, reportEntity.DisciplineId, reportEntity.TeacherId, reportEntity.FilePath, reportEntity.IsCorrect, reportEntity.ResultOfAttestation, reportEntity.DoneInPaperForm, reportEntity.DoneInElectronicForm, reportEntity.AllDone);
+            ReportModel createdReport = new ReportModel(reportEntity.DisciplineId, reportEntity.TeacherId, reportEntity.FilePath, reportEntity.IsCorrect, reportEntity.ResultOfAttestation, reportEntity.DoneInPaperForm, reportEntity.DoneInElectronicForm, reportEntity.AllDone);
             return createdReport;
         }
         public async Task<List<ReportModel>> GetAllReports()
         {
-            //достаем данные из бд
             var reportEntities = await _context.Reports
                 .AsNoTracking()
                 .ToListAsync();
 
-            // преобразуем entities в models
             var reports = reportEntities
                 .Select(reportEntity =>
                 {
@@ -94,13 +85,13 @@ namespace KnowledgeApp.DataAccess.Repositories
             var reportEntity = await _context.Reports.SingleOrDefaultAsync(d => d.Id == reportModel.Id);
             if (reportEntity == null) throw new Exception("Report с таким id не существует");
 
-            var discipline = await _context.Disciplines.SingleOrDefaultAsync(d => d.Id == reportModel.DisciplineId);
-            var teacher = await _context.Users.SingleOrDefaultAsync(t => t.Id == reportModel.TeacherId);
+            //var discipline = await _context.Disciplines.SingleOrDefaultAsync(d => d.Id == reportModel.DisciplineId);
+            //var teacher = await _context.Users.SingleOrDefaultAsync(t => t.Id == reportModel.TeacherId);
 
-            if (discipline == null) throw new Exception("Дисциплины с таким id не существует");
-            if (teacher == null) throw new Exception("Преподавателя с таким id не существует");
+            //if (discipline == null) throw new Exception("Дисциплины с таким id не существует");
+            //if (teacher == null) throw new Exception("Преподавателя с таким id не существует");
 
-            reportEntity.DisciplineId = reportModel.DisciplineId;
+            reportEntity.DisciplineId = reportModel.DisciplineId.GetValueOrDefault();
             reportEntity.TeacherId = reportEntity.TeacherId;
             reportEntity.FilePath = reportModel.FilePath;
             reportEntity.IsCorrect = reportModel.IsCorrect;
@@ -109,7 +100,7 @@ namespace KnowledgeApp.DataAccess.Repositories
             reportEntity.DoneInElectronicForm = reportModel.DoneInElectronicForm;
             reportEntity.AllDone = reportModel.AllDone;
 
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             var report = new ReportModel(
                         reportEntity.Id,
                         reportEntity.DisciplineId,

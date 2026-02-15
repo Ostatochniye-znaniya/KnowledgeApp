@@ -9,7 +9,7 @@ public partial class StudyGroup
 
     public string GroupNumber { get; set; } = null!;
 
-    public int? StudyProgramId { get; set; }
+    public int StudyProgramId { get; set; }
 
     public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 

@@ -16,6 +16,18 @@ public class UserController : ControllerBase
         _userService = userService;
     }
 
+    //TestAuth
+    [HttpGet("current")]
+    public IActionResult GetCurrentUserDataTest()
+    {
+        return Ok(new
+        {
+            UserName = "TestUser",
+            Role = "Admin",
+            DepartmentId = 12,
+            Email = "test@example.com"
+        });
+    }
     [HttpGet]
     public async Task<IActionResult> GetAllUsers()
     {

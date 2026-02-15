@@ -30,12 +30,12 @@ namespace KnowledgeApp.API.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IResult> GetSemesterById(int semesterId)
+        [HttpGet("{id}")]
+        public async Task<IResult> GetSemesterById(int id)
         {
             try
             {
-                SemesterModel semester = await _semesterService.GetSemesterById(semesterId);
+                SemesterModel semester = await _semesterService.GetSemesterById(id);
                 return Results.Json(semester);
             }
             catch (Exception e)
