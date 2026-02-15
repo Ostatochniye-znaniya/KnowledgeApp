@@ -30,12 +30,12 @@ namespace KnowledgeApp.API.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IResult> GetStatusById(int statusId)
+        [HttpGet("{id}")]
+        public async Task<IResult> GetStatusById(int id)
         {
             try
             {
-                StatusModel status = await _statusService.GetStatusById(statusId);
+                StatusModel status = await _statusService.GetStatusById(id);
                 return Results.Json(status);
             }
             catch (Exception e)

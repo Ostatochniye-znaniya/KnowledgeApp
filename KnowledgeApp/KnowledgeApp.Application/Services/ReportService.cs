@@ -33,7 +33,7 @@ namespace KnowledgeApp.Application.Services
 
         public async Task<ReportModel> UpdateReport(ReportModel reportModel)
         {
-            ReportModel createdReport = await _reportRepository.CreateReport(reportModel);
+            ReportModel createdReport = await _reportRepository.UpdateReport(reportModel);
             return createdReport;
         }
 

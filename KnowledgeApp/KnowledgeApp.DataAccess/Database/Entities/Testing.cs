@@ -7,7 +7,7 @@ public partial class Testing
 {
     public int Id { get; set; }
 
-    public int? GroupId { get; set; }
+    public int GroupId { get; set; }
 
     public int DisciplineId { get; set; }
 
@@ -21,7 +21,7 @@ public partial class Testing
 
     public string? ResultOfTesting { get; set; }
 
-    public int? ReportId { get; set; }
+    public int ReportId { get; set; }
 
     public virtual Discipline? Discipline { get; set; }
 

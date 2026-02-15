@@ -2,6 +2,7 @@
 {
     public class ReportResponse
     {
+        public int Id { get; set; }
         public int? DisciplineId { get; set; }
 
         public int? TeacherId { get; set; }

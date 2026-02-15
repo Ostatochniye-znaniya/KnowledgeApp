@@ -16,7 +16,7 @@ namespace KnowledgeApp.API.Controllers
         }
         
         [HttpGet]
-        public async Task<IResult> GetReports()
+        public async Task<IResult> GetAllReports()
         {
             try
             {
@@ -30,12 +30,12 @@ namespace KnowledgeApp.API.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IResult> GetReportById(int reportId)
+        [HttpGet("{id}")]
+        public async Task<IResult> GetReportById(int id)
         {
             try
             {
-                ReportModel report = await _reportService.GetReportById(reportId);
+                ReportModel report = await _reportService.GetReportById(id);
                 return Results.Json(report);
             }
             catch (Exception e)
@@ -49,7 +49,7 @@ namespace KnowledgeApp.API.Controllers
         {
             try
             {
-                var newReportModel = new ReportModel(
+                ReportModel newReportModel = new ReportModel(
                         reportRequest.DisciplineId,
                         reportRequest.TeacherId,
                         reportRequest.FilePath,
@@ -85,6 +85,42 @@ namespace KnowledgeApp.API.Controllers
                         reportRequest.AllDone);
 
                 var updatedReport = await _reportService.UpdateReport(updatedReportModel);
+                return Results.Json(updatedReport);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
+
+        [HttpPatch("{reportId}")]
+        public async Task<IResult> ReportDisciplineIdUpdate(int reportId, ReportDisciplineIdUpdateRequest patchRequest)
+        {
+            try
+            {
+                var existingReport = await _reportService.GetReportById(reportId);
+                if (existingReport == null)
+                    return Results.NotFound();
+                existingReport.DisciplineId = patchRequest.DisciplineId;
+                var updatedReport = await _reportService.UpdateReport(existingReport);
+                return Results.Json(updatedReport);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
+
+        [HttpPatch("{reportId}")]
+        public async Task<IResult> ReportTeacherIdUpdate(int reportId, ReportTeacherIdUpdateRequest patchRequest)
+        {
+            try
+            {
+                var existingReport = await _reportService.GetReportById(reportId);
+                if (existingReport == null)
+                    return Results.NotFound();
+                existingReport.TeacherId = patchRequest.TeacherId;
+                var updatedReport = await _reportService.UpdateReport(existingReport);
                 return Results.Json(updatedReport);
             }
             catch (Exception e)

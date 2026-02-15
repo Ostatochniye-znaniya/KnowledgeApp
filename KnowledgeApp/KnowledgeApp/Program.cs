@@ -13,6 +13,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddAuthorization();
 
+// builder.Services.AddCors(options =>
+// {
+//     options.AddPolicy("AllowSpecificOrigin",
+//         policy => policy.WithOrigins("http://localhost:3000")
+//                         .AllowAnyHeader()
+//                         .AllowAnyMethod());
+// });
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        policy => policy.AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod());
+});
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -79,9 +95,23 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+// if (app.Environment.IsDevelopment() || app.Environment.IsStaging()) // Применяем только в разработке/тесте
+// {
+//     app.Use(async (context, next) =>
+//     {
+//         var claims = new List<Claim> {
+//             new Claim(ClaimTypes.Name, "TestUser"),
+//             new Claim(ClaimTypes.Role, "Admin"),
+//             new Claim("DepartmentId", "11")
+//         };
+//         var identity = new ClaimsIdentity(claims, "TestAuth");
+//         context.User = new ClaimsPrincipal(identity);
+//         await next();
+//     });
+// }
 //app.UseHttpsRedirection();
 
+app.UseCors("AllowAll");
 app.UseAuthorization();
 
 app.MapControllers();

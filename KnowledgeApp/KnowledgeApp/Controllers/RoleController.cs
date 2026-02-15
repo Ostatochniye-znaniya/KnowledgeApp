@@ -30,12 +30,12 @@ namespace KnowledgeApp.API.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IResult> GetRoleById(int roleId)
+        [HttpGet("{id}")]
+        public async Task<IResult> GetRoleById(int id)
         {
             try
             {
-                RoleModel role = await _roleService.GetRoleById(roleId);
+                RoleModel role = await _roleService.GetRoleById(id);
                 return Results.Json(role);
             }
             catch (Exception e)
