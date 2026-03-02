@@ -1,46 +1,45 @@
-using KnowledgeApp.DataAccess.Repositories;
-using KnowledgeApp.Core.Models;
+using KnowledgeApp.Infrastructure.Repositories;
+using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.Application.Services
+namespace KnowledgeApp.Application.Services;
+
+public class FacultyService
 {
-    public class FacultyService
+    private readonly FacultyRepository _facultyRepository;
+
+    public FacultyService(FacultyRepository facultyRepository)
     {
-        private readonly FacultyRepository _facultyRepository;
+        _facultyRepository = facultyRepository;
+    }
 
-        public FacultyService(FacultyRepository facultyRepository)
-        {
-            _facultyRepository = facultyRepository;
-        }
+    public async Task<List<FacultyModel>> GetAll()
+    {
+        List<FacultyModel> faculties = await _facultyRepository.GetAllFaculties();
+        return faculties;
+    }
 
-        public async Task<List<FacultyModel>> GetAll()
-        {
-            List<FacultyModel> faculties = await _facultyRepository.GetAllFaculties();
-            return faculties;
-        }
+    public async Task<FacultyModel> GetFacultyById(int facultyId)
+    {
+        FacultyModel faculty = await _facultyRepository.GetFacultyById(facultyId);
+        return faculty;
+    }
 
-        public async Task<FacultyModel> GetFacultyById(int facultyId)
-        {
-            FacultyModel faculty = await _facultyRepository.GetFacultyById(facultyId);
-            return faculty;
-        }
+    public async Task<FacultyModel> CreateFaculty(FacultyModel facultyModel)
+    {
+        FacultyModel createdFacultyId = await _facultyRepository.CreateFaculty(facultyModel);
 
-        public async Task<FacultyModel> CreateFaculty(FacultyModel facultyModel)
-        {
-            FacultyModel createdFacultyId = await _facultyRepository.CreateFaculty(facultyModel);
+        return createdFacultyId;
+    }
 
-            return createdFacultyId;
-        }
+    public async Task<FacultyModel> UpdateFaculty(FacultyModel facultyModel)
+    {
+        FacultyModel updatedFacultyModel = await _facultyRepository.UpdateFaculty(facultyModel);
+        return updatedFacultyModel;
+    }
 
-        public async Task<FacultyModel> UpdateFaculty(FacultyModel facultyModel)
-        {
-            FacultyModel updatedFacultyModel = await _facultyRepository.UpdateFaculty(facultyModel);
-            return updatedFacultyModel;
-        }
-
-        public async Task<bool> DeleteFaculty(int facultyId)
-        {
-            bool result = await _facultyRepository.DeleteFaculty(facultyId);
-            return result;
-        }
+    public async Task<bool> DeleteFaculty(int facultyId)
+    {
+        bool result = await _facultyRepository.DeleteFaculty(facultyId);
+        return result;
     }
 }

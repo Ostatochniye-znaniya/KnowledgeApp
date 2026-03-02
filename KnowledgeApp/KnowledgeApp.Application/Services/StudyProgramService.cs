@@ -1,48 +1,47 @@
-﻿using KnowledgeApp.DataAccess.Entities;
-using KnowledgeApp.DataAccess.Repositories;
-using KnowledgeApp.Core.Models;
+﻿using KnowledgeApp.Infrastructure.Entities;
+using KnowledgeApp.Infrastructure.Repositories;
+using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.Application.Services
+namespace KnowledgeApp.Application.Services;
+
+public class StudyProgramService
 {
-    public class StudyProgramService
+    private readonly StudyProgramRepository _repository;
+
+    public StudyProgramService(StudyProgramRepository repository)
     {
-        private readonly StudyProgramRepository _repository;
+        _repository = repository;
+    }
 
-        public StudyProgramService(StudyProgramRepository repository)
-        {
-            _repository = repository;
-        }
+    public async Task<IEnumerable<StudyProgram>> GetAllProgramsAsync()
+    {
+        return await _repository.GetAllAsync();
+    }
 
-        public async Task<IEnumerable<StudyProgram>> GetAllProgramsAsync()
-        {
-            return await _repository.GetAllAsync();
-        }
+    public async Task<StudyProgram?> GetProgramByIdAsync(int id)
+    {
+        return await _repository.GetByIdAsync(id);
+    }
 
-        public async Task<StudyProgram?> GetProgramByIdAsync(int id)
-        {
-            return await _repository.GetByIdAsync(id);
-        }
+    public async Task CreateProgramAsync(StudyProgram studyProgram)
+    {
+        await _repository.AddAsync(studyProgram);
+    }
 
-        public async Task CreateProgramAsync(StudyProgram studyProgram)
-        {
-            await _repository.AddAsync(studyProgram);
-        }
+    public async Task UpdateProgramAsync(StudyProgram studyProgram)
+    {
+        await _repository.UpdateAsync(studyProgram);
+    }
 
-        public async Task UpdateProgramAsync(StudyProgram studyProgram)
-        {
-            await _repository.UpdateAsync(studyProgram);
-        }
+    public async Task DeleteProgramAsync(int id)
+    {
+        await _repository.DeleteAsync(id);
+    }
 
-        public async Task DeleteProgramAsync(int id)
-        {
-            await _repository.DeleteAsync(id);
-        }
+    public async Task<StudyProgramModel> CreateProgramAsync(StudyProgramModel studyProgramModel)
+    {
+        StudyProgramModel createdStudyGroupId = await _repository.CreateStudyProgram(studyProgramModel);
 
-        public async Task<StudyProgramModel> CreateProgramAsync(StudyProgramModel studyProgramModel)
-        {
-            StudyProgramModel createdStudyGroupId = await _repository.CreateStudyProgram(studyProgramModel);
-
-            return createdStudyGroupId;
-        }
+        return createdStudyGroupId;
     }
 }
