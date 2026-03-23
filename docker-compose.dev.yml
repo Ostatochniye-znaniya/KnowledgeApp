@@ -2,7 +2,7 @@ services:
   api:
     container_name: knowledgeapp-api
     build:
-      context: ../
+      context: ./
       dockerfile: Deploy/Dockerfile
     ports:
       - "8000:8080"    # внешний порт VPS : внутренний порт контейнера
@@ -13,6 +13,9 @@ services:
       ASPNETCORE_URLS: "http://+:8080"
       ConnectionStrings__DefaultConnection: "server=db;port=3306;database=knowledge_test_db;user=root;password=admin"
     restart: always
+    networks:
+      - app-network
+  
 
   db:
     container_name: mysql-db
@@ -27,6 +30,12 @@ services:
       - db_data:/var/lib/mysql
       # Удалить после доработки DbContext
       #- ./DbBackups/DB_KnowledgeApp_Backup_03.12.25.sql:/docker-entrypoint-initdb.d/DB_KnowledgeApp_Backup_03.12.25.sql:ro
+    networks:
+      - app-network
 
 volumes:
   db_data:
+
+networks:
+  app-network:
+    driver: bridge
