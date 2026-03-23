@@ -117,63 +117,101 @@ deploy() {
     
     ssh -p "$port_value" \
         -o StrictHostKeyChecking=no \
-        "${!server_user}@${!server_host}" << EOF
+        "${!server_user}@${!server_host}" << 'EOF'
             set -e
             
+            # Функция для логирования
+            log_info() {
+                echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"
+            }
+            
+            log_error() {
+                echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
+            }
+            
+            # Переменные (будут подставлены извне)
+            DIR_VALUE="{{dir_value}}"
+            TEMP_DIR="{{temp_dir}}"
+            COMPOSE_VALUE="{{compose_value}}"
+            
             # Создаем директорию проекта если её нет
-            mkdir -p "$dir_value"
+            mkdir -p "$DIR_VALUE"
             
             # Копируем файлы из временной директории
-            cp -r "$temp_dir"/* "$dir_value/"
+            cp -r "$TEMP_DIR"/* "$DIR_VALUE/"
             
             # Переходим в директорию проекта
-            cd "$dir_value"
+            cd "$DIR_VALUE"
             
             # Бэкап существующего .env файла
             if [ -f ".env" ] && [ ! -f ".env.backup" ]; then
-                cp .env .env.backup.\$(date +%Y%m%d_%H%M%S)
-                log_info "Создан бэкап .env файла"
+                BACKUP_NAME=".env.backup.$(date +%Y%m%d_%H%M%S)"
+                cp .env "$BACKUP_NAME"
+                log_info "Создан бэкап .env файла: $BACKUP_NAME"
             fi
             
             # Восстанавливаем .env если он был скопирован
-            if [ -f "$temp_dir/.env" ]; then
-                mv "$temp_dir/.env" .env
+            if [ -f "$TEMP_DIR/.env" ]; then
+                mv "$TEMP_DIR/.env" .env
+                log_info ".env файл восстановлен"
             fi
+            
+            # ========== ВАЖНО: СЕТЬ СОЗДАЕТСЯ ДО ОСТАНОВКИ КОНТЕЙНЕРОВ ==========
+            log_info "Проверка/создание сети app-network..."
+            if ! docker network inspect app-network >/dev/null 2>&1; then
+                log_info "Создание сети app-network..."
+                docker network create app-network
+                log_info "Сеть app-network успешно создана"
+            else
+                log_info "Сеть app-network уже существует"
+            fi
+            
+            # Проверяем существование сети
+            docker network ls | grep app-network || {
+                log_error "Сеть app-network не найдена!"
+                exit 1
+            }
             
             # Останавливаем старые контейнеры
             log_info "Остановка старых контейнеров..."
-            docker compose $compose_value down || true
+            docker compose $COMPOSE_VALUE down --remove-orphans || true
             
             # Загрузка свежих образов
             log_info "Загрузка образов..."
-            docker compose $compose_value pull
-            
-            log_info "Проверка/создание сети app-network..."
-            if ! docker network inspect app-network >/dev/null 2>&1; then
-            log_info "Создание сети app-network..."
-            docker network create app-network
-            else
-            log_info "Сеть app-network уже существует"
-            fi
-
-            # Проверка созданной сети
-            docker network ls | grep app-network
+            docker compose $COMPOSE_VALUE pull || {
+                log_error "Ошибка при загрузке образов"
+                exit 1
+            }
             
             # Сборка и запуск
             log_info "Сборка и запуск контейнеров..."
-            docker compose $compose_value up -d --build
+            docker compose $COMPOSE_VALUE up -d --build || {
+                log_error "Ошибка при сборке/запуске контейнеров"
+                exit 1
+            }
             
             # Ожидание готовности контейнеров
+            log_info "Ожидание готовности контейнеров (10 секунд)..."
             sleep 10
             
             # Проверка статуса
             log_info "Статус контейнеров:"
-            docker compose $compose_value ps
+            docker compose $COMPOSE_VALUE ps
             
             # Проверка здоровья (если есть healthcheck)
-            if docker compose $compose_value ps | grep -q "unhealthy"; then
+            if docker compose $COMPOSE_VALUE ps | grep -q "unhealthy"; then
                 log_error "Обнаружены нездоровые контейнеры!"
-                docker compose $compose_value logs --tail=50
+                docker compose $COMPOSE_VALUE logs --tail=50
+                exit 1
+            fi
+            
+            # Проверка что все контейнеры запущены
+            RUNNING_COUNT=$(docker compose $COMPOSE_VALUE ps --filter "status=running" | grep -c "Up" || true)
+            TOTAL_COUNT=$(docker compose $COMPOSE_VALUE ps --format json | grep -c "Name" || true)
+            
+            if [ "$RUNNING_COUNT" -lt "$TOTAL_COUNT" ]; then
+                log_error "Не все контейнеры запущены! Запущено: $RUNNING_COUNT из $TOTAL_COUNT"
+                docker compose $COMPOSE_VALUE logs --tail=50
                 exit 1
             fi
             
@@ -182,7 +220,10 @@ deploy() {
             docker image prune -f
             
             # Удаляем временную директорию
-            rm -rf "$temp_dir"
+            if [ -d "$TEMP_DIR" ]; then
+                rm -rf "$TEMP_DIR"
+                log_info "Временная директория удалена: $TEMP_DIR"
+            fi
             
             log_info "✅ Деплой успешно завершен!"
 EOF
