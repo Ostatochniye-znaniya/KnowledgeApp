@@ -150,6 +150,7 @@ deploy() {
             
             # Сборка и запуск
             log_info "Сборка и запуск контейнеров..."
+            docker network create app-network 2>/dev/null || true  # || true игнорирует ошибку, если сеть уже существует
             docker compose $compose_value up -d --build
             
             # Ожидание готовности контейнеров
