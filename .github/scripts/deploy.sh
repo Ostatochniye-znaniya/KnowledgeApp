@@ -148,9 +148,19 @@ deploy() {
             log_info "Загрузка образов..."
             docker compose $compose_value pull
             
+            log_info "Проверка/создание сети app-network..."
+            if ! docker network inspect app-network >/dev/null 2>&1; then
+            log_info "Создание сети app-network..."
+            docker network create app-network
+            else
+            log_info "Сеть app-network уже существует"
+            fi
+
+            # Проверка созданной сети
+            docker network ls | grep app-network
+            
             # Сборка и запуск
             log_info "Сборка и запуск контейнеров..."
-            docker network create app-network 2>/dev/null || true  # || true игнорирует ошибку, если сеть уже существует
             docker compose $compose_value up -d --build
             
             # Ожидание готовности контейнеров
