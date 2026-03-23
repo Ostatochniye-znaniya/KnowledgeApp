@@ -132,10 +132,22 @@ jobs:
           echo "✅ Copied .env.example"
         fi
         
-        # Копируем папку frontend
-        if [ -d "frontend" ]; then
-          cp -r frontend deploy-package/
-          echo "✅ Copied frontend directory"
+        # Копируем папку Deploy
+        if [ -d "Deploy" ]; then
+          cp -r Deploy deploy-package/
+          echo "✅ Copied Deploy directory"
+        fi
+
+        # Копируем папку KnowledgeApp
+        if [ -d "KnowledgeApp" ]; then
+          cp -r KnowledgeApp deploy-package/
+          echo "✅ Copied KnowledgeApp directory"
+        fi
+
+        # Копируем папку DbBackups
+        if [ -d "DbBackups" ]; then
+          cp -r DbBackups deploy-package/
+          echo "✅ Copied DbBackups directory"
         fi
         
         # Создаем скрипт деплоя

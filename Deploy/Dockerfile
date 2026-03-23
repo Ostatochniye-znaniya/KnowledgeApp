@@ -2,7 +2,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0.100 AS build
 WORKDIR /src
 
-COPY ../ ./
+COPY ./ ./
 
 RUN dotnet restore "KnowledgeApp/KnowledgeApp.sln"
 RUN dotnet publish "KnowledgeApp/KnowledgeApp.API/KnowledgeApp.API.csproj" -c Release -o /app/publish
