@@ -4,7 +4,7 @@ namespace KnowledgeApp.API.Controllers
 {
     [ApiController]
     [Route("csh/api/[controller]/[action]")]
-    public class BaseController : ControllerBase
+    public abstract class BaseController : ControllerBase
 	{
 		
 	}
