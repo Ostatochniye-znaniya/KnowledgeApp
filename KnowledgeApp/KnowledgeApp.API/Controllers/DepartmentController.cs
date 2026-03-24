@@ -5,9 +5,7 @@ using KnowledgeApp.Domain.Entities;
 
 namespace KnowledgeApp.API.Controllers
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public class DepartmentController : ControllerBase
+    public class DepartmentController : BaseController
     {
         private readonly DepartmentService _departmentService;
         public DepartmentController(DepartmentService departmentService)
