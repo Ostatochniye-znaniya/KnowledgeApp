@@ -64,24 +64,6 @@ check_files() {
         log_error "Файл docker-compose.yml или docker-compose.dev.yml не найден"
         exit 1
     fi
-    
-    # Проверяем наличие папки frontend
-    if [ ! -d "frontend" ]; then
-        log_error "Папка frontend не найдена"
-        log_info "Текущая директория: $(pwd)"
-        log_info "Содержимое: $(ls -la)"
-        exit 1
-    fi
-    log_info "Папка frontend найдена"
-    
-    # Проверяем наличие Dockerfile
-    if [ ! -f "frontend/Dockerfile" ]; then
-        log_error "Dockerfile не найден в папке frontend"
-        log_info "Содержимое frontend:"
-        ls -la frontend/
-        exit 1
-    fi
-    log_info "Dockerfile в frontend найден"
 }
 
 # Создание Docker сети (СИНХРОНИЗИРОВАННАЯ ВЕРСИЯ)
