@@ -2,6 +2,7 @@ using KnowledgeApp.Application.Services;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -26,7 +27,10 @@ services.AddCors(options =>
 
 services.AddControllers();
 services.AddEndpointsApiExplorer();
-services.AddSwaggerGen();
+services.AddSwaggerGen(c =>
+{
+    c.AddServer(new OpenApiServer { Url = "/csh/api" });
+});
 
 services.AddScoped<KnowledgeTestDbContext>();
 services.AddScoped<DepartmentService>();
