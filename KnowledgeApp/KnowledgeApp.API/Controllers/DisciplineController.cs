@@ -3,96 +3,93 @@ using KnowledgeApp.Application.Services;
 using KnowledgeApp.API.Contracts;
 using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.API.Controllers
+namespace KnowledgeApp.API.Controllers;
+
+public class DisciplineController : BaseController
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public class DisciplineController : ControllerBase
+    private readonly DisciplineService _disciplineService;
+
+    public DisciplineController(DisciplineService disciplineService)
     {
-        private readonly DisciplineService _disciplineService;
+        _disciplineService = disciplineService;
+    }
 
-        public DisciplineController(DisciplineService disciplineService)
+    [HttpGet]
+    public async Task<IResult> GetDisciplines()
+    {
+        try
         {
-            _disciplineService = disciplineService;
+            var disciplines = await _disciplineService.GetAll();
+            return Results.Json(disciplines);
         }
-
-        [HttpGet]
-        public async Task<IResult> GetDisciplines()
+        catch (Exception e)
         {
-            try
-            {
-                var disciplines = await _disciplineService.GetAll();
-                return Results.Json(disciplines);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpGet("{id}")]
-        public async Task<IResult> GetDisciplineById(int id)
+    [HttpGet("{id}")]
+    public async Task<IResult> GetDisciplineById(int id)
+    {
+        try
         {
-            try
-            {
-                var discipline = await _disciplineService.GetDisciplineById(id);
-                return Results.Json(discipline);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            var discipline = await _disciplineService.GetDisciplineById(id);
+            return Results.Json(discipline);
         }
-
-        [HttpPost]
-        public async Task<IResult> CreateDiscipline(DisciplineRequest disciplineRequest)
+        catch (Exception e)
         {
-            try
-            {
-                var newDiscipline = new DisciplineModel(
-                    disciplineRequest.Name,
-                    disciplineRequest.DepartmentId);
-
-                var createdDiscipline = await _disciplineService.CreateDiscipline(newDiscipline);
-                return Results.Json(createdDiscipline);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpPut]
-        public async Task<IResult> UpdateDiscipline(int disciplineId, DisciplineRequest disciplineRequest)
+    [HttpPost]
+    public async Task<IResult> CreateDiscipline(DisciplineRequest disciplineRequest)
+    {
+        try
         {
-            try
-            {
-                var updatedDiscipline = new DisciplineModel(
-                    disciplineId,
-                    disciplineRequest.Name,
-                    disciplineRequest.DepartmentId);
+            var newDiscipline = new DisciplineModel(
+                disciplineRequest.Name,
+                disciplineRequest.DepartmentId);
 
-                var discipline = await _disciplineService.UpdateDiscipline(updatedDiscipline);
-                return Results.Json(discipline);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            var createdDiscipline = await _disciplineService.CreateDiscipline(newDiscipline);
+            return Results.Json(createdDiscipline);
         }
-
-        [HttpPut]
-        public async Task<IResult> DeleteDiscipline(int disciplineId)
+        catch (Exception e)
         {
-            try
-            {
-                var result = await _disciplineService.DeleteDiscipline(disciplineId);
-                return Results.Json(result);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpPut]
+    public async Task<IResult> UpdateDiscipline(int disciplineId, DisciplineRequest disciplineRequest)
+    {
+        try
+        {
+            var updatedDiscipline = new DisciplineModel(
+                disciplineId,
+                disciplineRequest.Name,
+                disciplineRequest.DepartmentId);
+
+            var discipline = await _disciplineService.UpdateDiscipline(updatedDiscipline);
+            return Results.Json(discipline);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpPut]
+    public async Task<IResult> DeleteDiscipline(int disciplineId)
+    {
+        try
+        {
+            var result = await _disciplineService.DeleteDiscipline(disciplineId);
+            return Results.Json(result);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
         }
     }
 }

@@ -1,7 +1,6 @@
-﻿namespace KnowledgeApp.API.Contracts
+﻿namespace KnowledgeApp.API.Contracts;
+
+public class StatusRequest
 {
-    public class StatusRequest
-    {
-        public string StatusName { get; set; } = null!;
-    }
+    public string StatusName { get; set; } = null!;
 }

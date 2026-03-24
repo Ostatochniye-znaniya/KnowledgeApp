@@ -1,7 +1,6 @@
-namespace KnowledgeApp.API.Contracts
+namespace KnowledgeApp.API.Contracts;
+
+public class FacultyRequest
 {
-    public class FacultyRequest
-    {
-        public string FacultyName { get; set; } = null!;
-    }
+    public string FacultyName { get; set; } = null!;
 }

@@ -2,31 +2,30 @@ using KnowledgeApp.Application.Services;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 
-// Когда донастроим фронт
-// services.AddCors(options =>
-// {
-//     options.AddPolicy("AllowSpecificOrigin",
-//         policy => policy.WithOrigins("http://localhost:3000")
-//                         .AllowAnyHeader()
-//                         .AllowAnyMethod());
-// });
+Env.Load();
+var allowedOrigins = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS")
+    ?.Split(',') ?? Array.Empty<string>();
 
-// После донастройки убрать
 services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy => policy.AllowAnyOrigin()
+    options.AddPolicy("AllowSpecificOrigin",
+        policy => policy.WithOrigins(allowedOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod());
 });
 
 services.AddControllers();
 services.AddEndpointsApiExplorer();
-services.AddSwaggerGen();
+services.AddSwaggerGen(c =>
+{
+    c.AddServer(new OpenApiServer { Url = "/csh/api" });
+});
 
 services.AddScoped<KnowledgeTestDbContext>();
 services.AddScoped<DepartmentService>();
@@ -66,16 +65,20 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
+//app.UseHttpsRedirection();
+
+app.UseCors("AllowSpecificOrigin");
+//app.UseAuthorization();
+
+app.UsePathBase("/csh/api");
+app.UseRouting();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-//app.UseHttpsRedirection();
-
-app.UseCors("AllowAll");
-//app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

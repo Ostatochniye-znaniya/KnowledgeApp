@@ -3,89 +3,86 @@ using KnowledgeApp.API.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.API.Controllers
+namespace KnowledgeApp.API.Controllers;
+
+public class StudyGroupController : BaseController
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public class StudyGroupController : ControllerBase
+    private readonly StudyGroupService _studyGroupService;
+
+    public StudyGroupController(StudyGroupService studyGroupService)
     {
-        private readonly StudyGroupService _studyGroupService;
+        _studyGroupService = studyGroupService;
+    }
 
-        public StudyGroupController(StudyGroupService studyGroupService)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<StudyGroupResponse>>> GetAll()
+    {
+        var groups = await _studyGroupService.GetAllGroupsAsync();
+        var response = groups.Select(g => new StudyGroupResponse
         {
-            _studyGroupService = studyGroupService;
-        }
+            Id = g.Id,
+            GroupNumber = g.GroupNumber,
+            StudyProgramId = g.StudyProgramId,
+            StudentIds = g.Students.Select(s => s.Id).ToList(),
+            TestingIds = g.Testings.Select(t => t.Id).ToList()
+        });
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<StudyGroupResponse>>> GetAll()
+        return Ok(response);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<StudyGroupResponse>> GetById(int id)
+    {
+        var group = await _studyGroupService.GetGroupByIdAsync(id);
+        if (group == null)
+            return NotFound();
+
+        var response = new StudyGroupResponse
         {
-            var groups = await _studyGroupService.GetAllGroupsAsync();
-            var response = groups.Select(g => new StudyGroupResponse
-            {
-                Id = g.Id,
-                GroupNumber = g.GroupNumber,
-                StudyProgramId = g.StudyProgramId,
-                StudentIds = g.Students.Select(s => s.Id).ToList(),
-                TestingIds = g.Testings.Select(t => t.Id).ToList()
-            });
+            Id = group.Id,
+            GroupNumber = group.GroupNumber,
+            StudyProgramId = group.StudyProgramId,
+            StudentIds = group.Students.Select(s => s.Id).ToList(),
+            TestingIds = group.Testings.Select(t => t.Id).ToList()
+        };
 
-            return Ok(response);
-        }
+        return Ok(response);
+    }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<StudyGroupResponse>> GetById(int id)
+    [HttpPost]
+    public async Task<ActionResult> Create([FromBody] StudyGroupRequest request)
+    {
+        await _studyGroupService.CreateGroupAsync(new StudyGroupModel
         {
-            var group = await _studyGroupService.GetGroupByIdAsync(id);
-            if (group == null)
-                return NotFound();
+            GroupNumber = request.GroupNumber,
+            StudyProgramId = request.StudyProgramId
+        });
 
-            var response = new StudyGroupResponse
-            {
-                Id = group.Id,
-                GroupNumber = group.GroupNumber,
-                StudyProgramId = group.StudyProgramId,
-                StudentIds = group.Students.Select(s => s.Id).ToList(),
-                TestingIds = group.Testings.Select(t => t.Id).ToList()
-            };
+        return CreatedAtAction(nameof(GetAll), null);
+    }
 
-            return Ok(response);
-        }
+    [HttpPut("{id}")]
+    public async Task<ActionResult> Update(int id, [FromBody] StudyGroupRequest request)
+    {
+        var group = await _studyGroupService.GetGroupByIdAsync(id);
+        if (group == null)
+            return NotFound();
 
-        [HttpPost]
-        public async Task<ActionResult> Create([FromBody] StudyGroupRequest request)
-        {
-            await _studyGroupService.CreateGroupAsync(new StudyGroupModel
-            {
-                GroupNumber = request.GroupNumber,
-                StudyProgramId = request.StudyProgramId
-            });
+        group.GroupNumber = request.GroupNumber;
+        group.StudyProgramId = request.StudyProgramId;
 
-            return CreatedAtAction(nameof(GetAll), null);
-        }
+        await _studyGroupService.UpdateGroupAsync(group);
+        return NoContent();
+    }
 
-        [HttpPut("{id}")]
-        public async Task<ActionResult> Update(int id, [FromBody] StudyGroupRequest request)
-        {
-            var group = await _studyGroupService.GetGroupByIdAsync(id);
-            if (group == null)
-                return NotFound();
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> Delete(int id)
+    {
+        var group = await _studyGroupService.GetGroupByIdAsync(id);
+        if (group == null)
+            return NotFound();
 
-            group.GroupNumber = request.GroupNumber;
-            group.StudyProgramId = request.StudyProgramId;
-
-            await _studyGroupService.UpdateGroupAsync(group);
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(int id)
-        {
-            var group = await _studyGroupService.GetGroupByIdAsync(id);
-            if (group == null)
-                return NotFound();
-
-            await _studyGroupService.DeleteGroupAsync(id);
-            return NoContent();
-        }
+        await _studyGroupService.DeleteGroupAsync(id);
+        return NoContent();
     }
 }
