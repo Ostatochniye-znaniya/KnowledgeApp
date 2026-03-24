@@ -5,6 +5,7 @@ using KnowledgeApp.Domain.Entities;
 
 namespace KnowledgeApp.API.Controllers
 {
+    [ApiController]
     public class DepartmentController : BaseController
     {
         private readonly DepartmentService _departmentService;
