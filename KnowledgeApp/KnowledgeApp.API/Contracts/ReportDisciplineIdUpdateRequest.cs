@@ -1,7 +1,6 @@
-﻿namespace KnowledgeApp.API.Contracts
+﻿namespace KnowledgeApp.API.Contracts;
+
+public class ReportDisciplineIdUpdateRequest
 {
-    public class ReportDisciplineIdUpdateRequest
-    {
-        public int? DisciplineId { get; set; }
-    }
+    public int? DisciplineId { get; set; }
 }

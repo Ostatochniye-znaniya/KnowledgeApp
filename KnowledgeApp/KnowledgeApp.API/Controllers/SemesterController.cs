@@ -3,89 +3,86 @@ using KnowledgeApp.Application.Services;
 using KnowledgeApp.API.Contracts;
 using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.API.Controllers
+namespace KnowledgeApp.API.Controllers;
+
+public class SemesterController : BaseController
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public class SemesterController : ControllerBase
+    private readonly SemesterService _semesterService;
+    public SemesterController(SemesterService semesterService)
     {
-        private readonly SemesterService _semesterService;
-        public SemesterController(SemesterService semesterService)
+        _semesterService = semesterService;
+    }
+
+    [HttpGet]
+    public async Task<IResult> GetSemesters()
+    {
+        try
         {
-            _semesterService = semesterService;
+            List<SemesterModel> semesters = await _semesterService.GetAll();
+            return Results.Json(semesters);
         }
-
-        [HttpGet]
-        public async Task<IResult> GetSemesters()
+        catch (Exception e)
         {
-            try
-            {
-                List<SemesterModel> semesters = await _semesterService.GetAll();
-                return Results.Json(semesters);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpGet("{id}")]
-        public async Task<IResult> GetSemesterById(int id)
+    [HttpGet("{id}")]
+    public async Task<IResult> GetSemesterById(int id)
+    {
+        try
         {
-            try
-            {
-                SemesterModel semester = await _semesterService.GetSemesterById(id);
-                return Results.Json(semester);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            SemesterModel semester = await _semesterService.GetSemesterById(id);
+            return Results.Json(semester);
         }
-
-        [HttpPost]
-        public async Task<IResult> CreateSemester(SemesterRequest semesterRequest)
+        catch (Exception e)
         {
-            try
-            {
-                var newSemesterModel = new SemesterModel(semesterRequest.SemesterYear, semesterRequest.SemesterPart);
-                SemesterModel newSemesterId = await _semesterService.CreateSemester(newSemesterModel);
-                return Results.Json(newSemesterId);
-            }
-            catch(Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpPut]
-        public async Task<IResult> UpdateSemester(int semesterId, SemesterRequest semesterRequest)
+    [HttpPost]
+    public async Task<IResult> CreateSemester(SemesterRequest semesterRequest)
+    {
+        try
         {
-            try
-            {
-                var updatedSemesterModel = new SemesterModel(semesterId, semesterRequest.SemesterYear, semesterRequest.SemesterPart);
-                var updatedSemester = await _semesterService.UpdateSemester(updatedSemesterModel);
-                return Results.Json(updatedSemester);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            var newSemesterModel = new SemesterModel(semesterRequest.SemesterYear, semesterRequest.SemesterPart);
+            SemesterModel newSemesterId = await _semesterService.CreateSemester(newSemesterModel);
+            return Results.Json(newSemesterId);
         }
-
-
-        [HttpDelete]
-        public async Task<IResult> DeleteSemester(int semesterId)
+        catch(Exception e)
         {
-            try
-            {
-                var result = await _semesterService.DeleteSemester(semesterId);
-                return Results.Json(result);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpPut]
+    public async Task<IResult> UpdateSemester(int semesterId, SemesterRequest semesterRequest)
+    {
+        try
+        {
+            var updatedSemesterModel = new SemesterModel(semesterId, semesterRequest.SemesterYear, semesterRequest.SemesterPart);
+            var updatedSemester = await _semesterService.UpdateSemester(updatedSemesterModel);
+            return Results.Json(updatedSemester);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+
+    [HttpDelete]
+    public async Task<IResult> DeleteSemester(int semesterId)
+    {
+        try
+        {
+            var result = await _semesterService.DeleteSemester(semesterId);
+            return Results.Json(result);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
         }
     }
 }

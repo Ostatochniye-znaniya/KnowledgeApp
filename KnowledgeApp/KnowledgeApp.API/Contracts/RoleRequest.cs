@@ -1,7 +1,6 @@
-﻿namespace KnowledgeApp.API.Contracts
+﻿namespace KnowledgeApp.API.Contracts;
+
+public class RoleRequest
 {
-    public class RoleRequest
-    {
-        public string RoleName { get; set; } = null!;
-    }
+    public string RoleName { get; set; } = null!;
 }

@@ -1,11 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace KnowledgeApp.API.Controllers
+namespace KnowledgeApp.API.Controllers;
+
+[ApiController]
+[Route("[controller]/[action]")]
+public abstract class BaseController : ControllerBase
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public abstract class BaseController : ControllerBase
-	{
-		
-	}
+    
 }

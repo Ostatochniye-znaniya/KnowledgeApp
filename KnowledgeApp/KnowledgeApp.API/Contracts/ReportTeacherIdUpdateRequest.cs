@@ -1,7 +1,6 @@
-﻿namespace KnowledgeApp.API.Contracts
+﻿namespace KnowledgeApp.API.Contracts;
+
+public class ReportTeacherIdUpdateRequest
 {
-    public class ReportTeacherIdUpdateRequest
-    {
-        public int? TeacherId { get; set; }
-    }
+    public int? TeacherId { get; set; }
 }
