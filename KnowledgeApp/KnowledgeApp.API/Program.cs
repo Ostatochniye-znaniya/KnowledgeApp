@@ -77,5 +77,6 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAll");
 //app.UseAuthorization();
 app.MapControllers();
+app.UsePathBase("/csh/api");
 
 app.Run();
