@@ -27,10 +27,7 @@ services.AddCors(options =>
 
 services.AddControllers();
 services.AddEndpointsApiExplorer();
-services.AddSwaggerGen(c =>
-{
-    c.AddServer(new OpenApiServer { Url = "/csh/api" });
-});
+services.AddSwaggerGen();
 
 services.AddScoped<KnowledgeTestDbContext>();
 services.AddScoped<DepartmentService>();
@@ -70,12 +67,6 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 //app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
@@ -83,6 +74,11 @@ app.UseCors("AllowAll");
 
 app.UsePathBase("/csh/api");
 app.UseRouting();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 app.MapControllers();
 
 app.Run();
