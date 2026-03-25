@@ -147,11 +147,6 @@ jobs:
           cp .env.example deploy-package/
           echo "✅ Copied .env.example"
         fi
-
-        if [ -f "init.sql" ]; then
-          cp init.sql deploy-package/
-          echo "✅ Copied init.sql"
-        fi
         
         if [ -d "DbBackups" ]; then
           cp -r DbBackups deploy-package/
