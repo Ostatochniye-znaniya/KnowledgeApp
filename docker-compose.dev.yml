@@ -9,7 +9,6 @@ services:
       MYSQL_ROOT_HOST: '%'
     volumes:
       - db_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - app-network
     healthcheck:
