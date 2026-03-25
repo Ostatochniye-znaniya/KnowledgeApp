@@ -1,4 +1,1 @@
--- init.sql
-CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'admin';
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
+UPDATE mysql.user SET HOST='%' WHERE User='root';
