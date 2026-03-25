@@ -1,22 +1,4 @@
 services:
-  api:
-    container_name: knowledgeapp-api
-    build:
-      context: ./
-      dockerfile: Deploy/Dockerfile
-    ports:
-      - "8000:8080"    # внешний порт VPS : внутренний порт контейнера
-    depends_on:
-      - db
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development #Production
-      ASPNETCORE_URLS: "http://+:8080"
-      ConnectionStrings__DefaultConnection: "server=db;port=3306;database=knowledge_test_db;user=root;password=admin"
-    restart: always
-    networks:
-      - app-network
-  
-
   db:
     container_name: mysql-db
     image: mysql:9.1
@@ -26,8 +8,30 @@ services:
       MYSQL_DATABASE: knowledge_test_db
     volumes:
       - db_data:/var/lib/mysql
-      # Удалить после доработки DbContext
-      #- ./DbBackups/DB_KnowledgeApp_Backup_03.12.25.sql:/docker-entrypoint-initdb.d/DB_KnowledgeApp_Backup_03.12.25.sql:ro
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    container_name: knowledgeapp-api
+    build:
+      context: ./
+      dockerfile: Deploy/Dockerfile
+    ports:
+      - "8000:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "server=db;port=3306;database=knowledge_test_db;user=root;password=admin"
+    restart: always
     networks:
       - app-network
 
@@ -36,4 +40,5 @@ volumes:
 
 networks:
   app-network:
+    name: app-network
     external: true
