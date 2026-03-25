@@ -1,1 +1,2 @@
 UPDATE mysql.user SET HOST='%' WHERE User='root';
+FLUSH PRIVILEGES;
