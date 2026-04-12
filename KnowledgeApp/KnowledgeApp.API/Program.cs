@@ -9,6 +9,22 @@ var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 
 Env.Load();
+var envCandidates = new[]
+{
+    Path.Combine(builder.Environment.ContentRootPath, ".env"),
+    Path.Combine(builder.Environment.ContentRootPath, "..", "..", ".env"),
+    Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+};
+foreach (var path in envCandidates)
+{
+    var full = Path.GetFullPath(path);
+    if (File.Exists(full))
+    {
+        Env.Load(full);
+        break;
+    }
+}
+
 var allowedOrigins = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS")
     ?.Split(',') ?? Array.Empty<string>();
 
