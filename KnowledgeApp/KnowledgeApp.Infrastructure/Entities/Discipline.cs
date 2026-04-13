@@ -15,4 +15,6 @@ public partial class Discipline
     public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
 
     public virtual ICollection<Testing> Testings { get; set; } = new List<Testing>();
+
+    public virtual ICollection<GroupDiscipline> GroupDisciplines { get; set; } = new List<GroupDiscipline>();
 }

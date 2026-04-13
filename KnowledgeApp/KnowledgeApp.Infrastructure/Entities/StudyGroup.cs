@@ -8,9 +8,13 @@ public partial class StudyGroup
 
     public int StudyProgramId { get; set; }
 
+    public string? GroupStatus { get; set; }
+
     public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 
     public virtual StudyProgram? StudyProgram { get; set; }
 
     public virtual ICollection<Testing> Testings { get; set; } = new List<Testing>();
+
+    public virtual ICollection<GroupDiscipline> GroupDisciplines { get; set; } = new List<GroupDiscipline>();
 }

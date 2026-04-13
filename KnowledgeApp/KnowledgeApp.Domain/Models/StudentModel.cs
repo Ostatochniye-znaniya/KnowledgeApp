@@ -3,18 +3,24 @@
 public class StudentModel
 {
     public int Id { get; set; }
-    public int UserId { get; set; }
+    public string Name { get; set; }
+    public int Year { get; set; }
     public int GroupId { get; set; }
+    public string Status { get; set; }
 
-    public StudentModel(int id, int userid, int groupid)
+    public StudentModel(int id, string name, int year, int groupId, string status)
     {
         Id = id;
-        UserId = userid;
-        GroupId = groupid;
+        Name = name;
+        Year = year;
+        GroupId = groupId;
+        Status = status;
     }
-    public StudentModel(int userid, int groupid)
+    public StudentModel(string name, int year, int groupId, string status)
     {
-        UserId = userid;
-        GroupId = groupid;
+        Name = name;
+        Year = year;
+        GroupId = groupId;
+        Status = status;
     }
 }

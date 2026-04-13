@@ -4,11 +4,13 @@ public partial class Student
 {
     public int Id { get; set; }
 
-    public int UserId { get; set; }
+    public string Name { get; set; } = null!;
+
+    public int Year { get; set; }
 
     public int GroupId { get; set; }
 
-    public virtual StudyGroup Group { get; set; } = null!;
+    public string Status { get; set; } = null!;
 
-    public virtual User User { get; set; } = null!;
+    public virtual StudyGroup Group { get; set; } = null!;
 }

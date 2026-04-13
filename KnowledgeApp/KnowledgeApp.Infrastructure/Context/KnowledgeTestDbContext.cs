@@ -21,6 +21,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<DisciplineTeacher> DisciplineTeachers { get; set; }
 
+    public virtual DbSet<GroupDiscipline> GroupDisciplines { get; set; }
+
     public virtual DbSet<Faculty> Faculties { get; set; }
 
     public virtual DbSet<Report> Reports { get; set; }
@@ -38,6 +40,8 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<StudyProgram> StudyPrograms { get; set; }
 
     public virtual DbSet<Testing> Testings { get; set; }
+
+    public virtual DbSet<TestingOrder> TestingOrders { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
@@ -152,6 +156,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
             entity.HasIndex(e => e.TeacherId, "teacher_id");
 
+            entity.HasIndex(e => e.SemesterId, "semester_id");
+
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.AllDone).HasColumnName("all_done");
             entity.Property(e => e.DisciplineId).HasColumnName("discipline_id");
@@ -161,10 +167,8 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasMaxLength(255)
                 .HasColumnName("file_path");
             entity.Property(e => e.IsCorrect).HasColumnName("is_correct");
-            entity.Property(e => e.ResultOfAttestation)
-                .HasColumnType("text")
-                .HasColumnName("result_of_attestation");
             entity.Property(e => e.TeacherId).HasColumnName("teacher_id");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
 
             entity.HasOne(d => d.Discipline).WithMany(p => p.Reports)
                 .HasForeignKey(d => d.DisciplineId)
@@ -177,6 +181,12 @@ public partial class KnowledgeTestDbContext : DbContext
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("reports_ibfk_2");
+
+            entity.HasOne(d => d.Semester).WithMany(p => p.Reports)
+                .HasForeignKey(d => d.SemesterId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("reports_ibfk_3");
         });
 
         modelBuilder.Entity<Role>(entity =>
@@ -195,13 +205,16 @@ public partial class KnowledgeTestDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
+            entity.ToTable("employee_rights_request");
+
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
 
             entity.HasOne(e => e.User)
                   .WithMany(e => e.EmployeeRightsRequests)
                   .HasForeignKey(e => e.UserId)
-                  .IsRequired()
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .IsRequired(false)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("employee_rights_request_ibfk_1");
 
             entity.Property(e => e.UserId).HasColumnName("user_id");
 
@@ -245,18 +258,45 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
 
             entity.Property(e => e.UserId)
-                .HasMaxLength(255)
                 .HasColumnName("user_id");
 
             entity.Property(e => e.RecommendedAt)
-            .HasDefaultValue(DateTime.UtcNow)
-            .HasColumnName("recommended_at");
+                .HasDefaultValue(DateTime.UtcNow)
+                .HasColumnName("recommended_at");
 
             entity.Property(e => e.SemesterId)
-            .HasColumnName("semester_id");
+                .HasColumnName("semester_id");
 
             entity.Property(e => e.StudyGroupId)
-            .HasColumnName("study_group_id");
+                .HasColumnName("study_group_id");
+
+            entity.Property(e => e.IsChosen)
+                .HasColumnName("is_chosen");
+
+            entity.HasIndex(e => e.UserId, "user_id");
+            entity.HasIndex(e => e.SemesterId, "semester_id");
+            entity.HasIndex(e => e.StudyGroupId, "study_group_id");
+
+            entity.HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.UserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("recommendation_history_ibfk_1");
+
+            entity.HasOne(d => d.Semester)
+                .WithMany(p => p.RecommendationHistories)
+                .HasForeignKey(d => d.SemesterId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("recommendation_history_ibfk_2");
+
+            entity.HasOne(d => d.StudyGroup)
+                .WithMany()
+                .HasForeignKey(d => d.StudyGroupId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("recommendation_history_ibfk_3");
         });
         
         modelBuilder.Entity<Semester>(entity =>
@@ -290,20 +330,19 @@ public partial class KnowledgeTestDbContext : DbContext
 
             entity.HasIndex(e => e.GroupId, "group_id");
 
-            entity.HasIndex(e => e.UserId, "user_id");
-
-            // Нет свойств - name, year, status
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.Name)
+                .HasMaxLength(64)
+                .HasColumnName("name");
+            entity.Property(e => e.Year).HasColumnName("year");
             entity.Property(e => e.GroupId).HasColumnName("group_id");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasColumnName("status");
 
             entity.HasOne(d => d.Group).WithMany(p => p.Students)
                 .HasForeignKey(d => d.GroupId)
                 .HasConstraintName("students_ibfk_2");
-
-            entity.HasOne(d => d.User).WithMany(p => p.Students)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("students_ibfk_1");
         });
 
         modelBuilder.Entity<StudyGroup>(entity =>
@@ -319,14 +358,38 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasMaxLength(50)
                 .HasColumnName("group_number");
             entity.Property(e => e.StudyProgramId).HasColumnName("study_program_id");
-            // Добавить group_status
+            entity.Property(e => e.GroupStatus)
+                .HasMaxLength(10)
+                .HasColumnName("group_status");
             entity.HasOne(d => d.StudyProgram).WithMany(p => p.StudyGroups)
                 .HasForeignKey(d => d.StudyProgramId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("study_groups_ibfk_1");
         });
 
-        // Добавить group_discipline
+        modelBuilder.Entity<GroupDiscipline>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("group_discipline");
+
+            entity.HasIndex(e => e.GroupId, "group_id");
+            entity.HasIndex(e => e.DisciplineId, "discipline_id");
+
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.GroupId).HasColumnName("group_id");
+            entity.Property(e => e.DisciplineId).HasColumnName("discipline_id");
+
+            entity.HasOne(d => d.Group).WithMany(p => p.GroupDisciplines)
+                .HasForeignKey(d => d.GroupId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("group_discipline_ibfk_1");
+
+            entity.HasOne(d => d.Discipline).WithMany(p => p.GroupDisciplines)
+                .HasForeignKey(d => d.DisciplineId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("group_discipline_ibfk_2");
+        });
 
         modelBuilder.Entity<StudyProgram>(entity =>
         {
@@ -363,6 +426,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
             entity.HasIndex(e => e.ReportId, "report_id");
 
+            entity.HasIndex(e => e.SemesterId, "semester_id");
+
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.DisciplineId).HasColumnName("discipline_id");
             entity.Property(e => e.GroupId).HasColumnName("group_id");
@@ -391,11 +456,13 @@ public partial class KnowledgeTestDbContext : DbContext
 
             entity.HasOne(d => d.Report).WithMany(p => p.Testings)
                 .HasForeignKey(d => d.ReportId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_3");
             
-            entity.HasOne(d => d.Report).WithMany(p => p.Testings)
+            entity.HasOne(d => d.Semester).WithMany(p => p.Testings)
                 .HasForeignKey(d => d.SemesterId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_4");
         });
@@ -457,6 +524,35 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("user_role_ibfk_1");
+        });
+
+        modelBuilder.Entity<TestingOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("testing_order");
+
+            entity.HasIndex(e => e.SemesterId, "semester_id");
+
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.OrderDate).HasColumnName("order_date");
+            entity.Property(e => e.Number).HasColumnName("number");
+            entity.Property(e => e.EducationControlEmployeeName)
+                .HasMaxLength(255)
+                .HasColumnName("education_control_employee_name");
+            entity.Property(e => e.EducationMethodEmployeeName)
+                .HasMaxLength(255)
+                .HasColumnName("education_method_employee_name");
+            entity.Property(e => e.TestingSummaryReportUpTo).HasColumnName("testing_summary_report_up_to");
+            entity.Property(e => e.QuestionnaireSummaryReportUpTo).HasColumnName("questionnaire_summary_report_up_to");
+            entity.Property(e => e.PaperReportUpTo).HasColumnName("paper_report_up_to");
+            entity.Property(e => e.DigitalReportUpTo).HasColumnName("digital_report_up_to");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+
+            entity.HasOne(d => d.Semester).WithMany(p => p.TestingOrders)
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("testing_order_ibfk_1");
         });
 
         OnModelCreatingPartial(modelBuilder);

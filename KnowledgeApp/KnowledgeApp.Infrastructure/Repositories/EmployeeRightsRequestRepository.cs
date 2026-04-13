@@ -29,6 +29,7 @@ public class EmployeeRightsRequestRepository
                 JobStart = r.JobStart,
                 JobName = r.JobName,
                 UpdatedAt = r.UpdatedAt,
+                CreatedAt = r.CreatedAt
             }
             ).ToListAsync();
     }
@@ -56,6 +57,7 @@ public class EmployeeRightsRequestRepository
                 JobStart = r.JobStart,
                 JobName = r.JobName,
                 UpdatedAt = r.UpdatedAt,
+                CreatedAt = r.CreatedAt
             })
             .ToListAsync();
     }
@@ -84,6 +86,7 @@ public class EmployeeRightsRequestRepository
                 JobStart = r.JobStart,
                 JobName = r.JobName,
                 UpdatedAt = r.UpdatedAt,
+                CreatedAt = r.CreatedAt
             })
             .ToListAsync();
     }
@@ -103,6 +106,7 @@ public class EmployeeRightsRequestRepository
                 JobStart = r.JobStart,
                 JobName = r.JobName,
                 UpdatedAt = r.UpdatedAt,
+                CreatedAt = r.CreatedAt
             }
             ).ToListAsync();
     }
@@ -113,6 +117,7 @@ public class EmployeeRightsRequestRepository
         return new EmployeeRightsRequestModel()
         {
             Id = r.Id,
+            UserId = r.UserId,
             StructuralDivision = r.StructuralDivision,
             CategoryName = r.CategoryName,
             FullName = r.FullName,
@@ -121,6 +126,7 @@ public class EmployeeRightsRequestRepository
             JobStart = r.JobStart,
             JobName = r.JobName,
             UpdatedAt = r.UpdatedAt,
+            CreatedAt = r.CreatedAt
         };
     }
     public async Task DeleteById(int id)
@@ -135,11 +141,11 @@ public class EmployeeRightsRequestRepository
         
         await _context.EmployeeRightsRequests.AddAsync(new EmployeeRightsRequest()
         {
+            UserId = emp.UserId,
             JobEnd = emp.JobEnd,
             JobStart = emp.JobStart,
             JobName = emp.JobName,
             IsActive = emp.IsActive,
-            Id = emp.Id,
             StructuralDivision = emp.StructuralDivision,
             CategoryName= emp.CategoryName,
             FullName = emp.FullName,
@@ -153,14 +159,15 @@ public class EmployeeRightsRequestRepository
     {
         var req = await _context.EmployeeRightsRequests.FirstOrDefaultAsync(r => r.Id == emp.Id);
         if (req == null) throw new Exception("Запроса с таким id не существует");
-        emp.JobEnd = req.JobEnd;
-        emp.JobStart = req.JobStart;
-        emp.JobName = req.JobName;
-        emp.IsActive = req.IsActive;
-        emp.StructuralDivision = req.StructuralDivision;
-        emp.CategoryName = req.CategoryName;
-        emp.FullName = req.FullName;
-        emp.UpdatedAt = DateTime.UtcNow;
+        req.UserId = emp.UserId;
+        req.JobEnd = emp.JobEnd;
+        req.JobStart = emp.JobStart;
+        req.JobName = emp.JobName;
+        req.IsActive = emp.IsActive;
+        req.StructuralDivision = emp.StructuralDivision;
+        req.CategoryName = emp.CategoryName;
+        req.FullName = emp.FullName;
+        req.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
     }
 }

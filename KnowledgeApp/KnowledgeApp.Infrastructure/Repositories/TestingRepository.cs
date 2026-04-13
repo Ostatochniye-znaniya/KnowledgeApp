@@ -119,7 +119,7 @@ public class TestingRepository
         }
 
         var testings = await _context.Testings
-            .Where(t => studyGroupIds.Contains(t.GroupId) || reportIds.Contains(t.ReportId))
+            .Where(t => (t.GroupId.HasValue && studyGroupIds.Contains(t.GroupId.Value)) || (t.ReportId.HasValue && reportIds.Contains(t.ReportId.Value)))
             .ToListAsync();
 
         return testings.Select(e => ToModel(e)).ToList();
@@ -127,8 +127,8 @@ public class TestingRepository
 
     private void ValidateModel(TestingModel model)
     {
-        if (model.GroupId == 0 || model.DisciplineId == 0 || model.SemesterId == 0)
-            //throw new Exception("Необходимо указать groupId, disciplineId и semesterId");
+        if (model.GroupId == null || model.DisciplineId == null || model.SemesterId == null)
+            throw new Exception("Необходимо указать groupId, disciplineId и semesterId");
 
         if (!_context.StudyGroups.Any(g => g.Id == model.GroupId))
             throw new Exception($"Учебная группа с ID {model.GroupId} не существует");
@@ -139,7 +139,7 @@ public class TestingRepository
         if (!_context.Semesters.Any(s => s.Id == model.SemesterId))
             throw new Exception($"Семестр с ID {model.SemesterId} не существует");
 
-        if (!_context.Reports.Any(r => r.Id == model.ReportId))
+        if (model.ReportId.HasValue && !_context.Reports.Any(r => r.Id == model.ReportId))
             throw new Exception($"Отчет с ID {model.ReportId} не существует");
     }
 

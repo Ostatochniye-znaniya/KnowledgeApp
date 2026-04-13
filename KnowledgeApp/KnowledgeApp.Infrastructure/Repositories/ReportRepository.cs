@@ -20,18 +20,18 @@ public class ReportRepository
         {
             DisciplineId = reportModel.DisciplineId,
             TeacherId = reportModel.TeacherId,
+            SemesterId = reportModel.SemesterId,
             FilePath = reportModel.FilePath,
             IsCorrect = reportModel.IsCorrect,
             DoneInPaperForm = reportModel.DoneInPaperForm,
             DoneInElectronicForm = reportModel.DoneInElectronicForm,
-            ResultOfAttestation = reportModel.ResultOfAttestation,
             AllDone = reportModel.AllDone
         };
 
         await _context.Reports.AddAsync(reportEntity);
         await _context.SaveChangesAsync();
 
-        ReportModel createdReport = new ReportModel(reportEntity.DisciplineId, reportEntity.TeacherId, reportEntity.FilePath, reportEntity.IsCorrect, reportEntity.ResultOfAttestation, reportEntity.DoneInPaperForm, reportEntity.DoneInElectronicForm, reportEntity.AllDone);
+        ReportModel createdReport = new ReportModel(reportEntity.DisciplineId, reportEntity.TeacherId, reportEntity.SemesterId, reportEntity.FilePath, reportEntity.IsCorrect, reportEntity.DoneInPaperForm, reportEntity.DoneInElectronicForm, reportEntity.AllDone);
         return createdReport;
     }
     public async Task<List<ReportModel>> GetAllReports()
@@ -47,9 +47,9 @@ public class ReportRepository
                     reportEntity.Id,
                     reportEntity.DisciplineId,
                     reportEntity.TeacherId,
+                    reportEntity.SemesterId,
                     reportEntity.FilePath,
                     reportEntity.IsCorrect,
-                    reportEntity.ResultOfAttestation,
                     reportEntity.DoneInPaperForm,
                     reportEntity.DoneInElectronicForm,
                     reportEntity.AllDone);
@@ -69,9 +69,9 @@ public class ReportRepository
                     reportEntity.Id,
                     reportEntity.DisciplineId,
                     reportEntity.TeacherId,
+                    reportEntity.SemesterId,
                     reportEntity.FilePath,
                     reportEntity.IsCorrect,
-                    reportEntity.ResultOfAttestation,
                     reportEntity.DoneInPaperForm,
                     reportEntity.DoneInElectronicForm,
                     reportEntity.AllDone);
@@ -92,9 +92,9 @@ public class ReportRepository
 
         reportEntity.DisciplineId = reportModel.DisciplineId.GetValueOrDefault();
         reportEntity.TeacherId = reportEntity.TeacherId;
+        reportEntity.SemesterId = reportModel.SemesterId.GetValueOrDefault();
         reportEntity.FilePath = reportModel.FilePath;
         reportEntity.IsCorrect = reportModel.IsCorrect;
-        reportEntity.ResultOfAttestation = reportModel.ResultOfAttestation;
         reportEntity.DoneInPaperForm = reportModel.DoneInPaperForm;
         reportEntity.DoneInElectronicForm = reportModel.DoneInElectronicForm;
         reportEntity.AllDone = reportModel.AllDone;
@@ -104,9 +104,9 @@ public class ReportRepository
                     reportEntity.Id,
                     reportEntity.DisciplineId,
                     reportEntity.TeacherId,
+                    reportEntity.SemesterId,
                     reportEntity.FilePath,
                     reportEntity.IsCorrect,
-                    reportEntity.ResultOfAttestation,
                     reportEntity.DoneInPaperForm,
                     reportEntity.DoneInElectronicForm,
                     reportEntity.AllDone);

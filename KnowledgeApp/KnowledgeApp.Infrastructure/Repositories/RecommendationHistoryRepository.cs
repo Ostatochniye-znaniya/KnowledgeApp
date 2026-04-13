@@ -41,8 +41,8 @@ public class RecommendationHistoryRepository
             Id = recommendationId,
             RecommendedAt = res.RecommendedAt,
             RecommendedBy = res.User?.Name,
-            SemesterId = res.SemesterId,
-            StudyGroupId = res.StudyGroupId,
+            SemesterId = res.SemesterId ?? 0,
+            StudyGroupId = res.StudyGroupId ?? 0,
             StudyGroupName = res.StudyGroup?.GroupNumber
         };
     }
@@ -97,8 +97,8 @@ public class RecommendationHistoryRepository
             Id = res.Id,
             RecommendedAt = res.RecommendedAt,
             RecommendedBy = res.User?.Name,
-            SemesterId = res.SemesterId,
-            StudyGroupId = res.StudyGroupId,
+            SemesterId = res.SemesterId ?? 0,
+            StudyGroupId = res.StudyGroupId ?? 0,
             StudyGroupName = res.StudyGroup?.GroupNumber
         }).ToList();
     }

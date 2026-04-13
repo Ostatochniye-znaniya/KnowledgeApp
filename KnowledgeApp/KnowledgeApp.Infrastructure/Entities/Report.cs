@@ -8,11 +8,11 @@ public partial class Report
 
     public int? TeacherId { get; set; }
 
+    public int? SemesterId { get; set; }
+
     public string? FilePath { get; set; }
 
     public bool? IsCorrect { get; set; }
-
-    public string? ResultOfAttestation { get; set; }
 
     public bool? DoneInPaperForm { get; set; }
 
@@ -23,6 +23,8 @@ public partial class Report
     public virtual Discipline? Discipline { get; set; }
 
     public virtual User? Teacher { get; set; }
+
+    public virtual Semester? Semester { get; set; }
 
     public virtual ICollection<Testing> Testings { get; set; } = new List<Testing>();
 }

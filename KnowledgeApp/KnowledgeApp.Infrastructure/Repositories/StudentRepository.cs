@@ -16,20 +16,21 @@ public class StudentRepository
 
     public async Task<StudentModel> CreateStudent(StudentModel studentModel)
     {
-        var groupid = await _context.Students.SingleOrDefaultAsync(f => f.GroupId == studentModel.GroupId);
-        var userid = await _context.Students.SingleOrDefaultAsync(f => f.UserId == studentModel.UserId);
-        if (groupid == null || userid == null) throw new Exception("Студента с таким groupid или userid не существует");
+        var group = await _context.StudyGroups.SingleOrDefaultAsync(f => f.Id == studentModel.GroupId);
+        if (group == null) throw new Exception("Группы с таким id не существует");
+        
         var studentEntity = new Student
         {
-            UserId = studentModel.UserId,
-            Id = studentModel.Id,
-            GroupId = studentModel.GroupId
+            Name = studentModel.Name,
+            Year = studentModel.Year,
+            GroupId = studentModel.GroupId,
+            Status = studentModel.Status
         };
 
         await _context.Students.AddAsync(studentEntity);
         await _context.SaveChangesAsync();
 
-        StudentModel createdStudent = new StudentModel(studentEntity.Id, studentEntity.UserId, studentEntity.GroupId);
+        StudentModel createdStudent = new StudentModel(studentEntity.Id, studentEntity.Name, studentEntity.Year, studentEntity.GroupId, studentEntity.Status);
         return createdStudent;
     }
     public async Task<List<StudentModel>> GetAllStudents()
@@ -45,8 +46,10 @@ public class StudentRepository
             {
                 var studentModel = new StudentModel(
                     studentEntity.Id,
-                    studentEntity.UserId,
-                    studentEntity.GroupId);
+                    studentEntity.Name,
+                    studentEntity.Year,
+                    studentEntity.GroupId,
+                    studentEntity.Status);
 
                 return studentModel;
             })
@@ -58,7 +61,7 @@ public class StudentRepository
     {
         var studentEntity = await _context.Students.SingleOrDefaultAsync(d => d.Id == studentId);
         if (studentEntity == null) throw new Exception("Student с таким id не существует");
-        StudentModel student = new StudentModel(studentEntity.Id, studentEntity.UserId, studentEntity.GroupId);
+        StudentModel student = new StudentModel(studentEntity.Id, studentEntity.Name, studentEntity.Year, studentEntity.GroupId, studentEntity.Status);
         return student;
     }
     public async Task<StudentModel> UpdateStudent(StudentModel studentModel)
@@ -69,10 +72,13 @@ public class StudentRepository
         var student_groupEntity = await _context.StudyGroups.SingleOrDefaultAsync(f => f.Id == studentModel.GroupId);
         if (student_groupEntity == null) throw new Exception("Группы с таким id не существует");
 
-        studentEntity.UserId = studentModel.UserId;
-        studentEntity.GroupId = studentEntity.GroupId;
-        _context.SaveChanges();
-        StudentModel student = new StudentModel(studentEntity.Id, studentEntity.UserId, studentEntity.GroupId);
+        studentEntity.Name = studentModel.Name;
+        studentEntity.Year = studentModel.Year;
+        studentEntity.GroupId = studentModel.GroupId;
+        studentEntity.Status = studentModel.Status;
+        
+        await _context.SaveChangesAsync();
+        StudentModel student = new StudentModel(studentEntity.Id, studentEntity.Name, studentEntity.Year, studentEntity.GroupId, studentEntity.Status);
         return student;
     }
     public async Task<bool> DeleteStudent(int studentId)
