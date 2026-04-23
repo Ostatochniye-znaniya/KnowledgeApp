@@ -5,28 +5,25 @@ services:
       context: ../
       dockerfile: Deploy/Dockerfile
     ports:
-      - "8000:8080"    # внешний порт VPS : внутренний порт контейнера
+      - "8000:8080"
     depends_on:
       - db
     environment:
-      ASPNETCORE_ENVIRONMENT: Development #Production
+      ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: "http://+:8080"
-      ConnectionStrings__DefaultConnection: "server=db;port=3306;database=knowledge_test_db;user=root;password=admin"
+      ConnectionStrings__DefaultConnection: "server=db;port=3306;database=${DB_NAME};user=${DB_USER};password=${DB_PASSWORD}"
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS}"
     restart: always
-
   db:
     container_name: mysql-db
     image: mysql:9.1
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: admin
-      MYSQL_DATABASE: knowledge_test_db
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_NAME}"
     ports:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-      # Удалить после доработки DbContext
-      #- ./DbBackups/DB_KnowledgeApp_Backup_03.12.25.sql:/docker-entrypoint-initdb.d/DB_KnowledgeApp_Backup_03.12.25.sql:ro
-
 volumes:
   db_data:
