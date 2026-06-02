@@ -17,11 +17,6 @@ public class TestingRepository
     public async Task<IEnumerable<Testing>> GetAll()
     {
         return await _context.Set<Testing>().ToListAsync();
-        // var testingEntities = await _context.Testings
-        //     .AsNoTracking()
-        //     .ToListAsync();
-
-        // return testingEntities.Select(e => ToModel(e)).ToList();
     }
 
     public async Task<TestingModel> GetById(int id)
@@ -94,6 +89,7 @@ public class TestingRepository
 
         return entities.Select(e => ToModel(e)).ToList();
     }
+
     public async Task<List<TestingModel>> GetByDepartmentId(int departmentId)
     {
         List<int> studyProgramIds = await _context.StudyPrograms
@@ -125,11 +121,10 @@ public class TestingRepository
         return testings.Select(e => ToModel(e)).ToList();
     }
 
+    // 👉 МЕТОД GetTestingScheduleAsync УДАЛЕН - он теперь в TestingService
+
     private void ValidateModel(TestingModel model)
     {
-        if (model.GroupId == 0 || model.DisciplineId == 0 || model.SemesterId == 0)
-            //throw new Exception("Необходимо указать groupId, disciplineId и semesterId");
-
         if (!_context.StudyGroups.Any(g => g.Id == model.GroupId))
             throw new Exception($"Учебная группа с ID {model.GroupId} не существует");
 
