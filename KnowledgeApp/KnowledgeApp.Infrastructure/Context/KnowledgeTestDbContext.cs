@@ -52,7 +52,7 @@ public partial class KnowledgeTestDbContext : DbContext
                             ?? "server=localhost;database=knowledge_test_db;user=root;password=admin";
 
         optionsBuilder.UseMySql(connectionString, 
-            ServerVersion.AutoDetect(connectionString),
+            new MySqlServerVersion(new Version(9, 1, 0)),
             mysqlOptions => mysqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,                 // количество попыток
                 maxRetryDelay: TimeSpan.FromSeconds(10), // задержка между попытками
