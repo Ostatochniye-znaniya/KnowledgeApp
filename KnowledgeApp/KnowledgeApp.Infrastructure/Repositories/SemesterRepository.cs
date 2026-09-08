@@ -43,7 +43,8 @@ public class SemesterRepository
                 var semesterModel = new SemesterModel(
                     semesterEntity.Id,
                     semesterEntity.SemesterYear,
-                    semesterEntity.SemesterPart);
+                    semesterEntity.SemesterPart,
+                    semesterEntity.YearPart);
                 
                 return semesterModel;
             })

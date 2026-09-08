@@ -268,6 +268,7 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.SemesterYear).HasColumnName("semester_year");
             entity.Property(e => e.SemesterPart).HasColumnName("semester_part");
+            entity.Property(e => e.YearPart).HasColumnName("year_part");
         });
 
         modelBuilder.Entity<Status>(entity =>

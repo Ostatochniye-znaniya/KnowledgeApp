@@ -46,7 +46,7 @@ public class SemesterController : BaseController
     {
         try
         {
-            var newSemesterModel = new SemesterModel(semesterRequest.SemesterYear, semesterRequest.SemesterPart);
+            var newSemesterModel = new SemesterModel(semesterRequest.SemesterYear, semesterRequest.SemesterPart, semesterRequest.YearPart);
             SemesterModel newSemesterId = await _semesterService.CreateSemester(newSemesterModel);
             return Results.Json(newSemesterId);
         }

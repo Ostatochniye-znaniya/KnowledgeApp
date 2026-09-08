@@ -4,4 +4,5 @@ public class SemesterRequest
 {
     public int SemesterYear { get; set; }
     public int SemesterPart { get; set; }
+    public int YearPart { get; set; }
 }
