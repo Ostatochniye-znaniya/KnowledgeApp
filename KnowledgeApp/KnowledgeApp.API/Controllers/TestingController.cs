@@ -134,5 +134,20 @@ public class TestingController : BaseController
         {
             return Results.Problem(e.Message);
         }
+
+        // 👇 НОВЫЙ ЭНДПОИНТ
+        [HttpGet]
+        public async Task<IResult> GetTestingSchedule()
+        {
+            try
+            {
+                var schedule = await _testingService.GetTestingScheduleAsync();
+                return Results.Json(schedule);
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message);
+            }
+        }
     }
 }

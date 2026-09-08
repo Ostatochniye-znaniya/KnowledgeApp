@@ -1,0 +1,713 @@
+﻿@model List<KnowledgeApp.Application.DTOs.TestingScheduleWithFacultyDto>
+
+@{
+    Layout = null;
+    ViewData["Title"] = "Расписание тестирований";
+    
+    var scheduleList = Model ?? new List<KnowledgeApp.Application.DTOs.TestingScheduleWithFacultyDto>();
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расписание тестирований</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .btn-pdf {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-pdf:hover {
+            background: white;
+            color: #4CAF50;
+        }
+
+        .content {
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        .filter-section {
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .filter-left {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-section label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .filter-section select {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            background: white;
+            min-width: 200px;
+        }
+
+        .filter-section button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-section button:hover {
+            background: #45a049;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #4CAF50;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .faculty-header {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .faculty-header td {
+            background: #e8e8e8;
+            padding: 12px 15px;
+            border-top: 2px solid #4CAF50;
+            border-bottom: 2px solid #4CAF50;
+            font-size: 16px;
+        }
+
+        .stats {
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stats-left {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-card span {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .btn-pdf-small {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-pdf-small:hover {
+            background: #45a049;
+            transform: scale(1.02);
+        }
+
+        .empty {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+            font-size: 18px;
+        }
+
+        .footer {
+            background: #f9f9f9;
+            padding: 15px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .error {
+            text-align: center;
+            padding: 50px;
+            color: #f44336;
+            font-size: 18px;
+        }
+
+        @@media (max-width: 768px) {
+            table {
+                font-size: 12px;
+            }
+            th, td {
+                padding: 8px;
+            }
+            .header h1 {
+                font-size: 20px;
+            }
+            .btn-pdf {
+                position: static;
+                margin-top: 15px;
+                display: inline-block;
+            }
+            .stats {
+                flex-direction: column;
+                text-align: center;
+            }
+            .filter-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-left {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Расписание тестирований</h1>
+            <p>Актуальные данные на текущий момент</p>
+            <button class="btn-pdf" onclick="downloadPDF()">
+                📄 Скачать в PDF
+            </button>
+        </div>
+        <div class="content">
+            <div class="filter-section">
+                <div class="filter-left">
+                    <label>🏛️ Факультет:</label>
+                    <select id="facultySelect">
+                        <option value="0">Все факультеты</option>
+                    </select>
+                    
+                    <label>📅 Семестр:</label>
+                    <select id="semesterSelect">
+                        <option value="0">Все семестры</option>
+                    </select>
+                    
+                    <button onclick="applyFilter()">Применить фильтр</button>
+                    <button onclick="setCurrentSemester()" style="background: #2196F3;">📅 Текущий семестр</button>
+                    <button onclick="setPreviousSemester()" style="background: #FF9800;">📅 Прошлый семестр</button>
+                    <button onclick="resetFilter()" style="background: #666;">Сбросить</button>
+                </div>
+                <div>
+                    <span id="filterInfo" style="color: #666; font-size: 14px;"></span>
+                </div>
+            </div>
+
+            <div id="loading" class="loading">
+                ⏳ Загрузка данных...
+            </div>
+            <div id="error" class="error" style="display: none;">
+                ❌ Ошибка загрузки данных
+            </div>
+            <div id="tableContainer" style="display: none;">
+                <div id="statsContainer"></div>
+                <div style="overflow-x: auto;">
+                    <table id="testingTable">
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>Группа</th>
+                                <th>Профиль подготовки</th>
+                                <th>Дисциплина</th>
+                                <th>Кафедра</th>
+                                <th>Преподаватель</th>
+                                <th>Дата проведения</th>
+                                <th>Время проведения</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            Система управления тестированием | Данные из базы знаний
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let facultiesList = [];
+        let semestersList = [];
+
+        async function loadSchedule() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const tableContainer = document.getElementById('tableContainer');
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            tableContainer.style.display = 'none';
+            
+            try {
+                const [dataResponse, facultiesResponse, semestersResponse] = await Promise.all([
+                    fetch('/Schedule/GetTestingScheduleWithFaculty'),
+                    fetch('/Schedule/GetFaculties'),
+                    fetch('/Schedule/GetSemesters')
+                ]);
+                
+                if (!dataResponse.ok) throw new Error('Ошибка загрузки данных');
+                if (!facultiesResponse.ok) throw new Error('Ошибка загрузки факультетов');
+                if (!semestersResponse.ok) throw new Error('Ошибка загрузки семестров');
+                
+                allData = await dataResponse.json();
+                facultiesList = await facultiesResponse.json();
+                semestersList = await semestersResponse.json();
+                
+                const facultySelect = document.getElementById('facultySelect');
+                facultySelect.innerHTML = '<option value="0">Все факультеты</option>';
+                facultiesList.forEach(f => {
+                    facultySelect.innerHTML += `<option value="${f.id}">${f.name}</option>`;
+                });
+                
+                const semesterSelect = document.getElementById('semesterSelect');
+                semesterSelect.innerHTML = '<option value="0">Все семестры</option>';
+                semestersList.forEach(s => {
+                    semesterSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                });
+                
+                if (!allData || allData.length === 0) {
+                    showEmptyState();
+                    return;
+                }
+                
+                const savedFaculty = localStorage.getItem('selectedFacultyId');
+                const savedSemester = localStorage.getItem('selectedSemesterId');
+                if (savedFaculty && savedFaculty !== '0') facultySelect.value = savedFaculty;
+                if (savedSemester && savedSemester !== '0') semesterSelect.value = savedSemester;
+                
+                applyFilter();
+                
+            } catch (err) {
+                console.error('Error:', err);
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                error.textContent = `❌ Ошибка загрузки данных: ${err.message}`;
+            }
+        }
+
+        function applyFilter() {
+            const selectedFacultyId = parseInt(document.getElementById('facultySelect').value);
+            const selectedSemesterId = parseInt(document.getElementById('semesterSelect').value);
+            
+            localStorage.setItem('selectedFacultyId', selectedFacultyId);
+            localStorage.setItem('selectedSemesterId', selectedSemesterId);
+            
+            let filteredData = [...allData];
+            let facultyName = 'Все факультеты';
+            let semesterName = 'Все семестры';
+            
+            if (selectedFacultyId !== 0) {
+                const faculty = facultiesList.find(f => f.id === selectedFacultyId);
+                if (faculty) {
+                    facultyName = faculty.name;
+                    filteredData = filteredData.filter(item => item.facultyId === selectedFacultyId);
+                }
+            }
+            
+            if (selectedSemesterId !== 0) {
+                const semester = semestersList.find(s => s.id === selectedSemesterId);
+                if (semester) {
+                    semesterName = semester.name;
+                    filteredData = filteredData.filter(item => {
+                        const itemDate = new Date(item.date);
+                        let startDate, endDate;
+                        
+                        if (semester.part === 1) {
+                            startDate = new Date(semester.year, 1, 1);
+                            endDate = new Date(semester.year, 5, 30);
+                        } else {
+                            startDate = new Date(semester.year, 8, 1);
+                            endDate = new Date(semester.year, 11, 31);
+                        }
+                        
+                        return itemDate >= startDate && itemDate <= endDate;
+                    });
+                }
+            }
+            
+            renderTable(filteredData, facultyName, semesterName, selectedFacultyId, selectedSemesterId);
+            
+            const filterInfo = document.getElementById('filterInfo');
+            filterInfo.textContent = `Показано: ${filteredData.length} из ${allData.length} записей`;
+        }
+
+        function resetFilter() {
+            document.getElementById('facultySelect').value = '0';
+            document.getElementById('semesterSelect').value = '0';
+            localStorage.removeItem('selectedFacultyId');
+            localStorage.removeItem('selectedSemesterId');
+            applyFilter();
+        }
+
+        async function setCurrentSemester() {
+            try {
+                const response = await fetch('/Schedule/GetCurrentSemester');
+                if (!response.ok) throw new Error('Ошибка загрузки текущего семестра');
+                
+                const currentSemester = await response.json();
+                
+                const semesterSelect = document.getElementById('semesterSelect');
+                semesterSelect.value = currentSemester.id.toString();
+                
+                localStorage.setItem('selectedSemesterId', currentSemester.id);
+                applyFilter();
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось определить текущий семестр');
+            }
+        }
+
+        async function setPreviousSemester() {
+            try {
+                const currentResponse = await fetch('/Schedule/GetCurrentSemester');
+                if (!currentResponse.ok) throw new Error('Ошибка загрузки текущего семестра');
+                
+                const currentSemester = await currentResponse.json();
+                
+                let previousYear = currentSemester.year;
+                let previousPart = currentSemester.part - 1;
+                
+                if (previousPart < 1) {
+                    previousPart = 2;
+                    previousYear--;
+                }
+                
+                const previousSemester = semestersList.find(s => s.year === previousYear && s.part === previousPart);
+                
+                if (previousSemester) {
+                    const semesterSelect = document.getElementById('semesterSelect');
+                    semesterSelect.value = previousSemester.id.toString();
+                    localStorage.setItem('selectedSemesterId', previousSemester.id);
+                    applyFilter();
+                } else {
+                    alert('Прошлый семестр не найден в базе данных');
+                }
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось определить прошлый семестр');
+            }
+        }
+
+                    function renderTable(data, facultyName, semesterName, facultyId, semesterId) {
+                const loading = document.getElementById('loading');
+                const tableContainer = document.getElementById('tableContainer');
+                const statsContainer = document.getElementById('statsContainer');
+                const scheduleBody = document.getElementById('scheduleBody');
+
+                if (!data || data.length === 0) {
+                    showEmptyState();
+                    return;
+                }
+
+                scheduleBody.innerHTML = '';
+
+                let currentFaculty = '';
+                let currentGroup = '';
+                let groupStartIndex = -1;
+                let rows = [];
+
+                // Сначала собираем все строки
+                data.forEach((item, idx) => {
+                    if (currentFaculty !== item.facultyName) {
+                        currentFaculty = item.facultyName;
+                        const facultyRow = { isFaculty: true, facultyName: item.facultyName };
+                        rows.push(facultyRow);
+                    }
+
+                    rows.push({ isData: true, item: item, index: idx });
+                });
+
+                // Отрисовываем таблицу
+                let globalNumber = 1;
+                let i = 0;
+
+                while (i < rows.length) {
+                    if (rows[i].isFaculty) {
+                        const facultyRow = scheduleBody.insertRow();
+                        facultyRow.className = 'faculty-header';
+                        const cell = facultyRow.insertCell(0);
+                        cell.colSpan = 8;
+                        cell.innerHTML = `🏛️ ${rows[i].facultyName}`;
+                        cell.style.fontWeight = 'bold';
+                        cell.style.fontSize = '16px';
+                        cell.style.backgroundColor = '#e8e8e8';
+                        cell.style.padding = '12px 15px';
+                        i++;
+                        continue;
+                    }
+
+                    // Находим группу одинаковых строк
+                    const currentItem = rows[i].item;
+                    const currentGroupName = currentItem.groupName;
+                    let j = i;
+                    let groupItems = [];
+
+                    while (j < rows.length && !rows[j].isFaculty && rows[j].item.groupName === currentGroupName) {
+                        groupItems.push(rows[j].item);
+                        j++;
+                    }
+
+                    const groupSize = groupItems.length;
+
+                    // Отрисовываем строки группы
+                    for (let k = 0; k < groupSize; k++) {
+                        const item = groupItems[k];
+                        const row = scheduleBody.insertRow();
+
+                        // Номер (с ID)
+                        row.insertCell(0).textContent = globalNumber++ + ' ' + item.id;
+
+                        // Группа (объединяем для всех строк группы)
+                        if (k === 0) {
+                            const groupCell = row.insertCell(1);
+                            groupCell.textContent = item.groupName || '-';
+                            groupCell.rowSpan = groupSize;
+                            groupCell.style.verticalAlign = 'middle';
+                            groupCell.style.backgroundColor = '#f9f9f9';
+                        }
+
+                        // Профиль подготовки (объединяем для всех строк группы)
+                        if (k === 0) {
+                            const programCell = row.insertCell(2);
+                            programCell.textContent = item.programName || '-';
+                            programCell.rowSpan = groupSize;
+                            programCell.style.verticalAlign = 'middle';
+                            programCell.style.backgroundColor = '#f9f9f9';
+                        }
+
+                        // Остальные ячейки (без объединения)
+                        if (k > 0) {
+                            // Пропускаем ячейки группы и профиля, так как они уже добавлены с rowSpan
+                            row.insertCell(1); // пустая, будет скрыта
+                            row.insertCell(2); // пустая, будет скрыта
+                        }
+
+                        row.insertCell(k > 0 ? 3 : 3).textContent = item.disciplineName || '-';
+                        row.insertCell(k > 0 ? 4 : 4).textContent = item.departmentName || '-';
+                        row.insertCell(k > 0 ? 5 : 5).textContent = item.teacherName || '-';
+
+                        const date = new Date(item.date);
+                        const formattedDate = date.toLocaleDateString('ru-RU', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        });
+                        row.insertCell(k > 0 ? 6 : 6).textContent = formattedDate;
+                        row.insertCell(k > 0 ? 7 : 7).textContent = item.time || '-';
+
+                        // Скрываем лишние ячейки, если они были добавлены
+                        if (k > 0) {
+                            const cells = row.cells;
+                            // Удаляем пустые ячейки, которые мы добавили для группы и профиля
+                            if (cells[1] && cells[1].textContent === '') cells[1].style.display = 'none';
+                            if (cells[2] && cells[2].textContent === '') cells[2].style.display = 'none';
+                        }
+                    }
+
+                    i = j;
+                }
+
+                const displayFaculty = facultyId === 0 ? 'Все факультеты' : facultyName;
+                const displaySemester = semesterId === 0 ? 'Все семестры' : semesterName;
+
+                statsContainer.innerHTML = `
+                    <div class="stats">
+                        <div class="stats-left">
+                            <div class="stat-card">🏛️ ${displayFaculty}</div>
+                            <div class="stat-card">📅 ${displaySemester}</div>
+                            <div class="stat-card">📊 Всего тестирований: <span>${data.length}</span></div>
+                        </div>
+                        <button class="btn-pdf-small" onclick="downloadPDF()">📄 Скачать PDF</button>
+                    </div>
+                `;
+
+                loading.style.display = 'none';
+                tableContainer.style.display = 'block';
+            }
+
+        function showEmptyState() {
+            const loading = document.getElementById('loading');
+            const tableContainer = document.getElementById('tableContainer');
+            const statsContainer = document.getElementById('statsContainer');
+            const scheduleBody = document.getElementById('scheduleBody');
+            
+            scheduleBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">📭 Нет запланированных тестирований</td></tr>';
+            statsContainer.innerHTML = '';
+            loading.style.display = 'none';
+            tableContainer.style.display = 'block';
+        }
+
+        async function downloadPDF() {
+            const selectedFacultyId = parseInt(document.getElementById('facultySelect').value);
+            const selectedSemesterId = parseInt(document.getElementById('semesterSelect').value);
+            
+            try {
+                const buttons = document.querySelectorAll('.btn-pdf, .btn-pdf-small');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Генерация PDF...';
+                });
+                
+                let url = `/Schedule/DownloadPdfByFaculty?facultyId=${selectedFacultyId}&semesterId=${selectedSemesterId}`;
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Ошибка при генерации PDF');
+                }
+                
+                const blob = await response.blob();
+                const urlBlob = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = urlBlob;
+                
+                const now = new Date();
+                const filename = `Расписание_тестирований_${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}.pdf`;
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(urlBlob);
+                
+                alert('✅ PDF успешно сгенерирован и скачан!');
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert(`❌ Ошибка при скачивании PDF: ${error.message}`);
+            } finally {
+                const buttons = document.querySelectorAll('.btn-pdf, .btn-pdf-small');
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.textContent = btn.classList.contains('btn-pdf-small') ? '📄 Скачать PDF' : '📄 Скачать в PDF';
+                });
+            }
+        }
+        
+        loadSchedule();
+    </script>
+</body>
+</html>
