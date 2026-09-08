@@ -1,8 +1,7 @@
-﻿namespace KnowledgeApp.API.Contracts
+﻿namespace KnowledgeApp.API.Contracts;
+
+public class StatusResponse
 {
-    public class StatusResponse
-    {
-    public int Id { get; set; }
-    public string StatusName { get; set; } = null!;
-    }
+public int Id { get; set; }
+public string StatusName { get; set; } = null!;
 }

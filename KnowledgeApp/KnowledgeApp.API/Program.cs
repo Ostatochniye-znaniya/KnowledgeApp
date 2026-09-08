@@ -3,15 +3,37 @@ using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 
 // CORS политика
+Env.Load();
+var envCandidates = new[]
+{
+    Path.Combine(builder.Environment.ContentRootPath, ".env"),
+    Path.Combine(builder.Environment.ContentRootPath, "..", "..", ".env"),
+    Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+};
+foreach (var path in envCandidates)
+{
+    var full = Path.GetFullPath(path);
+    if (File.Exists(full))
+    {
+        Env.Load(full);
+        break;
+    }
+}
+
+var allowedOrigins = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS")
+    ?.Split(',') ?? Array.Empty<string>();
+
 services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy => policy.AllowAnyOrigin()
+    options.AddPolicy("AllowSpecificOrigin",
+        policy => policy.WithOrigins(allowedOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod());
 });
@@ -19,7 +41,10 @@ services.AddCors(options =>
 // Добавление контроллеров и Swagger
 services.AddControllers();
 services.AddEndpointsApiExplorer();
-services.AddSwaggerGen();
+services.AddSwaggerGen(c =>
+{
+    c.AddServer(new OpenApiServer { Url = "/csh/api" });
+});
 
 // Добавление поддержки MVC Views
 services.AddControllersWithViews();
@@ -70,6 +95,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Настройка конвейера запросов
+//app.UseHttpsRedirection();
+
+app.UseCors("AllowSpecificOrigin");
+//app.UseAuthorization();
+
+app.UsePathBase("/csh/api");
+app.UseRouting();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

@@ -3,145 +3,141 @@ using KnowledgeApp.Application.Services;
 using KnowledgeApp.API.Contracts;
 using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.API.Controllers
+namespace KnowledgeApp.API.Controllers;
+
+public class ReportController : BaseController
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public class ReportController : ControllerBase
+    private readonly ReportService _reportService;
+    public ReportController(ReportService reportService)
     {
-        private readonly ReportService _reportService;
-        public ReportController(ReportService reportService)
+        _reportService = reportService;
+    }
+    
+    [HttpGet]
+    public async Task<IResult> GetAllReports()
+    {
+        try
         {
-            _reportService = reportService;
+            List<ReportModel> reports = await _reportService.GetAll();
+            return Results.Json(reports);
+
         }
-        
-        [HttpGet]
-        public async Task<IResult> GetAllReports()
+        catch (Exception e)
         {
-            try
-            {
-                List<ReportModel> reports = await _reportService.GetAll();
-                return Results.Json(reports);
-
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpGet("{id}")]
-        public async Task<IResult> GetReportById(int id)
+    [HttpGet("{id}")]
+    public async Task<IResult> GetReportById(int id)
+    {
+        try
         {
-            try
-            {
-                ReportModel report = await _reportService.GetReportById(id);
-                return Results.Json(report);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            ReportModel report = await _reportService.GetReportById(id);
+            return Results.Json(report);
         }
-
-        [HttpPost]
-        public async Task<IResult> CreateReport(ReportRequest reportRequest)
+        catch (Exception e)
         {
-            try
-            {
-                ReportModel newReportModel = new ReportModel(
-                        reportRequest.DisciplineId,
-                        reportRequest.TeacherId,
-                        reportRequest.FilePath,
-                        reportRequest.IsCorrect,
-                        reportRequest.ResultOfAttestation,
-                        reportRequest.DoneInPaperForm,
-                        reportRequest.DoneInElectronicForm,
-                        reportRequest.AllDone);
-
-                ReportModel newReportId = await _reportService.CreateReport(newReportModel);
-                return Results.Json(newReportId);
-
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpPut]
-        public async Task<IResult> UpdateReport(int reportId, ReportRequest reportRequest)
+    [HttpPost]
+    public async Task<IResult> CreateReport(ReportRequest reportRequest)
+    {
+        try
         {
-            try
-            {
-                var updatedReportModel = new ReportModel(
-                        reportRequest.DisciplineId,
-                        reportRequest.TeacherId,
-                        reportRequest.FilePath,
-                        reportRequest.IsCorrect,
-                        reportRequest.ResultOfAttestation,
-                        reportRequest.DoneInPaperForm,
-                        reportRequest.DoneInElectronicForm,
-                        reportRequest.AllDone);
+            ReportModel newReportModel = new ReportModel(
+                    reportRequest.DisciplineId,
+                    reportRequest.TeacherId,
+                    reportRequest.FilePath,
+                    reportRequest.IsCorrect,
+                    reportRequest.ResultOfAttestation,
+                    reportRequest.DoneInPaperForm,
+                    reportRequest.DoneInElectronicForm,
+                    reportRequest.AllDone);
 
-                var updatedReport = await _reportService.UpdateReport(updatedReportModel);
-                return Results.Json(updatedReport);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            ReportModel newReportId = await _reportService.CreateReport(newReportModel);
+            return Results.Json(newReportId);
+
         }
-
-        [HttpPatch("{reportId}")]
-        public async Task<IResult> ReportDisciplineIdUpdate(int reportId, ReportDisciplineIdUpdateRequest patchRequest)
+        catch (Exception e)
         {
-            try
-            {
-                var existingReport = await _reportService.GetReportById(reportId);
-                if (existingReport == null)
-                    return Results.NotFound();
-                existingReport.DisciplineId = patchRequest.DisciplineId;
-                var updatedReport = await _reportService.UpdateReport(existingReport);
-                return Results.Json(updatedReport);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpPatch("{reportId}")]
-        public async Task<IResult> ReportTeacherIdUpdate(int reportId, ReportTeacherIdUpdateRequest patchRequest)
+    [HttpPut]
+    public async Task<IResult> UpdateReport(int reportId, ReportRequest reportRequest)
+    {
+        try
         {
-            try
-            {
-                var existingReport = await _reportService.GetReportById(reportId);
-                if (existingReport == null)
-                    return Results.NotFound();
-                existingReport.TeacherId = patchRequest.TeacherId;
-                var updatedReport = await _reportService.UpdateReport(existingReport);
-                return Results.Json(updatedReport);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            var updatedReportModel = new ReportModel(
+                    reportRequest.DisciplineId,
+                    reportRequest.TeacherId,
+                    reportRequest.FilePath,
+                    reportRequest.IsCorrect,
+                    reportRequest.ResultOfAttestation,
+                    reportRequest.DoneInPaperForm,
+                    reportRequest.DoneInElectronicForm,
+                    reportRequest.AllDone);
+
+            var updatedReport = await _reportService.UpdateReport(updatedReportModel);
+            return Results.Json(updatedReport);
         }
-
-        [HttpDelete]
-        public async Task<IResult> DeleteReport(int reportId)
+        catch (Exception e)
         {
-            try
-            {
-                var result = await _reportService.DeleteReport(reportId);
-                return Results.Json(result);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpPatch("{reportId}")]
+    public async Task<IResult> ReportDisciplineIdUpdate(int reportId, ReportDisciplineIdUpdateRequest patchRequest)
+    {
+        try
+        {
+            var existingReport = await _reportService.GetReportById(reportId);
+            if (existingReport == null)
+                return Results.NotFound();
+            existingReport.DisciplineId = patchRequest.DisciplineId;
+            var updatedReport = await _reportService.UpdateReport(existingReport);
+            return Results.Json(updatedReport);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpPatch("{reportId}")]
+    public async Task<IResult> ReportTeacherIdUpdate(int reportId, ReportTeacherIdUpdateRequest patchRequest)
+    {
+        try
+        {
+            var existingReport = await _reportService.GetReportById(reportId);
+            if (existingReport == null)
+                return Results.NotFound();
+            existingReport.TeacherId = patchRequest.TeacherId;
+            var updatedReport = await _reportService.UpdateReport(existingReport);
+            return Results.Json(updatedReport);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpDelete]
+    public async Task<IResult> DeleteReport(int reportId)
+    {
+        try
+        {
+            var result = await _reportService.DeleteReport(reportId);
+            return Results.Json(result);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
         }
     }
 }
-

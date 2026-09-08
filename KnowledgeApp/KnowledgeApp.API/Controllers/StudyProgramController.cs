@@ -3,91 +3,88 @@ using KnowledgeApp.API.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.API.Controllers
+namespace KnowledgeApp.API.Controllers;
+
+public class StudyProgramController : BaseController
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public class StudyProgramController : ControllerBase
+    private readonly StudyProgramService _studyProgramService;
+
+    public StudyProgramController(StudyProgramService studyProgramService)
     {
-        private readonly StudyProgramService _studyProgramService;
+        _studyProgramService = studyProgramService;
+    }
 
-        public StudyProgramController(StudyProgramService studyProgramService)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<StudyProgramResponse>>> GetAll()
+    {
+        var programs = await _studyProgramService.GetAllProgramsAsync();
+        var response = programs.Select(p => new StudyProgramResponse
         {
-            _studyProgramService = studyProgramService;
-        }
+            Id = p.Id,
+            Name = p.Name,
+            DepartmentId = p.DepartmentId,
+            CypherOfTheDirection = p.CypherOfTheDirection,
+            StudyGroupIds = p.StudyGroups.Select(g => g.Id).ToList()
+        });
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<StudyProgramResponse>>> GetAll()
+        return Ok(response);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<StudyProgramResponse>> GetById(int id)
+    {
+        var program = await _studyProgramService.GetProgramByIdAsync(id);
+        if (program == null)
+            return NotFound();
+
+        var response = new StudyProgramResponse
         {
-            var programs = await _studyProgramService.GetAllProgramsAsync();
-            var response = programs.Select(p => new StudyProgramResponse
-            {
-                Id = p.Id,
-                Name = p.Name,
-                DepartmentId = p.DepartmentId,
-                CypherOfTheDirection = p.CypherOfTheDirection,
-                StudyGroupIds = p.StudyGroups.Select(g => g.Id).ToList()
-            });
+            Id = program.Id,
+            Name = program.Name,
+            DepartmentId = program.DepartmentId,
+            CypherOfTheDirection = program.CypherOfTheDirection,
+            StudyGroupIds = program.StudyGroups.Select(g => g.Id).ToList()
+        };
 
-            return Ok(response);
-        }
+        return Ok(response);
+    }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<StudyProgramResponse>> GetById(int id)
+    [HttpPost]
+    public async Task<ActionResult> Create([FromBody] StudyProgramRequest request)
+    {
+        await _studyProgramService.CreateProgramAsync(new StudyProgramModel
         {
-            var program = await _studyProgramService.GetProgramByIdAsync(id);
-            if (program == null)
-                return NotFound();
+            Name = request.Name,
+            DepartmentId = request.DepartmentId,
+            CypherOfTheDirection = request.CypherOfTheDirection
+        });
 
-            var response = new StudyProgramResponse
-            {
-                Id = program.Id,
-                Name = program.Name,
-                DepartmentId = program.DepartmentId,
-                CypherOfTheDirection = program.CypherOfTheDirection,
-                StudyGroupIds = program.StudyGroups.Select(g => g.Id).ToList()
-            };
+        return CreatedAtAction(nameof(GetAll), null);
+    }
 
-            return Ok(response);
-        }
+    [HttpPut("{id}")]
+    public async Task<ActionResult> Update(int id, [FromBody] StudyProgramRequest request)
+    {
+        var program = await _studyProgramService.GetProgramByIdAsync(id);
+        if (program == null)
+            return NotFound();
 
-        [HttpPost]
-        public async Task<ActionResult> Create([FromBody] StudyProgramRequest request)
-        {
-            await _studyProgramService.CreateProgramAsync(new StudyProgramModel
-            {
-                Name = request.Name,
-                DepartmentId = request.DepartmentId,
-                CypherOfTheDirection = request.CypherOfTheDirection
-            });
+        program.Name = request.Name;
+        program.DepartmentId = request.DepartmentId;
+        program.CypherOfTheDirection = request.CypherOfTheDirection;
 
-            return CreatedAtAction(nameof(GetAll), null);
-        }
+        await _studyProgramService.UpdateProgramAsync(program);
+        return NoContent();
+    }
 
-        [HttpPut("{id}")]
-        public async Task<ActionResult> Update(int id, [FromBody] StudyProgramRequest request)
-        {
-            var program = await _studyProgramService.GetProgramByIdAsync(id);
-            if (program == null)
-                return NotFound();
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> Delete(int id)
+    {
+        var program = await _studyProgramService.GetProgramByIdAsync(id);
+        if (program == null)
+            return NotFound();
 
-            program.Name = request.Name;
-            program.DepartmentId = request.DepartmentId;
-            program.CypherOfTheDirection = request.CypherOfTheDirection;
-
-            await _studyProgramService.UpdateProgramAsync(program);
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(int id)
-        {
-            var program = await _studyProgramService.GetProgramByIdAsync(id);
-            if (program == null)
-                return NotFound();
-
-            await _studyProgramService.DeleteProgramAsync(id);
-            return NoContent();
-        }
+        await _studyProgramService.DeleteProgramAsync(id);
+        return NoContent();
     }
 }

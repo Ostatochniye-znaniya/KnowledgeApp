@@ -2,157 +2,154 @@
 using KnowledgeApp.Application.Services;
 using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.API.Controllers
+namespace KnowledgeApp.API.Controllers;
+
+public class EmployeeRightsRequestController : BaseController
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public class EmployeeRightsRequestController : ControllerBase
+    private readonly EmployeeRightsRequestService _employeeRightsRequestService;
+
+    public EmployeeRightsRequestController(EmployeeRightsRequestService employeeRightsRequestService)
     {
-        private readonly EmployeeRightsRequestService _employeeRightsRequestService;
+        _employeeRightsRequestService = employeeRightsRequestService;
+    }
 
-        public EmployeeRightsRequestController(EmployeeRightsRequestService employeeRightsRequestService)
+    [HttpGet]
+    public async Task<IResult> GetAllEmployeeRightsRequests(int page = 1, int pageSize = 50)
+    {
+        try
         {
-            _employeeRightsRequestService = employeeRightsRequestService;
+            List<EmployeeRightsRequestModel> requests = await _employeeRightsRequestService.GetAllEmployeeRightsRequests(page, pageSize);
+            return Results.Json(requests);
         }
-
-        [HttpGet]
-        public async Task<IResult> GetAllEmployeeRightsRequests(int page = 1, int pageSize = 50)
+        catch (Exception e)
         {
-            try
-            {
-                List<EmployeeRightsRequestModel> requests = await _employeeRightsRequestService.GetAllEmployeeRightsRequests(page, pageSize);
-                return Results.Json(requests);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpGet("{id}")]
-        public async Task<IResult> GetEmployeeRightsRequestById(int id)
+    [HttpGet("{id}")]
+    public async Task<IResult> GetEmployeeRightsRequestById(int id)
+    {
+        try
         {
-            try
-            {
-                EmployeeRightsRequestModel request = await _employeeRightsRequestService.GetEmployeeRightsRequestById(id);
-                return Results.Json(request);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            EmployeeRightsRequestModel request = await _employeeRightsRequestService.GetEmployeeRightsRequestById(id);
+            return Results.Json(request);
         }
-
-        [HttpGet]
-        public async Task<IResult> GetAllEmployeeRightsRequestsByUserId(int userId, int page = 1, int pageSize = 50)
+        catch (Exception e)
         {
-            try
-            {
-                List<EmployeeRightsRequestModel> requests = await _employeeRightsRequestService.GetAllEmployeeRightsRequestsByUserId(userId, page, pageSize);
-                return Results.Json(requests);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpPost]
-        public async Task<IResult> CreateEmployeeRightsRequest(EmployeeRightsRequestModel request)
+    [HttpGet]
+    public async Task<IResult> GetAllEmployeeRightsRequestsByUserId(int userId, int page = 1, int pageSize = 50)
+    {
+        try
         {
-            try
-            {
-                await _employeeRightsRequestService.CreateEmployeeRightsRequest(request);
-                return Results.Ok("Запрос прав сотрудника успешно создан");
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            List<EmployeeRightsRequestModel> requests = await _employeeRightsRequestService.GetAllEmployeeRightsRequestsByUserId(userId, page, pageSize);
+            return Results.Json(requests);
         }
-
-        [HttpPut]
-        public async Task<IResult> UpdateEmployeeRightsRequest(EmployeeRightsRequestModel request)
+        catch (Exception e)
         {
-            try
-            {
-                await _employeeRightsRequestService.UpdateEmployeeRightsRequest(request);
-                return Results.Ok("Запрос прав сотрудника успешно обновлен");
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpDelete]
-        public async Task<IResult> DeleteEmployeeRightsRequest(int id)
+    [HttpPost]
+    public async Task<IResult> CreateEmployeeRightsRequest(EmployeeRightsRequestModel request)
+    {
+        try
         {
-            try
-            {
-                await _employeeRightsRequestService.DeleteEmployeeRightsRequest(id);
-                return Results.Ok("Запрос прав сотрудника успешно удален");
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            await _employeeRightsRequestService.CreateEmployeeRightsRequest(request);
+            return Results.Ok("Запрос прав сотрудника успешно создан");
         }
-
-        [HttpGet]
-        public async Task<IResult> GetActiveEmployeeRightsRequests(int page = 1, int pageSize = 50)
+        catch (Exception e)
         {
-            try
-            {
-                List<EmployeeRightsRequestModel> activeRequests = await _employeeRightsRequestService.GetActiveEmployeeRightsRequests(page, pageSize);
-                return Results.Json(activeRequests);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpGet]
-        public async Task<IResult> GetActiveEmployeeRightsRequestsByUser(int userId, int page = 1, int pageSize = 50)
+    [HttpPut]
+    public async Task<IResult> UpdateEmployeeRightsRequest(EmployeeRightsRequestModel request)
+    {
+        try
         {
-            try
-            {
-                List<EmployeeRightsRequestModel> activeRequests = await _employeeRightsRequestService.GetActiveEmployeeRightsRequestsByUser(userId, page, pageSize);
-                return Results.Json(activeRequests);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            await _employeeRightsRequestService.UpdateEmployeeRightsRequest(request);
+            return Results.Ok("Запрос прав сотрудника успешно обновлен");
         }
-
-        [HttpGet]
-        public async Task<IResult> GetEmployeeRightsRequestsByDivision(string structuralDivision, int page = 1, int pageSize = 50)
+        catch (Exception e)
         {
-            try
-            {
-                List<EmployeeRightsRequestModel> divisionRequests = await _employeeRightsRequestService.GetEmployeeRightsRequestsByDivision(structuralDivision, page, pageSize);
-                return Results.Json(divisionRequests);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpGet]
-        public async Task<IResult> GetEmployeeRightsRequestsByDivisionAndUserId(string structuralDivision, int userId, int page = 1, int pageSize = 50)
+    [HttpDelete]
+    public async Task<IResult> DeleteEmployeeRightsRequest(int id)
+    {
+        try
         {
-            try
-            {
-                List<EmployeeRightsRequestModel> divisionRequests = await _employeeRightsRequestService.GetEmployeeRightsRequestsByDivisionAndUserId(structuralDivision, userId, page, pageSize);
-                return Results.Json(divisionRequests);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            await _employeeRightsRequestService.DeleteEmployeeRightsRequest(id);
+            return Results.Ok("Запрос прав сотрудника успешно удален");
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpGet]
+    public async Task<IResult> GetActiveEmployeeRightsRequests(int page = 1, int pageSize = 50)
+    {
+        try
+        {
+            List<EmployeeRightsRequestModel> activeRequests = await _employeeRightsRequestService.GetActiveEmployeeRightsRequests(page, pageSize);
+            return Results.Json(activeRequests);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpGet]
+    public async Task<IResult> GetActiveEmployeeRightsRequestsByUser(int userId, int page = 1, int pageSize = 50)
+    {
+        try
+        {
+            List<EmployeeRightsRequestModel> activeRequests = await _employeeRightsRequestService.GetActiveEmployeeRightsRequestsByUser(userId, page, pageSize);
+            return Results.Json(activeRequests);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpGet]
+    public async Task<IResult> GetEmployeeRightsRequestsByDivision(string structuralDivision, int page = 1, int pageSize = 50)
+    {
+        try
+        {
+            List<EmployeeRightsRequestModel> divisionRequests = await _employeeRightsRequestService.GetEmployeeRightsRequestsByDivision(structuralDivision, page, pageSize);
+            return Results.Json(divisionRequests);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpGet]
+    public async Task<IResult> GetEmployeeRightsRequestsByDivisionAndUserId(string structuralDivision, int userId, int page = 1, int pageSize = 50)
+    {
+        try
+        {
+            List<EmployeeRightsRequestModel> divisionRequests = await _employeeRightsRequestService.GetEmployeeRightsRequestsByDivisionAndUserId(structuralDivision, userId, page, pageSize);
+            return Results.Json(divisionRequests);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
         }
     }
 }

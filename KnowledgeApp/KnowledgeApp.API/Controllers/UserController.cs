@@ -5,9 +5,7 @@ using KnowledgeApp.API.Contracts;
 
 namespace KnowledgeApp.API.Controllers;
 
-[ApiController]
-[Route("[controller]/[action]")]
-public class UserController : ControllerBase
+public class UserController : BaseController
 {
     private readonly UserService _userService;
 

@@ -1,8 +1,7 @@
-﻿namespace KnowledgeApp.API.Contracts
+﻿namespace KnowledgeApp.API.Contracts;
+
+public class GetRecommendationsRequest
 {
-    public class GetRecommendationsRequest
-    {
-        public int? SemesterId { get; set; }
-        public int? StudyGroupId { get; set; }
-    }
+    public int? SemesterId { get; set; }
+    public int? StudyGroupId { get; set; }
 }

@@ -1,0 +1,46 @@
+services:
+  db:
+    container_name: mysql-db
+    image: mysql:9.1
+    restart: always
+    command: --bind-address=0.0.0.0
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_NAME}"
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_USER: "${DB_USER}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  api:
+    container_name: knowledgeapp-api
+    build:
+      context: ./
+      dockerfile: Deploy/Dockerfile
+    ports:
+      - "8000:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "server=db;port=3306;database=${DB_NAME};user=${DB_USER};password=${DB_PASSWORD}"
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS}"
+    restart: always
+    networks:
+      - app-network
+volumes:
+  db_data:
+networks:
+  app-network:
+    name: app-network
+    external: true

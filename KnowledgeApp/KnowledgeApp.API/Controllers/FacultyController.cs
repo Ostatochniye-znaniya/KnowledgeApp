@@ -3,89 +3,86 @@ using KnowledgeApp.Application.Services;
 using KnowledgeApp.API.Contracts;
 using KnowledgeApp.Domain.Entities;
 
-namespace KnowledgeApp.API.Controllers
+namespace KnowledgeApp.API.Controllers;
+
+public class FacultyController : BaseController
 {
-    [ApiController]
-    [Route("[controller]/[action]")]
-    public class FacultyController : ControllerBase
+    private readonly FacultyService _facultyService;
+    public FacultyController(FacultyService facultyService)
     {
-        private readonly FacultyService _facultyService;
-        public FacultyController(FacultyService facultyService)
+        _facultyService = facultyService;
+    }
+
+    [HttpGet]
+    public async Task<IResult> GetFaculties()
+    {
+        try
         {
-            _facultyService = facultyService;
+            List<FacultyModel> faculties = await _facultyService.GetAll();
+            return Results.Json(faculties);
+
         }
-
-        [HttpGet]
-        public async Task<IResult> GetFaculties()
+        catch (Exception e)
         {
-            try
-            {
-                List<FacultyModel> faculties = await _facultyService.GetAll();
-                return Results.Json(faculties);
-
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpGet("{id}")]
-        public async Task<IResult> GetFacultyById(int id)
+    [HttpGet("{id}")]
+    public async Task<IResult> GetFacultyById(int id)
+    {
+        try
         {
-            try
-            {
-                FacultyModel faculty = await _facultyService.GetFacultyById(id);
-                return Results.Json(faculty);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            FacultyModel faculty = await _facultyService.GetFacultyById(id);
+            return Results.Json(faculty);
         }
-
-        [HttpPost]
-        public async Task<IResult> CreateFaculty(FacultyRequest facultyRequest)
+        catch (Exception e)
         {
-            try
-            {
-                var newFacultyModel = new FacultyModel(facultyRequest.FacultyName);
-                FacultyModel newFacultyId = await _facultyService.CreateFaculty(newFacultyModel);
-                return Results.Json(newFacultyId);
-
-            } catch(Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpPut]
-        public async Task<IResult> UpdateFaculty(int facultyId, FacultyRequest facultyRequest)
+    [HttpPost]
+    public async Task<IResult> CreateFaculty(FacultyRequest facultyRequest)
+    {
+        try
         {
-            try
-            {
-                var updatedFacultyModel = new FacultyModel(facultyId, facultyRequest.FacultyName);
-                var updatedFaculty = await _facultyService.UpdateFaculty(updatedFacultyModel);
-                return Results.Json(updatedFaculty);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            var newFacultyModel = new FacultyModel(facultyRequest.FacultyName);
+            FacultyModel newFacultyId = await _facultyService.CreateFaculty(newFacultyModel);
+            return Results.Json(newFacultyId);
+
+        } catch(Exception e)
+        {
+            return Results.Problem(e.Message);
         }
+    }
 
-        [HttpDelete]
-        public async Task<IResult> DeleteFaculty(int facultyId)
+    [HttpPut]
+    public async Task<IResult> UpdateFaculty(int facultyId, FacultyRequest facultyRequest)
+    {
+        try
         {
-            try
-            {
-                var result = await _facultyService.DeleteFaculty(facultyId);
-                return Results.Json(result);
-            }
-            catch (Exception e)
-            {
-                return Results.Problem(e.Message);
-            }
+            var updatedFacultyModel = new FacultyModel(facultyId, facultyRequest.FacultyName);
+            var updatedFaculty = await _facultyService.UpdateFaculty(updatedFacultyModel);
+            return Results.Json(updatedFaculty);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpDelete]
+    public async Task<IResult> DeleteFaculty(int facultyId)
+    {
+        try
+        {
+            var result = await _facultyService.DeleteFaculty(facultyId);
+            return Results.Json(result);
+        }
+        catch (Exception e)
+        {
+            return Results.Problem(e.Message);
         }
     }
 }
