@@ -1,6 +1,6 @@
 services:
   db:
-    container_name: mysql-db-dev
+    container_name: mysql-db
     image: mysql:9.1
     restart: always
     command: --bind-address=0.0.0.0
@@ -10,6 +10,8 @@ services:
       MYSQL_ROOT_HOST: '%'
       MYSQL_USER: "${DB_USER}"
       MYSQL_PASSWORD: "${DB_PASSWORD}"
+    ports:
+      - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
     networks:
@@ -31,7 +33,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:8080"
       ConnectionStrings__DefaultConnection: "server=db;port=3306;database=${DB_NAME};user=${DB_USER};password=${DB_PASSWORD}"
       CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS}"
