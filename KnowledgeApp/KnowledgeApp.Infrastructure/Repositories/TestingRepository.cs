@@ -115,7 +115,7 @@ public class TestingRepository
         }
 
         var testings = await _context.Testings
-            .Where(t => studyGroupIds.Contains(t.GroupId) || reportIds.Contains(t.ReportId))
+            .Where(t => studyGroupIds.Contains(t.GroupId) || reportIds.Contains(t.ReportId.Value))
             .ToListAsync();
 
         return testings.Select(e => ToModel(e)).ToList();

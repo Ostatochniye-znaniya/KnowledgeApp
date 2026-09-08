@@ -9,7 +9,7 @@ public class TestingModel
     public TimeSpan? ScheduledTime { get; set; }
     public string? Status { get; set; }
     public string? ResultOfTesting { get; set; }
-    public int ReportId { get; set; }
+    public int? ReportId { get; set; }
     public int? SemesterId { get; set; }
 
     public TestingModel(
@@ -19,7 +19,7 @@ public class TestingModel
         TimeSpan? scheduledTime,
         string? status,
         string? resultOfTesting,
-        int reportId,
+        int? reportId,
         int? semesterId)
     {
         GroupId = groupId;
@@ -40,7 +40,7 @@ public class TestingModel
         TimeSpan? scheduledTime,
         string? status,
         string? resultOfTesting,
-        int reportId,
+        int? reportId,
         int? semesterId)
     {
         Id = id;

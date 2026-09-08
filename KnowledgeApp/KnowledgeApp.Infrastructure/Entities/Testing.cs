@@ -18,7 +18,7 @@ public partial class Testing
 
     public string? ResultOfTesting { get; set; }
 
-    public int ReportId { get; set; }
+    public int? ReportId { get; set; }
 
     public virtual Discipline? Discipline { get; set; }
 
