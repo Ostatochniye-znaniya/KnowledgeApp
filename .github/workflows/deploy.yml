@@ -61,6 +61,7 @@ jobs:
           SERVER_USER="${{ vars.PROD_SERVER_USER }}"
           SERVER_PORT="${{ vars.PROD_SERVER_PORT }}"
           PROJECT_DIR="${{ vars.PROD_PROJECT_DIR }}"
+          COMPOSE_FILE="docker-compose.yml"
           # Используем переменную, если она есть, иначе значение по умолчанию
           if [ -n "${{ vars.PROD_NETWORK_NAME }}" ]; then
             NETWORK_NAME="${{ vars.PROD_NETWORK_NAME }}"
@@ -73,6 +74,7 @@ jobs:
           SERVER_USER="${{ vars.DEV_SERVER_USER }}"
           SERVER_PORT="${{ vars.DEV_SERVER_PORT }}"
           PROJECT_DIR="${{ vars.DEV_PROJECT_DIR }}"
+          COMPOSE_FILE="docker-compose.dev.yml"
           if [ -n "${{ vars.DEV_NETWORK_NAME }}" ]; then
             NETWORK_NAME="${{ vars.DEV_NETWORK_NAME }}"
           else
@@ -111,7 +113,8 @@ jobs:
         echo "server_port=$SERVER_PORT" >> $GITHUB_OUTPUT
         echo "project_dir=$PROJECT_DIR" >> $GITHUB_OUTPUT
         echo "network_name=$NETWORK_NAME" >> $GITHUB_OUTPUT
-        
+        echo "compose_file=$COMPOSE_FILE" >> $GITHUB_OUTPUT
+
         # Debug info
         echo "=== Deployment Configuration ==="
         echo "Environment: $ENVIRONMENT"
@@ -124,19 +127,14 @@ jobs:
       run: |
         # Создаем временную директорию для сборки
         mkdir -p deploy-package
-        
+
+        COMPOSE_FILE="${{ steps.vars.outputs.compose_file }}"
+
         echo "📦 Copying project files..."
         
         # Копируем все необходимые файлы
-        if [ -f "docker-compose.dev.yml" ]; then
-          cp docker-compose.dev.yml deploy-package/
-          echo "✅ Copied docker-compose.dev.yml"
-        fi
-        
-        if [ -f "docker-compose.yml" ]; then
-          cp docker-compose.yml deploy-package/
-          echo "✅ Copied docker-compose.yml"
-        fi
+        cp $COMPOSE_FILE deploy-package/
+        echo "✅ Copied $COMPOSE_FILE"
 
         if [ -f "deploy.sh" ]; then
           cp deploy.sh deploy-package/
@@ -196,7 +194,6 @@ jobs:
         SERVER_PORT="${{ steps.vars.outputs.server_port }}"
         PROJECT_DIR="${{ steps.vars.outputs.project_dir }}"
         NETWORK_NAME="${{ steps.vars.outputs.network_name }}"
-        
         echo "📦 Copying deployment package to $SERVER_USER@$SERVER_HOST..."
         
         # Создаем временный файл для проверки
