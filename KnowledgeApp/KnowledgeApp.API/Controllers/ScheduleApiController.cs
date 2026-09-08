@@ -5,9 +5,7 @@ using KnowledgeApp.Application.DTOs;
 
 namespace KnowledgeApp.API.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ScheduleApiController : ControllerBase
+    public class ScheduleApiController : BaseController
     {
         private readonly TestingService _testingService;
         private readonly IPdfGeneratorService _pdfGeneratorService;
