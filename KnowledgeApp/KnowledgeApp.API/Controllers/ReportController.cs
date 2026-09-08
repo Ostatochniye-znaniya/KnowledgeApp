@@ -91,7 +91,7 @@ public class ReportController : BaseController
         }
     }
 
-    [HttpPatch("{reportId}")]
+    [HttpPatch("{reportId}/disciplineUpdate")]
     public async Task<IResult> ReportDisciplineIdUpdate(int reportId, ReportDisciplineIdUpdateRequest patchRequest)
     {
         try
@@ -109,7 +109,7 @@ public class ReportController : BaseController
         }
     }
 
-    [HttpPatch("{reportId}")]
+    [HttpPatch("{reportId}/teacherUpdate")]
     public async Task<IResult> ReportTeacherIdUpdate(int reportId, ReportTeacherIdUpdateRequest patchRequest)
     {
         try
