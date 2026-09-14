@@ -1,4 +1,4 @@
-﻿using KnowledgeApp.Infrastructure.Entities;
+using KnowledgeApp.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeApp.Infrastructure.Context;
@@ -414,6 +414,9 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.HasIndex(e => e.StatusId, "status_id");
 
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.ExternalId)
+                .HasMaxLength(255)
+                .HasColumnName("external_id");
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
@@ -423,6 +426,12 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.Password)
                 .HasMaxLength(255)
                 .HasColumnName("password");
+            entity.Property(e => e.AccessToken)
+                .HasColumnType("text")
+                .HasColumnName("access_token");
+            entity.Property(e => e.RefreshToken)
+                .HasColumnType("text")
+                .HasColumnName("refresh_token");
             entity.Property(e => e.StatusId).HasColumnName("status_id");
             entity.Property(e => e.FacultyId).HasColumnName("faculty_id");
             

@@ -1,14 +1,20 @@
-﻿namespace KnowledgeApp.Infrastructure.Entities;
+namespace KnowledgeApp.Infrastructure.Entities;
 
 public partial class User
 {
     public int Id { get; set; }
+
+    public string? ExternalId { get; set; }
 
     public string? Name { get; set; } = null!;
 
     public string? Email { get; set; } = null!;
 
     public string? Password { get; set; } = null!;
+
+    public string? AccessToken { get; set; }
+
+    public string? RefreshToken { get; set; }
 
     public int? StatusId { get; set; }
 

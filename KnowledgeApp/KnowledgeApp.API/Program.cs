@@ -40,6 +40,7 @@ services.AddCors(options =>
 
 // Добавление контроллеров и Swagger
 services.AddControllers();
+services.AddHttpClient(); // Для авторизаци надо
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen(c =>
 {
