@@ -8,10 +8,7 @@ using iText.Layout.Element;
 using iText.Layout.Properties;
 using iText.Layout.Borders;
 using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
-using System.Linq;
-using System.Collections.Generic;
+using iText.IO.Font;
 
 namespace KnowledgeApp.Application.Services
 {
@@ -29,56 +26,41 @@ namespace KnowledgeApp.Application.Services
 
         private (PdfFont regular, PdfFont bold) LoadFonts()
         {
-            PdfFont regular = null;
-            PdfFont bold = null;
+            PdfFont? regular = null;
+            PdfFont? bold = null;
 
             try
             {
-                string timesPath = @"C:\Windows\Fonts\times.ttf";
-                string timesBoldPath = @"C:\Windows\Fonts\timesbd.ttf";
+                string fontsDir = System.IO.Path.Combine(AppContext.BaseDirectory, "Fonts");
+                string regularPath = System.IO.Path.Combine(fontsDir, "times.ttf");
+                string boldPath = System.IO.Path.Combine(fontsDir, "timesbd.ttf");
 
-                if (File.Exists(timesPath))
+                if (File.Exists(regularPath))
                 {
-                    regular = PdfFontFactory.CreateFont(timesPath, "Identity-H");
-                }
-                else
-                {
-                    string[] altPaths = {
-                        @"C:\Windows\Fonts\arial.ttf",
-                        @"C:\Windows\Fonts\calibri.ttf"
-                    };
-                    foreach (var path in altPaths)
-                    {
-                        if (File.Exists(path))
-                        {
-                            regular = PdfFontFactory.CreateFont(path, "Identity-H");
-                            break;
-                        }
-                    }
+                    regular = PdfFontFactory.CreateFont(regularPath, PdfEncodings.IDENTITY_H, 
+                        PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
                 }
 
-                if (File.Exists(timesBoldPath))
+                if (File.Exists(boldPath))
                 {
-                    bold = PdfFontFactory.CreateFont(timesBoldPath, "Identity-H");
+                    bold = PdfFontFactory.CreateFont(boldPath, PdfEncodings.IDENTITY_H, 
+                        PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
                 }
 
                 if (regular == null)
                 {
-                    regular = PdfFontFactory.CreateFont();
-                    _logger.LogWarning("Шрифт не найден, используется стандартный");
-                }
-                if (bold == null)
-                {
-                    bold = regular;
+                    throw new FileNotFoundException("Не найден шрифт с поддержкой кириллицы!");
                 }
 
-                _logger.LogInformation("Шрифты загружены");
+                if (bold == null) bold = regular;
+
+                _logger.LogInformation("Загружен шрифт: {FontName}", 
+                    regular.GetFontProgram().GetFontNames().GetFontName());
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Не удалось загрузить шрифты, используется стандартный");
-                regular = PdfFontFactory.CreateFont();
-                bold = regular;
+                _logger.LogError(ex, "Критическая ошибка загрузки шрифтов");
+                throw;
             }
 
             return (regular, bold);
@@ -96,7 +78,7 @@ namespace KnowledgeApp.Application.Services
                 .SetPadding(2);
         }
 
-        public byte[] GenerateTestingSchedulePdf(List<TestingScheduleDto> schedule, string facultyName = null, int facultyId = 0, string semesterPeriod = null, int semesterId = 0)
+        public byte[] GenerateTestingSchedulePdf(List<TestingScheduleDto> schedule, string? facultyName = null, int facultyId = 0, string? semesterPeriod = null, int semesterId = 0)
         {
             try
             {
