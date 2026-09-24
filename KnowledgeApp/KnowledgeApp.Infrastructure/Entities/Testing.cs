@@ -6,7 +6,7 @@ public partial class Testing
 
     public int GroupId { get; set; }
 
-    public int DisciplineId { get; set; }
+    public int? DisciplineId { get; set; }
 
     public int? SemesterId { get; set; }
 
