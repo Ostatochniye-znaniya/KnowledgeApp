@@ -200,8 +200,8 @@ public class TestingService
         if (currentSemester == null)
         {
             currentSemester = await _context.Semesters
-                .OrderBy(s => s.SemesterYear)
-                .ThenBy(s => s.SemesterPart)
+                .OrderByDescending(s => s.SemesterYear)
+                .ThenByDescending(s => s.SemesterPart)
                 .Select(s => new SemesterDto
                 {
                     Id = s.Id,

@@ -91,6 +91,11 @@ public class EmployeeRightsRequestService
         return allRequests;
     }
 
+    public async Task<List<EmployeeRightsRequestModel>> GetActiveSignatoryAssignments()
+    {
+        return await _employeeRightsRequestRepository.GetAllActiveForSignatoryChart();
+    }
+
     /// <summary>
     /// Получить активные запросы прав сотрудников для определнного пользователя
     /// </summary>

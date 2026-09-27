@@ -121,7 +121,7 @@ public class TestingRepository
         return testings.Select(e => ToModel(e)).ToList();
     }
 
-    // 👉 МЕТОД GetTestingScheduleAsync УДАЛЕН - он теперь в TestingService
+    // Метод GetTestingScheduleAsync удален - он теперь в TestingService
 
     private void ValidateModel(TestingModel model)
     {

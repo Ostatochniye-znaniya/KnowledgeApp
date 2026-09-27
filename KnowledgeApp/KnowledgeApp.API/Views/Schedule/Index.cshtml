@@ -13,7 +13,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Расписание тестирований</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #ffffff;
+            --surface-soft: #EDEDED;
+            --surface-alt: #F5F6FE;
+            --border: #DBDBDB;
+            --divider: #EDEDF9;
+            --text: #272727;
+            --text-muted: #A3A3A3;
+            --icon: #525252;
+            --link: #6084E4;
+            --link-hover: #5B73BF;
+            --primary: #5F6DEC;
+            --primary-dark: #4B5EDB;
+            --primary-hover: #3242CD;
+            --orange: rgba(238, 158, 68, 0.85);
+            --orange-text: #815B32;
+            --orange-hover: #B47337;
+            --blue: rgba(95, 109, 236, 0.9);
+            --blue-text: #3D4B95;
+            --grey: #525252;
+            --danger: rgba(236, 95, 107, 0.9);
+            --danger-text: #BF454B;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -21,8 +49,9 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #D3D8FA 0%, #F9F9F9 100%);
+            color: var(--text);
             min-height: 100vh;
             padding: 20px;
         }
@@ -30,51 +59,86 @@
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 12px 30px rgba(95, 109, 236, 0.08);
             overflow: hidden;
         }
 
         .header {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-            color: white;
-            padding: 30px;
+            background: linear-gradient(135deg, #5F6DEC 0%, #4B5EDB 100%);
+            color: #ffffff;
+            padding: 20px 30px;
             text-align: center;
             position: relative;
         }
 
         .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
+            font-size: 20px;
+            margin-bottom: 6px;
+            color: #ffffff;
+            font-weight: 800;
         }
 
         .header p {
             font-size: 14px;
             opacity: 0.9;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+
+        .header-actions {
+            position: absolute;
+            top: 50%;
+            left: 30px;
+            right: 30px;
+            transform: translateY(-50%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
         }
 
         .btn-pdf {
-            position: absolute;
-            top: 20px;
-            right: 30px;
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.7);
             color: white;
-            padding: 10px 20px;
+            padding: 8px 14px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s ease;
+            font-weight: 600;
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            pointer-events: auto;
         }
 
         .btn-pdf:hover {
             background: white;
-            color: #4CAF50;
+            color: var(--primary);
+        }
+
+        .btn-signatories {
+            padding: 8px 14px;
+            border: 1px solid rgba(255,255,255,0.7);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.08);
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            pointer-events: auto;
+        }
+
+        .btn-signatories:hover {
+            background: white;
+            color: var(--primary);
         }
 
         .content {
@@ -83,15 +147,16 @@
         }
 
         .filter-section {
-            background: #f9f9f9;
+            background: var(--surface-soft);
             padding: 15px 20px;
-            border-radius: 8px;
+            border-radius: 10px;
             margin-bottom: 20px;
             display: flex;
             gap: 15px;
             align-items: center;
             flex-wrap: wrap;
             justify-content: space-between;
+            border: 1px solid var(--border);
         }
 
         .filter-left {
@@ -102,43 +167,50 @@
         }
 
         .filter-section label {
-            font-weight: bold;
-            color: #333;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 14px;
         }
 
         .filter-section select {
             padding: 8px 15px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 14px;
             cursor: pointer;
-            background: white;
+            background: #EDEDED;
             min-width: 200px;
+            color: var(--text);
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            font-weight: 500;
         }
 
         .filter-section button {
-            background: #4CAF50;
+            background: var(--primary);
             color: white;
             border: none;
             padding: 8px 20px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.3s ease;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
         }
 
         .filter-section button:hover {
-            background: #45a049;
+            background: var(--primary-hover);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
+            background: white;
         }
 
         th {
-            background: #4CAF50;
+            background: var(--primary);
             color: white;
             padding: 12px;
             text-align: left;
@@ -149,107 +221,126 @@
 
         td {
             padding: 10px 12px;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid var(--divider);
+            color: var(--text);
+        }
+
+        td.number-cell {
+            width: 56px;
+            text-align: center;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
         }
 
         tr:hover {
-            background: #f5f5f5;
+            background: #f5f6ff;
         }
 
         .faculty-header {
-            background: #f0f0f0;
-            font-weight: bold;
+            background: #f0f1fb;
+            font-weight: 700;
         }
 
         .faculty-header td {
-            background: #e8e8e8;
+            background: #f0f1fb;
             padding: 12px 15px;
-            border-top: 2px solid #4CAF50;
-            border-bottom: 2px solid #4CAF50;
+            border-top: 2px solid var(--primary);
+            border-bottom: 2px solid var(--primary);
             font-size: 16px;
+            color: var(--text);
         }
 
         .stats {
-            background: #f9f9f9;
+            background: var(--surface-soft);
             padding: 15px 20px;
-            border-radius: 8px;
+            border-radius: 10px;
             margin-bottom: 20px;
             display: flex;
             gap: 20px;
             flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid var(--border);
         }
 
         .stats-left {
             display: flex;
             gap: 20px;
             flex-wrap: wrap;
+            align-items: center;
         }
 
         .stat-card {
             background: white;
             padding: 10px 20px;
+            min-height: 44px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(39, 39, 39, 0.04);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            line-height: 1.4;
         }
 
-        .stat-card span {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4CAF50;
+        .stat-card .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
         }
 
         .btn-pdf-small {
-            background: #4CAF50;
+            background: var(--primary);
             color: white;
             border: none;
             padding: 10px 20px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s ease;
+            font-weight: 600;
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
             gap: 8px;
         }
 
         .btn-pdf-small:hover {
-            background: #45a049;
+            background: var(--primary-hover);
             transform: scale(1.02);
         }
 
         .empty {
             text-align: center;
             padding: 50px;
-            color: #666;
+            color: var(--text-muted);
             font-size: 18px;
         }
 
         .footer {
-            background: #f9f9f9;
+            background: #f9f9fb;
             padding: 15px;
             text-align: center;
-            color: #666;
+            color: var(--text-muted);
             font-size: 12px;
+            border-top: 1px solid var(--divider);
         }
 
         .loading {
             text-align: center;
             padding: 50px;
             font-size: 18px;
-            color: #666;
+            color: var(--text-muted);
         }
 
         .error {
             text-align: center;
             padding: 50px;
-            color: #f44336;
+            color: var(--danger-text);
             font-size: 18px;
         }
 
-        @@media (max-width: 768px) {
+        @@media (max-width: 900px) {
             table {
                 font-size: 12px;
             }
@@ -259,10 +350,16 @@
             .header h1 {
                 font-size: 20px;
             }
-            .btn-pdf {
+            .header {
+                padding: 20px;
+            }
+            .header-actions {
                 position: static;
-                margin-top: 15px;
-                display: inline-block;
+                transform: none;
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 14px;
             }
             .stats {
                 flex-direction: column;
@@ -282,40 +379,45 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 Расписание тестирований</h1>
+            <h1>Расписание тестирований</h1>
             <p>Актуальные данные на текущий момент</p>
-            <button class="btn-pdf" onclick="downloadPDF()">
-                📄 Скачать в PDF
-            </button>
+            <div class="header-actions">
+                <a class="btn-signatories" href="@Url.Action("ByDepartment", "Signatories")">
+                    Подписанты по подразделениям
+                </a>
+                <button class="btn-pdf" onclick="downloadPDF()">
+                    Скачать в PDF
+                </button>
+            </div>
         </div>
         <div class="content">
             <div class="filter-section">
                 <div class="filter-left">
-                    <label>🏛️ Факультет:</label>
+                    <label>Факультет:</label>
                     <select id="facultySelect">
                         <option value="0">Все факультеты</option>
                     </select>
                     
-                    <label>📅 Семестр:</label>
+                    <label>Семестр:</label>
                     <select id="semesterSelect">
                         <option value="0">Все семестры</option>
                     </select>
                     
                     <button onclick="applyFilter()">Применить фильтр</button>
-                    <button onclick="setCurrentSemester()" style="background: #2196F3;">📅 Текущий семестр</button>
-                    <button onclick="setPreviousSemester()" style="background: #FF9800;">📅 Прошлый семестр</button>
-                    <button onclick="resetFilter()" style="background: #666;">Сбросить</button>
+                    <button onclick="setCurrentSemester()" style="background: rgba(95, 109, 236, 0.9); color: #fff;">Текущий семестр</button>
+                    <button onclick="setPreviousSemester()" style="background: rgba(238, 158, 68, 0.85); color: #fff;">Прошлый семестр</button>
+                    <button onclick="resetFilter()" style="background: #525252; color: #fff;">Сбросить</button>
                 </div>
                 <div>
-                    <span id="filterInfo" style="color: #666; font-size: 14px;"></span>
+                    <span id="filterInfo" style="color: #525252; font-size: 14px;"></span>
                 </div>
             </div>
 
             <div id="loading" class="loading">
-                ⏳ Загрузка данных...
+                Загрузка данных...
             </div>
             <div id="error" class="error" style="display: none;">
-                ❌ Ошибка загрузки данных
+                Ошибка загрузки данных
             </div>
             <div id="tableContainer" style="display: none;">
                 <div id="statsContainer"></div>
@@ -401,7 +503,7 @@
                 console.error('Error:', err);
                 loading.style.display = 'none';
                 error.style.display = 'block';
-                error.textContent = `❌ Ошибка загрузки данных: ${err.message}`;
+                error.textContent = `Ошибка загрузки данных: ${err.message}`;
             }
         }
 
@@ -482,26 +584,25 @@
             try {
                 const currentResponse = await fetch('/Schedule/GetCurrentSemester');
                 if (!currentResponse.ok) throw new Error('Ошибка загрузки текущего семестра');
-                
-                const currentSemester = await currentResponse.json();
-                
-                let previousYear = currentSemester.year;
-                let previousPart = currentSemester.part - 1;
-                
-                if (previousPart < 1) {
-                    previousPart = 2;
-                    previousYear--;
+                const referenceSemester = await currentResponse.json();
+
+                if (!referenceSemester) {
+                    alert('В базе данных нет доступных семестров');
+                    return;
                 }
-                
-                const previousSemester = semestersList.find(s => s.year === previousYear && s.part === previousPart);
-                
+
+                const semesterSelect = document.getElementById('semesterSelect');
+                const orderedSemesters = [...semestersList].sort((a, b) =>
+                    a.year - b.year || a.part - b.part);
+                const currentIndex = orderedSemesters.findIndex(s => s.id === referenceSemester.id);
+                const previousSemester = currentIndex > 0 ? orderedSemesters[currentIndex - 1] : null;
+
                 if (previousSemester) {
-                    const semesterSelect = document.getElementById('semesterSelect');
                     semesterSelect.value = previousSemester.id.toString();
                     localStorage.setItem('selectedSemesterId', previousSemester.id);
                     applyFilter();
                 } else {
-                    alert('Прошлый семестр не найден в базе данных');
+                    alert('Предыдущий семестр не найден в базе данных');
                 }
                 
             } catch (error) {
@@ -540,7 +641,6 @@
                 });
 
                 // Отрисовываем таблицу
-                let globalNumber = 1;
                 let i = 0;
 
                 while (i < rows.length) {
@@ -549,7 +649,7 @@
                         facultyRow.className = 'faculty-header';
                         const cell = facultyRow.insertCell(0);
                         cell.colSpan = 8;
-                        cell.innerHTML = `🏛️ ${rows[i].facultyName}`;
+                        cell.textContent = rows[i].facultyName;
                         cell.style.fontWeight = 'bold';
                         cell.style.fontSize = '16px';
                         cell.style.backgroundColor = '#e8e8e8';
@@ -576,8 +676,10 @@
                         const item = groupItems[k];
                         const row = scheduleBody.insertRow();
 
-                        // Номер (с ID)
-                        row.insertCell(0).textContent = globalNumber++ + ' ' + item.id;
+                        // Показываем идентификатор записи без дублирующего порядкового номера.
+                        const numberCell = row.insertCell(0);
+                        numberCell.className = 'number-cell';
+                        numberCell.textContent = item.id;
 
                         // Группа (объединяем для всех строк группы)
                         if (k === 0) {
@@ -635,11 +737,14 @@
                 statsContainer.innerHTML = `
                     <div class="stats">
                         <div class="stats-left">
-                            <div class="stat-card">🏛️ ${displayFaculty}</div>
-                            <div class="stat-card">📅 ${displaySemester}</div>
-                            <div class="stat-card">📊 Всего тестирований: <span>${data.length}</span></div>
+                            <div class="stat-card">${displayFaculty}</div>
+                            <div class="stat-card">${displaySemester}</div>
+                            <div class="stat-card">
+                                <span>Всего тестирований:</span>
+                                <span class="stat-value">${data.length}</span>
+                            </div>
                         </div>
-                        <button class="btn-pdf-small" onclick="downloadPDF()">📄 Скачать PDF</button>
+                        <button class="btn-pdf-small" onclick="downloadPDF()">Скачать PDF</button>
                     </div>
                 `;
 
@@ -653,7 +758,7 @@
             const statsContainer = document.getElementById('statsContainer');
             const scheduleBody = document.getElementById('scheduleBody');
             
-            scheduleBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">📭 Нет запланированных тестирований</td></tr>';
+            scheduleBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Нет запланированных тестирований</td></tr>';
             statsContainer.innerHTML = '';
             loading.style.display = 'none';
             tableContainer.style.display = 'block';
@@ -667,7 +772,7 @@
                 const buttons = document.querySelectorAll('.btn-pdf, .btn-pdf-small');
                 buttons.forEach(btn => {
                     btn.disabled = true;
-                    btn.textContent = '⏳ Генерация PDF...';
+                    btn.textContent = 'Генерация PDF...';
                 });
                 
                 let url = `/Schedule/DownloadPdfByFaculty?facultyId=${selectedFacultyId}&semesterId=${selectedSemesterId}`;
@@ -693,16 +798,16 @@
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(urlBlob);
                 
-                alert('✅ PDF успешно сгенерирован и скачан!');
+                alert('PDF успешно сгенерирован и скачан!');
                 
             } catch (error) {
                 console.error('Ошибка:', error);
-                alert(`❌ Ошибка при скачивании PDF: ${error.message}`);
+                alert(`Ошибка при скачивании PDF: ${error.message}`);
             } finally {
                 const buttons = document.querySelectorAll('.btn-pdf, .btn-pdf-small');
                 buttons.forEach(btn => {
                     btn.disabled = false;
-                    btn.textContent = btn.classList.contains('btn-pdf-small') ? '📄 Скачать PDF' : '📄 Скачать в PDF';
+                    btn.textContent = btn.classList.contains('btn-pdf-small') ? 'Скачать PDF' : 'Скачать в PDF';
                 });
             }
         }

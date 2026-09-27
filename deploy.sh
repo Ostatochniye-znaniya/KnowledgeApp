@@ -75,7 +75,7 @@ create_network() {
 
     # Сначала проверяем существование сети
     if docker network inspect "$network_name" >/dev/null 2>&1; then
-        log_info "✅ Сеть $network_name уже существует"
+        log_info "Сеть $network_name уже существует"
         docker network ls --filter "name=^${network_name}$" --format "table {{.Name}}\t{{.Driver}}\t{{.Scope}}"
         
         # Дополнительная проверка, что сеть действительно работает
@@ -91,19 +91,19 @@ create_network() {
     
     # Пробуем создать сеть
     if docker network create "$network_name" --driver bridge 2>/dev/null; then
-        log_info "✅ Сеть $network_name успешно создана"
+        log_info "Сеть $network_name успешно создана"
         
         # Проверяем, что сеть создалась и готова к использованию
         sleep 2
         if docker network inspect "$network_name" >/dev/null 2>&1; then
-            log_info "✅ Сеть $network_name готова к использованию"
+            log_info "Сеть $network_name готова к использованию"
             return 0
         else
-            log_error "❌ Сеть $network_name создана, но недоступна"
+            log_error "Сеть $network_name создана, но недоступна"
             return 1
         fi
     else
-        log_error "❌ Не удалось создать сеть $network_name"
+        log_error "Не удалось создать сеть $network_name"
         
         # Показываем существующие сети для диагностики
         log_info "Существующие сети:"
@@ -230,7 +230,7 @@ check_status() {
         return 1
     fi
     
-    log_info "✅ $running контейнеров успешно запущено"
+    log_info "$running контейнеров успешно запущено"
     return 0
 }
 
@@ -305,20 +305,20 @@ main() {
     
     # Запуск контейнеров
     if ! start_containers; then
-        log_error "❌ Деплой завершился с ошибками при запуске контейнеров"
+        log_error "Деплой завершился с ошибками при запуске контейнеров"
         exit 1
     fi
     
     # Проверка статуса
     if ! check_status; then
-        log_error "❌ Деплой завершился с ошибками при проверке статуса"
+        log_error "Деплой завершился с ошибками при проверке статуса"
         exit 1
     fi
     
     # Вывод информации о сети
     show_network_info "$NETWORK_NAME"
     
-    log_info "✅ Деплой успешно завершен!"
+    log_info "Деплой успешно завершен!"
     log_info "Время завершения: $(date)"
     
     # Вывод полезной информации

@@ -88,6 +88,29 @@ public class EmployeeRightsRequestRepository
             .ToListAsync();
     }
 
+    public async Task<List<EmployeeRightsRequestModel>> GetAllActiveForSignatoryChart()
+    {
+        return await _context.EmployeeRightsRequests
+            .AsNoTracking()
+            .Where(r => r.IsActive)
+            .OrderBy(r => r.StructuralDivision)
+            .ThenBy(r => r.FullName)
+            .Select(r => new EmployeeRightsRequestModel
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                StructuralDivision = r.StructuralDivision,
+                CategoryName = r.CategoryName,
+                FullName = r.FullName,
+                IsActive = r.IsActive,
+                JobEnd = r.JobEnd,
+                JobStart = r.JobStart,
+                JobName = r.JobName,
+                UpdatedAt = r.UpdatedAt,
+            })
+            .ToListAsync();
+    }
+
     public async Task<List<EmployeeRightsRequestModel>> GetAllByUserId(int userId, int page = 1, int pageSize = 50)
     {
         return await _context.EmployeeRightsRequests.Where(r=> r.UserId == userId).Skip((page - 1) * pageSize).Take(pageSize).Select(r =>

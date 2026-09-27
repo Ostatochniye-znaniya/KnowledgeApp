@@ -1,6 +1,7 @@
 using KnowledgeApp.Application.Services;
 using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Infrastructure.Context;
+using KnowledgeApp.Infrastructure.Data;
 using KnowledgeApp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -92,6 +93,7 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<KnowledgeTestDbContext>();
     dbContext.Database.Migrate();
+    await SampleDataSeeder.SeedAsync(dbContext);
 }
 
 // Настройка конвейера запросов
