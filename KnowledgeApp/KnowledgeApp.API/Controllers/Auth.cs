@@ -64,8 +64,6 @@ public class AuthController : ControllerBase
                     Name = fullName,
                     Email = userProfile.Email,
                     Password = string.Empty,
-                    AccessToken = request.Access,
-                    RefreshToken = request.Refresh,
                     StatusId = null,
                     FacultyId = null
                 };
@@ -89,18 +87,11 @@ public class AuthController : ControllerBase
                     modified = true;
                 }
 
-                if (existingUser.AccessToken != request.Access || existingUser.RefreshToken != request.Refresh)
-                {
-                    existingUser.AccessToken = request.Access;
-                    existingUser.RefreshToken = request.Refresh;
-                    modified = true;
-                }
-
                 if (modified)
                 {
                     _context.Users.Update(existingUser);
                     await _context.SaveChangesAsync();
-                    _logger.LogInformation("Updated tokens and profile for user {Email} (ExternalId: {ExternalId})", existingUser.Email, existingUser.ExternalId);
+                    _logger.LogInformation("Updated profile for user {Email} (ExternalId: {ExternalId})", existingUser.Email, existingUser.ExternalId);
                 }
             }
         }
@@ -127,17 +118,16 @@ public class AuthController : ControllerBase
 
         var (userId, _) = DecodeJwt(access);
 
-        // 1. Ищем пользователя в нашей БД по access_token или external_id
+        // 1. Ищем пользователя в нашей БД по external_id
         var dbUser = await _context.Users
             .Include(u => u.Status)
             .Include(u => u.Faculty)
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u =>
-                (!string.IsNullOrEmpty(u.AccessToken) && u.AccessToken == access) ||
-                (!string.IsNullOrEmpty(userId) && userId != "unknown" && u.ExternalId == userId));
+                !string.IsNullOrEmpty(userId) && userId != "unknown" && u.ExternalId == userId);
 
-        // 2. Если в БД пользователь еще не привязан к токену/external_id, верифицируем токен и синхронизируем
+        // 2. Если в БД пользователь еще не привязан к external_id, верифицируем токен и синхронизируем
         if (dbUser == null)
         {
             var profile = await FetchAdminUserProfile(access);
@@ -204,9 +194,7 @@ public class AuthController : ControllerBase
                     ExternalId = userId,
                     Name = fullName,
                     Email = profile.Email,
-                    Password = string.Empty,
-                    AccessToken = access,
-                    RefreshToken = GetRefreshTokenFromRequest()
+                    Password = string.Empty
                 };
 
                 await _context.Users.AddAsync(dbUser);
@@ -215,50 +203,13 @@ public class AuthController : ControllerBase
             }
             else if (dbUser != null)
             {
-                // Привязываем external_id, access_token и refresh_token к существующему пользователю
-                bool modified = false;
-                if (string.IsNullOrEmpty(dbUser.ExternalId) && !string.IsNullOrEmpty(userId))
+                // Привязываем external_id к существующему пользователю
+                if (string.IsNullOrEmpty(dbUser.ExternalId) && !string.IsNullOrEmpty(userId) && userId != "unknown")
                 {
                     dbUser.ExternalId = userId;
-                    modified = true;
-                }
-                if (dbUser.AccessToken != access)
-                {
-                    dbUser.AccessToken = access;
-                    modified = true;
-                }
-                var currentRefresh = GetRefreshTokenFromRequest();
-                if (!string.IsNullOrEmpty(currentRefresh) && dbUser.RefreshToken != currentRefresh)
-                {
-                    dbUser.RefreshToken = currentRefresh;
-                    modified = true;
-                }
-                if (modified)
-                {
                     _context.Users.Update(dbUser);
                     await _context.SaveChangesAsync();
                 }
-            }
-        }
-        else
-        {
-            // Если пользователь найден сразу в БД, проверяем актуальность токенов
-            var currentRefresh = GetRefreshTokenFromRequest();
-            bool modified = false;
-            if (dbUser.AccessToken != access)
-            {
-                dbUser.AccessToken = access;
-                modified = true;
-            }
-            if (!string.IsNullOrEmpty(currentRefresh) && dbUser.RefreshToken != currentRefresh)
-            {
-                dbUser.RefreshToken = currentRefresh;
-                modified = true;
-            }
-            if (modified)
-            {
-                _context.Users.Update(dbUser);
-                await _context.SaveChangesAsync();
             }
         }
 
@@ -300,8 +251,8 @@ public class AuthController : ControllerBase
             faculty_id = dbUser.FacultyId,
             faculty = dbUser.Faculty?.FacultyName,
             roles = roles,
-            access_token = dbUser.AccessToken,
-            refresh_token = dbUser.RefreshToken
+            access_token = access,
+            refresh_token = GetRefreshTokenFromRequest()
         });
     }
 
@@ -333,19 +284,6 @@ public class AuthController : ControllerBase
         if (!string.IsNullOrEmpty(tokens.RefreshToken))
         {
             SetCookie("refresh_token", tokens.RefreshToken);
-        }
-
-        // Обновляем токены в БД
-        var userInDb = await _context.Users.FirstOrDefaultAsync(u => (!string.IsNullOrEmpty(u.ExternalId) && u.ExternalId == userId) || u.AccessToken == access);
-        if (userInDb != null)
-        {
-            userInDb.AccessToken = tokens.AccessToken;
-            if (!string.IsNullOrEmpty(tokens.RefreshToken))
-            {
-                userInDb.RefreshToken = tokens.RefreshToken;
-            }
-            _context.Users.Update(userInDb);
-            await _context.SaveChangesAsync();
         }
 
         return Ok(new

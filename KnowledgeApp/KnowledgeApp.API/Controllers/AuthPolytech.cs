@@ -31,11 +31,9 @@ public class AuthPolytechController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] PolytechLoginRequest request)
     {
-        var password = !string.IsNullOrWhiteSpace(request.RawPassword)
-            ? request.RawPassword
-            : request.Password;
 
-        if (string.IsNullOrWhiteSpace(request.Login) || string.IsNullOrWhiteSpace(password))
+
+        if (string.IsNullOrWhiteSpace(request.Login) || string.IsNullOrWhiteSpace(request.Password))
         {
             return BadRequest(new { detail = "Логин и пароль обязательны" });
         }
@@ -47,8 +45,8 @@ public class AuthPolytechController : ControllerBase
         var payload = new
         {
             login = request.Login,
-            raw_password = password,
-            service_name = string.IsNullOrEmpty(request.ServiceName) ? "empl_eval_sys" : request.ServiceName
+            raw_password = request.Password,
+            service_name = "empl_eval_sys"
         };
 
         try
@@ -95,7 +93,7 @@ public class AuthPolytechController : ControllerBase
         {
             login = request.Login,
             code = codeValue,
-            service_name = string.IsNullOrEmpty(request.ServiceName) ? "empl_eval_sys" : request.ServiceName
+            service_name = "empl_eval_sys"
         };
 
         try
@@ -139,11 +137,6 @@ public class PolytechLoginRequest
     [JsonPropertyName("password")]
     public string Password { get; set; } = string.Empty;
 
-    [JsonPropertyName("raw_password")]
-    public string? RawPassword { get; set; }
-
-    [JsonPropertyName("service_name")]
-    public string ServiceName { get; set; } = "empl_eval_sys";
 }
 
 public class PolytechVerifyRequest
@@ -154,8 +147,6 @@ public class PolytechVerifyRequest
     [JsonPropertyName("code")]
     public JsonElement Code { get; set; }
 
-    [JsonPropertyName("service_name")]
-    public string ServiceName { get; set; } = "empl_eval_sys";
 }
 
 public class PolytechTokenResponse

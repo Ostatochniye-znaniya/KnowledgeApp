@@ -12,10 +12,6 @@ public partial class User
 
     public string? Password { get; set; } = null!;
 
-    public string? AccessToken { get; set; }
-
-    public string? RefreshToken { get; set; }
-
     public int? StatusId { get; set; }
 
     public int? FacultyId { get; set; }

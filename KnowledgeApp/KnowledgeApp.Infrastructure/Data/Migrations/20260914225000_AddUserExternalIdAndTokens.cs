@@ -18,22 +18,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                 nullable: true,
                 collation: "utf8mb4_0900_ai_ci")
                 .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<string>(
-                name: "access_token",
-                table: "users",
-                type: "text",
-                nullable: true,
-                collation: "utf8mb4_0900_ai_ci")
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<string>(
-                name: "refresh_token",
-                table: "users",
-                type: "text",
-                nullable: true,
-                collation: "utf8mb4_0900_ai_ci")
-                .Annotation("MySql:CharSet", "utf8mb4");
         }
 
         /// <inheritdoc />
@@ -41,14 +25,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "external_id",
-                table: "users");
-
-            migrationBuilder.DropColumn(
-                name: "access_token",
-                table: "users");
-
-            migrationBuilder.DropColumn(
-                name: "refresh_token",
                 table: "users");
         }
     }

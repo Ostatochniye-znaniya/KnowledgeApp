@@ -4,6 +4,7 @@ using KnowledgeApp.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KnowledgeApp.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(KnowledgeTestDbContext))]
-    partial class KnowledgeTestDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914225000_AddUserExternalIdAndTokens")]
+    partial class AddUserExternalIdAndTokens
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

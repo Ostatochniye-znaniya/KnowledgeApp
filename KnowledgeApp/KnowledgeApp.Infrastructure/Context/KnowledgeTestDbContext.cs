@@ -426,12 +426,6 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.Password)
                 .HasMaxLength(255)
                 .HasColumnName("password");
-            entity.Property(e => e.AccessToken)
-                .HasColumnType("text")
-                .HasColumnName("access_token");
-            entity.Property(e => e.RefreshToken)
-                .HasColumnType("text")
-                .HasColumnName("refresh_token");
             entity.Property(e => e.StatusId).HasColumnName("status_id");
             entity.Property(e => e.FacultyId).HasColumnName("faculty_id");
             
