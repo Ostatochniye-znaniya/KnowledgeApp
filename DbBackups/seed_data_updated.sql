@@ -56,7 +56,7 @@ INSERT INTO `departments` (`id`, `name`, `faculty_id`) VALUES
 INSERT INTO `semesters` (`id`, `semester_year`, `semester_part`, `year_part`) VALUES
 (1, 2024, 1, 2), -- Весна 2024
 (2, 2024, 2, 1), -- Осень 2024
-(3, 2025, 1, 2)  -- Весна 2025;
+(3, 2025, 1, 2); -- Весна 2025
 
 -- ============================================================
 -- 6. STUDY PROGRAMS
