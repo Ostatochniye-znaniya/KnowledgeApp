@@ -14,6 +14,10 @@ public partial class Testing
 
     public TimeSpan? ScheduledTime { get; set; }
 
+    public string? Room { get; set; }
+
+    public string? LmsUrl { get; set; }
+
     public string? Status { get; set; }
 
     public string? ResultOfTesting { get; set; }

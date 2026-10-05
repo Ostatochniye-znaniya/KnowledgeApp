@@ -160,13 +160,18 @@ namespace KnowledgeApp.API.Controllers
                 var scheduleDto = filteredData.Select(x => new TestingScheduleDto
                 {
                     Number = x.Number,
+                    FacultyId = x.FacultyId,
                     GroupName = x.GroupName,
                     ProgramName = x.ProgramName,
                     DisciplineName = x.DisciplineName,
+                    FacultyName = x.FacultyName,
+                    FacultyDeanName = x.FacultyDeanName,
                     DepartmentName = x.DepartmentName,
                     TeacherName = x.TeacherName,
                     Date = x.Date,
-                    Time = x.Time
+                    Time = x.Time,
+                    Room = x.Room,
+                    LmsUrl = x.LmsUrl
                 }).ToList();
 
                 var pdfBytes = _pdfGeneratorService.GenerateTestingSchedulePdf(scheduleDto, facultyName, facultyId, semesterPeriod, semesterId);

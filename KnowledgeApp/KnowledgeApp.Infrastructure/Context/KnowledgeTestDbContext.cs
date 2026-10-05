@@ -375,6 +375,12 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.ScheduledTime)
                 .HasColumnType("time")
                 .HasColumnName("scheduled_time");
+            entity.Property(e => e.Room)
+                .HasMaxLength(255)
+                .HasColumnName("room");
+            entity.Property(e => e.LmsUrl)
+                .HasMaxLength(2048)
+                .HasColumnName("lms_url");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasColumnName("status");
