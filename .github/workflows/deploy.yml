@@ -162,7 +162,7 @@ jobs:
         fi
         
         # Создаем .env файл с переменными
-        cat > deploy-package/.env << EOF
+        cat > deploy-package/.env << 'EOF'
           PROJECT_NAME=${{ env.PROJECT_NAME }}
           ENVIRONMENT=${{ steps.vars.outputs.environment }}
           NODE_ENV=${{ steps.vars.outputs.environment }}
