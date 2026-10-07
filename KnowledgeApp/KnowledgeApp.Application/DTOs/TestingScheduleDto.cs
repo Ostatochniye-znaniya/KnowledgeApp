@@ -5,6 +5,7 @@
         public int Id { get; set; }
         public int Number { get; set; }
         public int FacultyId { get; set; }
+        public int SemesterId { get; set; }
         public string GroupName { get; set; } = string.Empty;
         public string ProgramName { get; set; } = string.Empty;
         public string DisciplineName { get; set; } = string.Empty;

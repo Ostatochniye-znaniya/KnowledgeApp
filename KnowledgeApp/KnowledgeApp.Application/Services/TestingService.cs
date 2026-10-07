@@ -75,6 +75,7 @@ public class TestingService
                     {
                         Id = t.Id,  // ДОБАВЛЕНО
                         FacultyId = f != null ? f.Id : 0,
+                        SemesterId = t.SemesterId ?? 0,
                         GroupName = sg.GroupNumber,
                         ProgramName = sp.Name,
                         DisciplineName = d.Name,
@@ -198,6 +199,42 @@ public class TestingService
             .ToList();
 
         return names.Count > 0 ? string.Join(", ", names) : "Не назначен";
+    }
+
+    public async Task<(int SemesterId, string Period)> GetScheduleSemesterPeriodAsync(
+        IEnumerable<TestingScheduleDto> schedule,
+        int requestedSemesterId)
+    {
+        var semesterId = requestedSemesterId;
+        if (semesterId <= 0)
+        {
+            var semesterIds = schedule
+                .Select(item => item.SemesterId)
+                .Distinct()
+                .ToList();
+
+            if (semesterIds.Count != 1 || semesterIds[0] <= 0)
+            {
+                return (0, "Все семестры");
+            }
+
+            semesterId = semesterIds[0];
+        }
+
+        var semester = await _context.Semesters.FindAsync(semesterId);
+        if (semester == null)
+        {
+            return (0, "Все семестры");
+        }
+
+        var semesterDto = new SemesterDto
+        {
+            Id = semester.Id,
+            Year = semester.SemesterYear,
+            Part = semester.SemesterPart
+        };
+
+        return (semester.Id, semesterDto.GetPeriod());
     }
 
     private async Task SetFacultyDeanNamesAsync(IEnumerable<TestingScheduleDto> schedule)
