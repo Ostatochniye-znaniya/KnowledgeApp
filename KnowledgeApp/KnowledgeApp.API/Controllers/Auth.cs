@@ -233,17 +233,19 @@ public class AuthController : ControllerBase
         var nameParts = (dbUser.Name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
         string lastName = nameParts.Length > 0 ? nameParts[0] : "";
         string firstName = nameParts.Length > 1 ? nameParts[1] : "";
-        string surname = nameParts.Length > 2 ? nameParts[2] : "";
+        string patronymic = nameParts.Length > 2 ? nameParts[2] : "";
 
         // Возвращаем данные о пользователе и токены из НАШЕЙ базы данных
         return Ok(new
         {
             id = dbUser.Id,
             external_id = dbUser.ExternalId,
-            name = dbUser.Name,
+            name = firstName,
+            full_name = dbUser.Name,
             first_name = firstName,
             last_name = lastName,
-            surname = surname,
+            surname = lastName,
+            patronymic = patronymic,
             email = dbUser.Email,
             mail_box = dbUser.Email,
             status_id = dbUser.StatusId,
@@ -300,6 +302,14 @@ public class AuthController : ControllerBase
         ClearCookie("refresh_token");
         ClearCookie("session_id");
         ClearCookie("device_id");
+        ClearCookie("is_authenticated");
+        ClearCookie("user_data");
+
+        // Очищаем все куки, которые браузер передал в текущем запросе
+        foreach (var cookieKey in Request.Cookies.Keys)
+        {
+            ClearCookie(cookieKey);
+        }
 
         return Ok(new { ok = true });
     }
@@ -337,14 +347,28 @@ public class AuthController : ControllerBase
             HttpOnly = true,
             Secure = Request.IsHttps,
             SameSite = SameSiteMode.Lax,
-            Path = "/"
+            Path = "/",
+            Expires = DateTimeOffset.UtcNow.AddDays(30)
         });
     }
 
     private void ClearCookie(string key)
     {
+        // 1. Удаление с флагом HttpOnly (для токенов бэкенда)
         Response.Cookies.Delete(key, new CookieOptions
         {
+            HttpOnly = true,
+            Secure = Request.IsHttps,
+            SameSite = SameSiteMode.Lax,
+            Path = "/"
+        });
+
+        // 2. Удаление без флага HttpOnly (для клиентских кук)
+        Response.Cookies.Delete(key, new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = Request.IsHttps,
+            SameSite = SameSiteMode.Lax,
             Path = "/"
         });
     }

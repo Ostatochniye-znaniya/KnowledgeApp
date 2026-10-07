@@ -23,6 +23,11 @@ public class UserService
         return await _userRepository.GetByIdAsync(id);
     }
 
+    public async Task<bool> SetUserRolesAsync(int userId, List<int> roleIds)
+    {
+        return await _userRepository.SetUserRolesAsync(userId, roleIds);
+    }
+
     public async Task<UserModel> CreateAsync(UserModel model)
     {
         var entity = new User

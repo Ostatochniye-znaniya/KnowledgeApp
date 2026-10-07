@@ -39,7 +39,12 @@ services.AddCors(options =>
 });
 
 // Добавление контроллеров и Swagger
-services.AddControllers();
+services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 services.AddHttpClient(); // Для авторизаци надо
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen(c =>

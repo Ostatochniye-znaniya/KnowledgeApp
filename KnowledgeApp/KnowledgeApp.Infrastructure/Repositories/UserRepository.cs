@@ -16,12 +16,43 @@ public class UserRepository
 
     public async Task<IEnumerable<User>> GetAllAsync()
     {
-        return await _context.Set<User>().ToListAsync();
+        return await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .Include(u => u.Faculty)
+            .ToListAsync();
+    }
+
+    public async Task<bool> SetUserRolesAsync(int userId, List<int> roleIds)
+    {
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null) return false;
+
+        _context.UserRoles.RemoveRange(user.UserRoles);
+
+        foreach (var roleId in roleIds.Distinct())
+        {
+            await _context.UserRoles.AddAsync(new UserRole
+            {
+                UserId = userId,
+                RoleId = roleId
+            });
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<User?> GetByIdAsync(int id)
     {
-        return await _context.Set<User>().FindAsync(id);
+        return await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .Include(u => u.Faculty)
+            .FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public async Task AddAsync(User user)

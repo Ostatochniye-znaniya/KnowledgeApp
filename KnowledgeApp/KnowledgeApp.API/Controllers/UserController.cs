@@ -33,6 +33,44 @@ public class UserController : BaseController
         return Ok(users);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetUserAccessList()
+    {
+        var users = await _userService.GetAll();
+        var result = users.Select(u => new
+        {
+            id = u.Id,
+            name = u.Name,
+            email = u.Email,
+            facultyId = u.FacultyId,
+            facultyName = u.Faculty != null ? u.Faculty.FacultyName : null,
+            roles = u.UserRoles
+                .Where(ur => ur.Role != null)
+                .Select(ur => new
+                {
+                    roleId = ur.RoleId,
+                    roleName = ur.Role!.RoleName
+                })
+                .ToList()
+        }).ToList();
+
+        return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SetUserRoles([FromBody] SetUserRolesRequest request)
+    {
+        if (request == null || request.UserId <= 0)
+        {
+            return BadRequest("Некорректный запрос");
+        }
+
+        var success = await _userService.SetUserRolesAsync(request.UserId, request.RoleIds ?? new List<int>());
+        return success
+            ? Ok(new { success = true, userId = request.UserId, roleIds = request.RoleIds })
+            : NotFound("Пользователь не найден");
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetUserById(int id)
     {
