@@ -4,6 +4,7 @@ using KnowledgeApp.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KnowledgeApp.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(KnowledgeTestDbContext))]
-    partial class KnowledgeTestDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261005032430_AddTestingRoomAndLmsUrl")]
+    partial class AddTestingRoomAndLmsUrl
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -132,7 +135,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("is_active");
 
-                    b.Property<DateOnly?>("JobEnd")
+                    b.Property<DateOnly>("JobEnd")
                         .HasColumnType("date")
                         .HasColumnName("job_end");
 
@@ -199,7 +202,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("RecommendedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
-                        .HasDefaultValue(new DateTime(2026, 9, 27, 9, 56, 7, 608, DateTimeKind.Utc).AddTicks(6189))
+                        .HasDefaultValue(new DateTime(2026, 3, 2, 17, 6, 19, 47, DateTimeKind.Utc).AddTicks(9191))
                         .HasColumnName("recommended_at");
 
                     b.Property<int>("SemesterId")
@@ -252,11 +255,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("done_in_paper_form");
 
-                    b.Property<string>("FileName")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("file_name");
-
                     b.Property<string>("FilePath")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)")
@@ -270,41 +268,15 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("result_of_attestation");
 
-                    b.Property<string>("ReviewComment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)")
-                        .HasColumnName("review_comment");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("reviewed_at");
-
-                    b.Property<int?>("ReviewedByUserId")
-                        .HasColumnType("int")
-                        .HasColumnName("reviewed_by_user_id");
-
-                    b.Property<string>("Status")
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("status");
-
                     b.Property<int?>("TeacherId")
                         .HasColumnType("int")
                         .HasColumnName("teacher_id");
 
-                    b.Property<DateTime?>("UploadedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("uploaded_at");
-
                     b.HasKey("Id")
                         .HasName("PRIMARY");
 
-                    b.HasIndex("ReviewedByUserId");
-
                     b.HasIndex(new[] { "DisciplineId" }, "discipline_id")
                         .HasDatabaseName("discipline_id1");
-
-                    b.HasIndex(new[] { "Status" }, "reports_status");
 
                     b.HasIndex(new[] { "TeacherId" }, "teacher_id");
 
@@ -332,83 +304,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("roles", (string)null);
                 });
 
-            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.ScheduleDocument", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("FacultyId")
-                        .HasColumnType("int")
-                        .HasColumnName("faculty_id");
-
-                    b.Property<string>("FileKey")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("file_key");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("file_name");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint")
-                        .HasColumnName("file_size");
-
-                    b.Property<string>("ReviewComment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)")
-                        .HasColumnName("review_comment");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("reviewed_at");
-
-                    b.Property<int?>("ReviewedByUserId")
-                        .HasColumnType("int")
-                        .HasColumnName("reviewed_by_user_id");
-
-                    b.Property<int>("SemesterId")
-                        .HasColumnType("int")
-                        .HasColumnName("semester_id");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("uploaded_at");
-
-                    b.Property<int?>("UploadedByUserId")
-                        .HasColumnType("int")
-                        .HasColumnName("uploaded_by_user_id");
-
-                    b.HasKey("Id")
-                        .HasName("PRIMARY");
-
-                    b.HasIndex("ReviewedByUserId");
-
-                    b.HasIndex("SemesterId");
-
-                    b.HasIndex("UploadedByUserId");
-
-                    b.HasIndex(new[] { "FacultyId", "SemesterId" }, "schedule_documents_faculty_semester")
-                        .IsUnique();
-
-                    b.HasIndex(new[] { "Status" }, "schedule_documents_status");
-
-                    b.ToTable("schedule_documents", (string)null);
-                });
-
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Semester", b =>
                 {
                     b.Property<int>("Id")
@@ -425,10 +320,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<int>("SemesterYear")
                         .HasColumnType("int")
                         .HasColumnName("semester_year");
-
-                    b.Property<int>("YearPart")
-                        .HasColumnType("int")
-                        .HasColumnName("year_part");
 
                     b.HasKey("Id")
                         .HasName("PRIMARY");
@@ -553,7 +444,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("DisciplineId")
+                    b.Property<int>("DisciplineId")
                         .HasColumnType("int")
                         .HasColumnName("discipline_id");
 
@@ -566,7 +457,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("varchar(2048)")
                         .HasColumnName("lms_url");
 
-                    b.Property<int?>("ReportId")
+                    b.Property<int>("ReportId")
                         .HasColumnType("int")
                         .HasColumnName("report_id");
 
@@ -771,12 +662,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("reports_ibfk_1");
 
-                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("reports_reviewed_by_fk");
-
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.User", "Teacher")
                         .WithMany("Reports")
                         .HasForeignKey("TeacherId")
@@ -786,39 +671,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Discipline");
 
                     b.Navigation("Teacher");
-                });
-
-            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.ScheduleDocument", b =>
-                {
-                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Faculty", "Faculty")
-                        .WithMany()
-                        .HasForeignKey("FacultyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("schedule_documents_faculty_fk");
-
-                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("schedule_documents_reviewed_by_fk");
-
-                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Semester", "Semester")
-                        .WithMany()
-                        .HasForeignKey("SemesterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("schedule_documents_semester_fk");
-
-                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("UploadedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("schedule_documents_uploaded_by_fk");
-
-                    b.Navigation("Faculty");
-
-                    b.Navigation("Semester");
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Student", b =>
@@ -871,6 +723,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .WithMany("Testings")
                         .HasForeignKey("DisciplineId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
                         .HasConstraintName("testing_ibfk_2");
 
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyGroup", "Group")

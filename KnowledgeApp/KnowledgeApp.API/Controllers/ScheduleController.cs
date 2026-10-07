@@ -117,7 +117,12 @@ namespace KnowledgeApp.API.Controllers
                     return BadRequest("Нет данных для формирования отчета");
                 }
 
-                var pdfBytes = _pdfGeneratorService.GenerateTestingSchedulePdf(schedule);
+                var (semesterId, semesterPeriod) =
+                    await _testingService.GetScheduleSemesterPeriodAsync(schedule, 0);
+                var pdfBytes = _pdfGeneratorService.GenerateTestingSchedulePdf(
+                    schedule,
+                    semesterPeriod: semesterPeriod,
+                    semesterId: semesterId);
 
                 return File(pdfBytes, "application/pdf", $"Расписание_тестирований_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
             }
@@ -147,29 +152,32 @@ namespace KnowledgeApp.API.Controllers
                     ? (await _testingService.GetFacultiesAsync()).First(f => f.Id == facultyId).Name
                     : "Все факультеты";
 
-                string semesterPeriod = "Все семестры";
-                if (semesterId > 0)
-                {
-                    var semester = (await _testingService.GetSemestersAsync()).FirstOrDefault(s => s.Id == semesterId);
-                    if (semester != null)
-                    {
-                        semesterPeriod = semester.GetPeriod();
-                    }
-                }
+                var (effectiveSemesterId, semesterPeriod) =
+                    await _testingService.GetScheduleSemesterPeriodAsync(filteredData, semesterId);
 
                 var scheduleDto = filteredData.Select(x => new TestingScheduleDto
                 {
                     Number = x.Number,
+                    FacultyId = x.FacultyId,
                     GroupName = x.GroupName,
                     ProgramName = x.ProgramName,
                     DisciplineName = x.DisciplineName,
+                    FacultyName = x.FacultyName,
+                    FacultyDeanName = x.FacultyDeanName,
                     DepartmentName = x.DepartmentName,
                     TeacherName = x.TeacherName,
                     Date = x.Date,
-                    Time = x.Time
+                    Time = x.Time,
+                    Room = x.Room,
+                    LmsUrl = x.LmsUrl
                 }).ToList();
 
-                var pdfBytes = _pdfGeneratorService.GenerateTestingSchedulePdf(scheduleDto, facultyName, facultyId, semesterPeriod, semesterId);
+                var pdfBytes = _pdfGeneratorService.GenerateTestingSchedulePdf(
+                    scheduleDto,
+                    facultyName,
+                    facultyId,
+                    semesterPeriod,
+                    effectiveSemesterId);
 
                 var filename = $"Расписание_тестирований_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
 

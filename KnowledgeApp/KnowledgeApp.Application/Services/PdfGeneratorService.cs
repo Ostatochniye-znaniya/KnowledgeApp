@@ -1,6 +1,7 @@
 ﻿using KnowledgeApp.Application.DTOs;
 using KnowledgeApp.Application.Interfaces;
 using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Action;
 using iText.Kernel.Font;
 using iText.Kernel.Geom;
 using iText.Layout;
@@ -9,6 +10,10 @@ using iText.Layout.Properties;
 using iText.Layout.Borders;
 using Microsoft.Extensions.Logging;
 using iText.IO.Font;
+using System;
+using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace KnowledgeApp.Application.Services
 {
@@ -78,6 +83,45 @@ namespace KnowledgeApp.Application.Services
                 .SetPadding(2);
         }
 
+        private Cell CreateDateTimeCell(TestingScheduleDto item)
+        {
+            var date = item.Date == DateTime.MinValue ? "-" : item.Date.ToString("dd.MM.yyyy");
+            var value = $"{date}\n{item.Time.ToString(@"hh\:mm")}";
+
+            return CreateCell(value);
+        }
+
+        private Cell CreateLocationCell(TestingScheduleDto item)
+        {
+            var paragraph = new Paragraph()
+                .SetFont(_timesNewRoman)
+                .SetFontSize(9)
+                .SetTextAlignment(TextAlignment.CENTER);
+
+            if (!string.IsNullOrWhiteSpace(item.Room))
+            {
+                paragraph.Add(item.Room);
+            }
+            else if (Uri.TryCreate(item.LmsUrl, UriKind.Absolute, out var lmsUri) &&
+                     (lmsUri.Scheme == Uri.UriSchemeHttp || lmsUri.Scheme == Uri.UriSchemeHttps))
+            {
+                paragraph.Add(new Link("LMS", PdfAction.CreateURI(lmsUri.AbsoluteUri))
+                    .SetFont(_timesNewRoman)
+                    .SetFontSize(9)
+                    .SetUnderline());
+            }
+            else
+            {
+                paragraph.Add("LMS");
+            }
+
+            return new Cell()
+                .Add(paragraph)
+                .SetVerticalAlignment(VerticalAlignment.MIDDLE)
+                .SetBorder(new SolidBorder(0.5f))
+                .SetPadding(2);
+        }
+
         public byte[] GenerateTestingSchedulePdf(List<TestingScheduleDto> schedule, string? facultyName = null, int facultyId = 0, string? semesterPeriod = null, int semesterId = 0)
         {
             try
@@ -101,7 +145,7 @@ namespace KnowledgeApp.Application.Services
                     }
                     else
                     {
-                        facultyTitle = $"Факультет {facultyName}";
+                        facultyTitle = facultyName.Trim();
                     }
 
                     Paragraph facultyPara = new Paragraph(facultyTitle)
@@ -131,7 +175,7 @@ namespace KnowledgeApp.Application.Services
                     titlePara.SetMultipliedLeading(1.0f);
                     document.Add(titlePara);
 
-                    float[] columnProportions = { 0.4f, 0.9f, 3.2f, 3.0f, 1.2f, 2.0f, 0.9f, 0.8f };
+                    float[] columnProportions = { 0.4f, 0.9f, 2.8f, 2.7f, 1.7f, 1.2f, 2.0f, 1.2f, 1.1f };
                     Table table = new Table(UnitValue.CreatePercentArray(columnProportions));
                     table.SetWidth(UnitValue.CreatePercentValue(100));
                     // Увеличиваем левый отступ таблицы
@@ -139,8 +183,8 @@ namespace KnowledgeApp.Application.Services
 
                     string[] headers = {
                         "№", "Группа", "Наименование профиля подготовки",
-                        "Наименование дисциплины", "Кафедра", "ФИО ППС",
-                        "Дата проведения", "Время проведения"
+                        "Наименование дисциплины", "Институт / школа", "Кафедра", "ФИО ППС",
+                        "Дата и время", "Аудитория"
                     };
 
                     foreach (string header in headers)
@@ -220,10 +264,11 @@ namespace KnowledgeApp.Application.Services
 
                                 // Ячейки добавляются для КАЖДОЙ строки
                                 table.AddCell(CreateCell(item.DisciplineName ?? "-"));
+                                table.AddCell(CreateCell(item.FacultyName ?? "-"));
                                 table.AddCell(CreateCell(item.DepartmentName ?? "-"));
                                 table.AddCell(CreateCell(item.TeacherName ?? "-"));
-                                table.AddCell(CreateCell(item.Date.ToString("dd.MM.yyyy")));
-                                table.AddCell(CreateCell(item.Time.ToString(@"hh\:mm")));
+                                table.AddCell(CreateDateTimeCell(item));
+                                table.AddCell(CreateLocationCell(item));
                             }
 
                             currentNumber++;
@@ -232,7 +277,7 @@ namespace KnowledgeApp.Application.Services
                     }
                     else
                     {
-                        Cell messageCell = new Cell(1, 8)
+                        Cell messageCell = new Cell(1, 9)
                             .Add(new Paragraph("Нет данных для отображения")
                                 .SetFont(_timesNewRoman)
                                 .SetFontSize(10)
@@ -245,63 +290,48 @@ namespace KnowledgeApp.Application.Services
 
                     document.Add(table);
 
-                    // Добавляем отступ перед подписью
-                    document.Add(new Paragraph("\n"));
+                    var facultySignatures = schedule?
+                        .Where(item => item.FacultyId > 0)
+                        .GroupBy(item => item.FacultyId)
+                        .Select(group => group.First())
+                        .OrderBy(item => item.FacultyName)
+                        .ToList() ?? new List<TestingScheduleDto>();
 
-                    // Создаем таблицу для центрирования подписи
-                    Table signatureWrapper = new Table(UnitValue.CreatePercentArray(new float[] { 5f, 90f, 5f }));
-                    signatureWrapper.SetWidth(UnitValue.CreatePercentValue(100));
-                    signatureWrapper.SetMarginTop(8);
-                    signatureWrapper.SetBorder(Border.NO_BORDER);
+                    foreach (var faculty in facultySignatures)
+                    {
+                        var facultyDisplayName = faculty.FacultyName.Trim();
+                        var position = facultyDisplayName.StartsWith("Факультет ", StringComparison.OrdinalIgnoreCase)
+                            ? $"Декан факультета {facultyDisplayName["Факультет ".Length..]}"
+                            : $"Руководитель {facultyDisplayName}";
 
-                    // Левая пустая ячейка
-                    Cell leftMarginCell = new Cell();
-                    leftMarginCell.SetBorder(Border.NO_BORDER);
-                    leftMarginCell.SetPadding(0);
-                    signatureWrapper.AddCell(leftMarginCell);
+                        var signatureTable = new Table(UnitValue.CreatePercentArray(new float[] { 50f, 50f }));
+                        signatureTable.SetWidth(UnitValue.CreatePercentValue(90));
+                        signatureTable.SetHorizontalAlignment(HorizontalAlignment.CENTER);
+                        signatureTable.SetMarginTop(8);
+                        signatureTable.SetBorder(Border.NO_BORDER);
 
-                    // Центральная ячейка с подписью
-                    Cell signatureCell = new Cell();
-                    signatureCell.SetBorder(Border.NO_BORDER);
-                    signatureCell.SetPadding(0);
+                        var positionCell = new Cell()
+                            .Add(new Paragraph(position)
+                                .SetFontSize(9)
+                                .SetFont(_timesNewRoman)
+                                .SetTextAlignment(TextAlignment.LEFT))
+                            .SetBorder(Border.NO_BORDER)
+                            .SetPadding(0)
+                            .SetVerticalAlignment(VerticalAlignment.BOTTOM);
+                        signatureTable.AddCell(positionCell);
 
-                    // Таблица для подписи (2 колонки)
-                    Table signatureTable = new Table(UnitValue.CreatePercentArray(new float[] { 50f, 50f }));
-                    signatureTable.SetWidth(UnitValue.CreatePercentValue(100));
-                    signatureTable.SetBorder(Border.NO_BORDER);
+                        var nameCell = new Cell()
+                            .Add(new Paragraph(faculty.FacultyDeanName)
+                                .SetFontSize(9)
+                                .SetFont(_timesNewRoman)
+                                .SetTextAlignment(TextAlignment.RIGHT))
+                            .SetBorder(Border.NO_BORDER)
+                            .SetPadding(0)
+                            .SetVerticalAlignment(VerticalAlignment.BOTTOM);
+                        signatureTable.AddCell(nameCell);
 
-                    // Левая часть - должность
-                    Cell positionCell = new Cell();
-                    positionCell.Add(new Paragraph("Декан факультета информационных технологий")
-                        .SetFontSize(10)
-                        .SetFont(_timesNewRoman)
-                        .SetTextAlignment(TextAlignment.LEFT));
-                    positionCell.SetBorder(Border.NO_BORDER);
-                    positionCell.SetPadding(0);
-                    positionCell.SetVerticalAlignment(VerticalAlignment.BOTTOM);
-                    signatureTable.AddCell(positionCell);
-
-                    // Правая часть - ФИО
-                    Cell nameCell = new Cell();
-                    nameCell.Add(new Paragraph("Д.Г. Демидов")
-                        .SetFontSize(10)
-                        .SetFont(_timesNewRoman)
-                        .SetTextAlignment(TextAlignment.RIGHT));
-                    nameCell.SetBorder(Border.NO_BORDER);
-                    nameCell.SetPadding(0);
-                    nameCell.SetVerticalAlignment(VerticalAlignment.BOTTOM);
-                    signatureTable.AddCell(nameCell);
-
-                    signatureCell.Add(signatureTable);
-                    signatureWrapper.AddCell(signatureCell);
-
-                    // Правая пустая ячейка
-                    Cell rightMarginCell = new Cell();
-                    rightMarginCell.SetBorder(Border.NO_BORDER);
-                    rightMarginCell.SetPadding(0);
-                    signatureWrapper.AddCell(rightMarginCell);
-
-                    document.Add(signatureWrapper);
+                        document.Add(signatureTable);
+                    }
 
                     document.Close();
                     pdf.Close();
