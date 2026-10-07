@@ -5,9 +5,7 @@ using KnowledgeApp.Application.DTOs;
 
 namespace KnowledgeApp.API.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ScheduleApiController : ControllerBase
+    public class ScheduleApiController : BaseController
     {
         private readonly TestingService _testingService;
         private readonly IPdfGeneratorService _pdfGeneratorService;
@@ -45,7 +43,7 @@ namespace KnowledgeApp.API.Controllers
         /// <summary>
         /// Получить список всех факультетов
         /// </summary>
-        [HttpGet("faculties")]
+        [HttpGet()]
         public async Task<IActionResult> GetFaculties()
         {
             try
@@ -62,7 +60,7 @@ namespace KnowledgeApp.API.Controllers
         /// <summary>
         /// Получить список всех семестров
         /// </summary>
-        [HttpGet("semesters")]
+        [HttpGet()]
         public async Task<IActionResult> GetSemesters()
         {
             try
@@ -80,7 +78,7 @@ namespace KnowledgeApp.API.Controllers
         /// Получить текущий семестр
         /// </summary>
         
-        [HttpGet("pdf")]
+        [HttpGet()]
         public async Task<IActionResult> DownloadPdf([FromQuery] int facultyId = 0, [FromQuery] int semesterId = 0)
         {
             try

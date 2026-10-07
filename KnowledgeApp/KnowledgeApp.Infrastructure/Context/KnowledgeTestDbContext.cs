@@ -29,6 +29,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<Semester> Semesters { get; set; }
 
+    public virtual DbSet<ScheduleDocument> ScheduleDocuments { get; set; }
+
     public virtual DbSet<Status> Statuses { get; set; }
 
     public virtual DbSet<Student> Students { get; set; }
@@ -52,7 +54,7 @@ public partial class KnowledgeTestDbContext : DbContext
                             ?? "server=localhost;database=knowledge_test_db;user=root;password=admin";
 
         optionsBuilder.UseMySql(connectionString, 
-            ServerVersion.AutoDetect(connectionString),
+            new MySqlServerVersion(new Version(9, 1, 0)),
             mysqlOptions => mysqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,                 // количество попыток
                 maxRetryDelay: TimeSpan.FromSeconds(10), // задержка между попытками
@@ -165,6 +167,26 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnType("text")
                 .HasColumnName("result_of_attestation");
             entity.Property(e => e.TeacherId).HasColumnName("teacher_id");
+            entity.Property(e => e.FileName)
+                .HasMaxLength(255)
+                .HasColumnName("file_name");
+            entity.Property(e => e.UploadedAt).HasColumnName("uploaded_at");
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasColumnName("status");
+            entity.Property(e => e.ReviewComment)
+                .HasMaxLength(1000)
+                .HasColumnName("review_comment");
+            entity.Property(e => e.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(e => e.ReviewedByUserId).HasColumnName("reviewed_by_user_id");
+
+            entity.HasIndex(e => e.Status, "reports_status");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("reports_reviewed_by_fk");
 
             entity.HasOne(d => d.Discipline).WithMany(p => p.Reports)
                 .HasForeignKey(d => d.DisciplineId)
@@ -259,6 +281,58 @@ public partial class KnowledgeTestDbContext : DbContext
             .HasColumnName("study_group_id");
         });
         
+        modelBuilder.Entity<ScheduleDocument>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("schedule_documents");
+
+            entity.HasIndex(e => new { e.FacultyId, e.SemesterId }, "schedule_documents_faculty_semester").IsUnique();
+            entity.HasIndex(e => e.Status, "schedule_documents_status");
+
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.FacultyId).HasColumnName("faculty_id");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+            entity.Property(e => e.FileKey)
+                .HasMaxLength(255)
+                .HasColumnName("file_key");
+            entity.Property(e => e.FileName)
+                .HasMaxLength(255)
+                .HasColumnName("file_name");
+            entity.Property(e => e.FileSize).HasColumnName("file_size");
+            entity.Property(e => e.UploadedAt).HasColumnName("uploaded_at");
+            entity.Property(e => e.UploadedByUserId).HasColumnName("uploaded_by_user_id");
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasColumnName("status");
+            entity.Property(e => e.ReviewComment)
+                .HasMaxLength(1000)
+                .HasColumnName("review_comment");
+            entity.Property(e => e.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(e => e.ReviewedByUserId).HasColumnName("reviewed_by_user_id");
+
+            entity.HasOne(d => d.Faculty).WithMany()
+                .HasForeignKey(d => d.FacultyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("schedule_documents_faculty_fk");
+
+            entity.HasOne(d => d.Semester).WithMany()
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("schedule_documents_semester_fk");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.UploadedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("schedule_documents_uploaded_by_fk");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("schedule_documents_reviewed_by_fk");
+        });
+
         modelBuilder.Entity<Semester>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -268,6 +342,7 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.SemesterYear).HasColumnName("semester_year");
             entity.Property(e => e.SemesterPart).HasColumnName("semester_part");
+            entity.Property(e => e.YearPart).HasColumnName("year_part");
         });
 
         modelBuilder.Entity<Status>(entity =>

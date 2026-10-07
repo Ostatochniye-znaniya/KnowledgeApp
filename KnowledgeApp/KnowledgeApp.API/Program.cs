@@ -2,6 +2,8 @@ using KnowledgeApp.Application.Services;
 using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Repositories;
+using KnowledgeApp.Infrastructure.Storage;
+using KnowledgeApp.API.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
@@ -81,6 +83,14 @@ services.AddScoped<EmployeeRightsRequestRepository>();
 services.AddScoped<EmployeeRightsRequestService>();
 services.AddScoped<RecommendationHistoryRepository>();
 services.AddScoped<RecommendationHistoryService>();
+
+services.AddSingleton(S3StorageOptions.FromEnvironment());
+services.AddSingleton<IFileStorage, S3FileStorage>();
+services.AddScoped<ReportDocumentRepository>();
+services.AddScoped<ReportDocumentService>();
+services.AddScoped<ScheduleDocumentRepository>();
+services.AddScoped<ScheduleDocumentService>();
+services.AddScoped<ICurrentUserProvider, TestCurrentUserProvider>();
 
 // Регистрация PDF сервиса
 services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();

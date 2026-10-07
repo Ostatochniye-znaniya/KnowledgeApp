@@ -20,6 +20,24 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  minio:
+    container_name: minio
+    # minio/minio убрали с Docker Hub, это сборка того же MinIO
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}"
+      MINIO_ROOT_PASSWORD: "${S3_SECRET_KEY:?S3_SECRET_KEY is required}"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
   api:
     container_name: knowledgeapp-api
     build:
@@ -28,16 +46,25 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:8080"
       ConnectionStrings__DefaultConnection: "server=db;port=3306;database=${DB_NAME};user=${DB_USER};password=${DB_PASSWORD}"
       CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS}"
+      S3_ENDPOINT: "http://minio:9000"
+      S3_ACCESS_KEY: "${S3_ACCESS_KEY}"
+      S3_SECRET_KEY: "${S3_SECRET_KEY}"
+      S3_BUCKET: "${S3_BUCKET:-knowledgeapp-documents}"
+      MAX_UPLOAD_SIZE_MB: "${MAX_UPLOAD_SIZE_MB:-20}"
+      TEST_FACULTY_ID: "${TEST_FACULTY_ID:-1}"
     restart: always
     networks:
       - app-network
 volumes:
   db_data:
+  minio_data:
 networks:
   app-network:
     name: app-network

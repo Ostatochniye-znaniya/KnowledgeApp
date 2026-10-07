@@ -162,7 +162,7 @@ jobs:
         fi
         
         # Создаем .env файл с переменными
-        cat > deploy-package/.env << EOF
+        cat > deploy-package/.env << 'EOF'
           PROJECT_NAME=${{ env.PROJECT_NAME }}
           ENVIRONMENT=${{ steps.vars.outputs.environment }}
           NODE_ENV=${{ steps.vars.outputs.environment }}
@@ -171,6 +171,10 @@ jobs:
           DB_NAME=${{ secrets.DB_NAME }}
           DB_USER=${{ secrets.DB_USER }}
           CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+          S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET=${{ vars.S3_BUCKET || 'knowledgeapp-documents' }}
+          TEST_FACULTY_ID=${{ vars.TEST_FACULTY_ID || '1' }}
         EOF
         
         echo "✅ Created .env file"
@@ -237,25 +241,14 @@ jobs:
             exit 1
           fi
           
-          # Очищаем директорию (сохраняем .env если он есть)
+          # Очищаем директорию
           echo "[INFO] Cleaning project directory..."
-          if [ -f "$PROJECT_DIR/.env" ]; then
-            cp $PROJECT_DIR/.env /tmp/.env.backup
-            echo "[INFO] Backed up .env file"
-          fi
           
-          rm -rf $PROJECT_DIR/*
+          find $PROJECT_DIR -mindepth 1 -delete
           
           # Распаковываем
           echo "[INFO] Extracting deployment package..."
           tar -xzf /tmp/deploy.tar.gz -C $PROJECT_DIR
-          
-          # Восстанавливаем .env если был
-          if [ -f "/tmp/.env.backup" ]; then
-            cp /tmp/.env.backup $PROJECT_DIR/.env
-            echo "[INFO] Restored .env file"
-            rm -f /tmp/.env.backup
-          fi
           
           cd $PROJECT_DIR
           
