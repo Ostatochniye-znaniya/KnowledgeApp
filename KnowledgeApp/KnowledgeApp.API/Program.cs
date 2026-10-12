@@ -90,6 +90,9 @@ services.AddScoped<ReportDocumentRepository>();
 services.AddScoped<ReportDocumentService>();
 services.AddScoped<ScheduleDocumentRepository>();
 services.AddScoped<ScheduleDocumentService>();
+services.AddScoped<OrderRepository>();
+services.AddScoped<OrderService>();
+services.AddSingleton<OrderPdfGenerator>();
 services.AddScoped<ICurrentUserProvider, TestCurrentUserProvider>();
 
 // Регистрация PDF сервиса
