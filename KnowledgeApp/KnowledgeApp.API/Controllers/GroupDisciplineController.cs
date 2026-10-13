@@ -7,9 +7,11 @@ namespace KnowledgeApp.API.Controllers;
 
 /// <summary>
 /// Выбор дисциплин для групп заведующим кафедрой (страница «Выбор дисциплин», ТЗ п. 2.4).
-///   GET GroupDiscipline/GetGroups?departmentId=&amp;semesterId=
+///   GET GroupDiscipline/GetDepartment                  — кафедра текущего пользователя
+///   GET GroupDiscipline/GetGroups?semesterId=
 ///   GET GroupDiscipline/GetAvailableDisciplines/{groupId}
 ///   PUT GroupDiscipline/SetDisciplines/{groupId}   body: { disciplineIds: [..], semesterId? }
+/// Кафедра берётся из текущего пользователя: группы других кафедр не видны (403 на чужую группу).
 /// semesterId необязателен: по умолчанию берётся самый поздний семестр.
 /// </summary>
 public class GroupDisciplineController : BaseController
@@ -22,18 +24,38 @@ public class GroupDisciplineController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<GroupDisciplinesResponse>>> GetGroups(
-        [FromQuery] int? departmentId,
-        [FromQuery] int? semesterId)
+    public async Task<ActionResult<DepartmentResponse>> GetDepartment()
     {
         try
         {
-            var groups = await _service.GetGroupsAsync(departmentId, semesterId);
+            var (id, name) = await _service.GetCurrentDepartmentAsync();
+            return Ok(new DepartmentResponse { Id = id, Name = name });
+        }
+        catch (KeyNotFoundException e)
+        {
+            return NotFound(new { message = e.Message });
+        }
+        catch (UnauthorizedAccessException e)
+        {
+            return Forbidden(e);
+        }
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<GroupDisciplinesResponse>>> GetGroups([FromQuery] int? semesterId)
+    {
+        try
+        {
+            var groups = await _service.GetGroupsAsync(semesterId);
             return Ok(groups.Select(ToGroupResponse));
         }
         catch (KeyNotFoundException e)
         {
             return NotFound(new { message = e.Message });
+        }
+        catch (UnauthorizedAccessException e)
+        {
+            return Forbidden(e);
         }
     }
 
@@ -49,6 +71,10 @@ public class GroupDisciplineController : BaseController
         {
             return NotFound(new { message = e.Message });
         }
+        catch (UnauthorizedAccessException e)
+        {
+            return Forbidden(e);
+        }
     }
 
     [HttpPut("{groupId}")]
@@ -63,6 +89,10 @@ public class GroupDisciplineController : BaseController
         {
             return NotFound(new { message = e.Message });
         }
+        catch (UnauthorizedAccessException e)
+        {
+            return Forbidden(e);
+        }
         catch (ArgumentException e)
         {
             return BadRequest(new { message = e.Message });
@@ -71,6 +101,11 @@ public class GroupDisciplineController : BaseController
         {
             return Conflict(new { message = e.Message });
         }
+    }
+
+    private ObjectResult Forbidden(UnauthorizedAccessException e)
+    {
+        return StatusCode(StatusCodes.Status403Forbidden, new { message = e.Message });
     }
 
     private static GroupDisciplinesResponse ToGroupResponse(GroupDisciplinesModel model)

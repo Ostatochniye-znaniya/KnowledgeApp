@@ -1,3 +1,4 @@
+using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Domain.Entities;
 using KnowledgeApp.Infrastructure.Entities;
 using KnowledgeApp.Infrastructure.Repositories;
@@ -6,7 +7,9 @@ namespace KnowledgeApp.Application.Services;
 
 /// <summary>
 /// Выбор дисциплин для групп заведующим кафедрой (ТЗ, п. 2.4).
-/// Ошибки: KeyNotFoundException — нет группы/семестра, ArgumentException — неверный запрос,
+/// Заведующий видит и меняет только группы своей кафедры (кафедра — из текущего пользователя).
+/// Ошибки: KeyNotFoundException — нет группы/семестра/кафедры, ArgumentException — неверный запрос,
+/// UnauthorizedAccessException — кафедра пользователя не определена или группа чужой кафедры,
 /// InvalidOperationException — изменение невозможно из-за текущих данных.
 /// </summary>
 public class GroupDisciplineService
@@ -15,10 +18,24 @@ public class GroupDisciplineService
     public const int MaxDisciplinesPerGroup = 2;
 
     private readonly GroupDisciplineRepository _repository;
+    private readonly ICurrentUserProvider _currentUser;
 
-    public GroupDisciplineService(GroupDisciplineRepository repository)
+    public GroupDisciplineService(GroupDisciplineRepository repository, ICurrentUserProvider currentUser)
     {
         _repository = repository;
+        _currentUser = currentUser;
+    }
+
+    private int CurrentDepartmentId =>
+        _currentUser.DepartmentId ?? throw new UnauthorizedAccessException("Не определена кафедра пользователя");
+
+    /// <summary>Кафедра текущего пользователя (для подписи на странице).</summary>
+    public async Task<(int Id, string Name)> GetCurrentDepartmentAsync()
+    {
+        int departmentId = CurrentDepartmentId;
+        string name = await _repository.GetDepartmentNameAsync(departmentId)
+            ?? throw new KeyNotFoundException($"Кафедра с id {departmentId} не найдена");
+        return (departmentId, name);
     }
 
     /// <summary>Переданный семестр (с проверкой) или самый поздний, если не передан.</summary>
@@ -35,16 +52,24 @@ public class GroupDisciplineService
             ?? throw new KeyNotFoundException("В базе нет ни одного семестра");
     }
 
-    public async Task<List<GroupDisciplinesModel>> GetGroupsAsync(int? departmentId, int? semesterId)
+    public async Task<List<GroupDisciplinesModel>> GetGroupsAsync(int? semesterId)
     {
+        int departmentId = CurrentDepartmentId;
         int resolvedSemesterId = await ResolveSemesterIdAsync(semesterId);
         return await _repository.GetGroupsAsync(resolvedSemesterId, departmentId);
     }
 
+    /// <summary>Дисциплины кафедры группы; группа должна относиться к кафедре пользователя.</summary>
     public async Task<List<DisciplineModel>> GetAvailableDisciplinesAsync(int groupId)
     {
-        return await _repository.GetAvailableDisciplinesAsync(groupId)
-            ?? throw new KeyNotFoundException($"Учебная группа с id {groupId} не найдена");
+        int departmentId = CurrentDepartmentId;
+        var (found, groupDepartmentId) = await _repository.GetGroupDepartmentAsync(groupId);
+        if (!found)
+            throw new KeyNotFoundException($"Учебная группа с id {groupId} не найдена");
+        if (groupDepartmentId != departmentId)
+            throw new UnauthorizedAccessException("Группа не относится к вашей кафедре");
+
+        return await _repository.GetDepartmentDisciplinesAsync(departmentId);
     }
 
     /// <summary>

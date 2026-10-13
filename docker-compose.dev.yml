@@ -65,6 +65,7 @@ services:
       S3_BUCKET: "${S3_BUCKET:-knowledgeapp-documents}"
       MAX_UPLOAD_SIZE_MB: "${MAX_UPLOAD_SIZE_MB:-20}"
       TEST_FACULTY_ID: "${TEST_FACULTY_ID:-1}"
+      TEST_DEPARTMENT_ID: "${TEST_DEPARTMENT_ID:-4}"
     restart: always
     networks:
       - app-network

@@ -36,16 +36,26 @@ public class GroupDisciplineRepository
         return _context.Semesters.AnyAsync(s => s.Id == semesterId);
     }
 
+    /// <summary>Название кафедры; null — если кафедры нет.</summary>
+    public Task<string?> GetDepartmentNameAsync(int departmentId)
+    {
+        return _context.Departments
+            .AsNoTracking()
+            .Where(d => d.Id == departmentId)
+            .Select(d => d.Name)
+            .FirstOrDefaultAsync();
+    }
+
     /// <summary>
-    /// Группы, у которых есть тестирования в семестре (то есть выбранные для проверки),
-    /// с уже выбранными дисциплинами. departmentId == null — без фильтра по кафедре.
+    /// Группы кафедры, у которых есть тестирования в семестре (то есть выбранные для проверки),
+    /// с уже выбранными дисциплинами.
     /// </summary>
-    public async Task<List<GroupDisciplinesModel>> GetGroupsAsync(int semesterId, int? departmentId)
+    public async Task<List<GroupDisciplinesModel>> GetGroupsAsync(int semesterId, int departmentId)
     {
         var rows = await _context.StudyGroups
             .AsNoTracking()
             .Where(g => g.Testings.Any(t => t.SemesterId == semesterId))
-            .Where(g => departmentId == null || g.StudyProgram!.DepartmentId == departmentId)
+            .Where(g => g.StudyProgram!.DepartmentId == departmentId)
             .OrderBy(g => g.GroupNumber)
             .Select(g => new
             {
@@ -83,11 +93,10 @@ public class GroupDisciplineRepository
     }
 
     /// <summary>
-    /// Дисциплины, из которых можно выбирать для группы: дисциплины кафедры, за которой
-    /// закреплена образовательная программа группы (группа → программа → кафедра → дисциплины).
-    /// null — если группы нет.
+    /// Кафедра, за которой закреплена образовательная программа группы.
+    /// Found == false — если группы нет; DepartmentId == null — если у программы нет кафедры.
     /// </summary>
-    public async Task<List<DisciplineModel>?> GetAvailableDisciplinesAsync(int groupId)
+    public async Task<(bool Found, int? DepartmentId)> GetGroupDepartmentAsync(int groupId)
     {
         var group = await _context.StudyGroups
             .AsNoTracking()
@@ -95,15 +104,15 @@ public class GroupDisciplineRepository
             .Select(g => new { DepartmentId = g.StudyProgram!.DepartmentId })
             .SingleOrDefaultAsync();
 
-        if (group == null)
-            return null;
+        return group == null ? (false, null) : (true, group.DepartmentId);
+    }
 
-        if (group.DepartmentId == null)
-            return new List<DisciplineModel>();
-
+    /// <summary>Дисциплины кафедры (группа → программа → кафедра → дисциплины).</summary>
+    public async Task<List<DisciplineModel>> GetDepartmentDisciplinesAsync(int departmentId)
+    {
         var disciplines = await _context.Disciplines
             .AsNoTracking()
-            .Where(d => d.DepartmentId == group.DepartmentId)
+            .Where(d => d.DepartmentId == departmentId)
             .OrderBy(d => d.Name)
             .Select(d => new { d.Id, d.Name, d.DepartmentId })
             .ToListAsync();
