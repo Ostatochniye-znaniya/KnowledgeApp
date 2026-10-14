@@ -83,6 +83,8 @@ services.AddScoped<EmployeeRightsRequestRepository>();
 services.AddScoped<EmployeeRightsRequestService>();
 services.AddScoped<RecommendationHistoryRepository>();
 services.AddScoped<RecommendationHistoryService>();
+services.AddScoped<GroupDisciplineRepository>();
+services.AddScoped<GroupDisciplineService>();
 
 services.AddSingleton(S3StorageOptions.FromEnvironment());
 services.AddSingleton<IFileStorage, S3FileStorage>();
