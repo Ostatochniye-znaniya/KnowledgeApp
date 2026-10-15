@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using iText.IO.Font;
-using iText.IO.Image;
 using iText.Kernel.Font;
 using iText.Kernel.Pdf;
 using iText.Layout;
@@ -161,20 +160,14 @@ public class OrderPdfGenerator
 
         document.Add(Step(1, "Обучающийся входит в систему ЛМС по своему логину и паролю."));
         document.Add(Step(2, "В верхнем правом углу экрана нажимает кнопку «Мои курсы»."));
-        document.Add(Screenshot("step2.jpg", 279.4f));
         document.Add(Step(3, "В списке выбирает курс «Анкетирование <Аббревиатура факультета>»."));
-        document.Add(Screenshot("step3.png", 297.8f));
         document.Add(Step(4, "Ищет на странице раздел своей группы со списком дисциплин."));
-        document.Add(Screenshot("step4.png", 360f));
         document.Add(Step(5, "Открывает каждую из дисциплин и отвечает на предложенные вопросы."));
-        document.Add(Screenshot("step5.png", 315.9f));
         document.Add(Step(6, "Если в первом вопросе «Преподаватель» перечислено несколько фамилий, " +
             "то обучающийся выбирает того, кто проводил у него занятия."));
         document.Add(Step(7, "После выбора всех ответов нажимает на кнопку «Отправить свои ответы»."));
-        document.Add(Screenshot("step7.png", 205.9f));
         document.Add(Step(8, "Нажимает кнопку «Продолжить» и возвращается на главную страницу курса для выбора " +
             "следующей дисциплины или переходит сразу к следующей дисциплине."));
-        document.Add(Screenshot("step8.png", 467.8f));
     }
 
     private static void AddRecommendations(Document document, PdfFont bold, OrderModel order, bool isSpring,
@@ -302,16 +295,6 @@ public class OrderPdfGenerator
             .Add(new Tab())
             .Add(Bind(text))
             .SetKeepWithNext(true);
-
-    private static Image Screenshot(string fileName, float width)
-    {
-        var path = Path.Combine(AppContext.BaseDirectory, "Templates", "Order", fileName);
-        return new Image(ImageDataFactory.Create(path))
-            .SetWidth(width)
-            .SetHorizontalAlignment(HorizontalAlignment.CENTER)
-            .SetMarginTop(6)
-            .SetMarginBottom(6);
-    }
 
     private static Cell RequisiteCell(string text, bool underlined)
     {
