@@ -5,4 +5,5 @@ public partial class Semester
     public int Id { get; set; }
     public int SemesterYear { get; set; }
     public int SemesterPart { get; set; }
+    public int YearPart { get; set; }
 }

@@ -36,6 +36,8 @@ public class TestingRepository
             DisciplineId = model.DisciplineId,
             ScheduledDate = model.ScheduledDate,
             ScheduledTime = model.ScheduledTime,
+            Room = model.Room,
+            LmsUrl = model.LmsUrl,
             Status = model.Status,
             ResultOfTesting = model.ResultOfTesting,
             ReportId = model.ReportId,
@@ -59,6 +61,8 @@ public class TestingRepository
         entity.DisciplineId = model.DisciplineId;
         entity.ScheduledDate = model.ScheduledDate;
         entity.ScheduledTime = model.ScheduledTime;
+        entity.Room = model.Room;
+        entity.LmsUrl = model.LmsUrl;
         entity.Status = model.Status;
         entity.ResultOfTesting = model.ResultOfTesting;
         entity.ReportId = model.ReportId;
@@ -115,7 +119,7 @@ public class TestingRepository
         }
 
         var testings = await _context.Testings
-            .Where(t => studyGroupIds.Contains(t.GroupId) || reportIds.Contains(t.ReportId))
+            .Where(t => studyGroupIds.Contains(t.GroupId) || reportIds.Contains(t.ReportId.Value))
             .ToListAsync();
 
         return testings.Select(e => ToModel(e)).ToList();
@@ -149,7 +153,9 @@ public class TestingRepository
             entity.Status,
             entity.ResultOfTesting,
             entity.ReportId,
-            entity.SemesterId
+            entity.SemesterId,
+            entity.Room,
+            entity.LmsUrl
         );
     }
 }

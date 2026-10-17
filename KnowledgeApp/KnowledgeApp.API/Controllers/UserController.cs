@@ -22,7 +22,7 @@ public class UserController : BaseController
         {
             UserName = "TestUser",
             Role = "Admin",
-            DepartmentId = 12,
+            DepartmentId = 2,
             Email = "test@example.com"
         });
     }

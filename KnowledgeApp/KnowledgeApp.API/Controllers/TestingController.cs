@@ -56,7 +56,9 @@ public class TestingController : BaseController
                 testingRequest.Status ?? "scheduled",
                 testingRequest.ResultOfTesting,
                 testingRequest.ReportId,
-                testingRequest.SemesterId
+                testingRequest.SemesterId,
+                testingRequest.Room,
+                testingRequest.LmsUrl
             );
 
             TestingModel createdTesting = await _testingService.Create(testingModel);
@@ -82,7 +84,9 @@ public class TestingController : BaseController
                 testingRequest.Status ?? "scheduled",
                 testingRequest.ResultOfTesting,
                 testingRequest.ReportId,
-                testingRequest.SemesterId
+                testingRequest.SemesterId,
+                testingRequest.Room,
+                testingRequest.LmsUrl
             );
 
             TestingModel updatedTesting = await _testingService.Update(testingModel);

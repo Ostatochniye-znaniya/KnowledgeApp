@@ -20,7 +20,6 @@ public class ReportRepository
         {
             DisciplineId = reportModel.DisciplineId,
             TeacherId = reportModel.TeacherId,
-            FilePath = reportModel.FilePath,
             IsCorrect = reportModel.IsCorrect,
             DoneInPaperForm = reportModel.DoneInPaperForm,
             DoneInElectronicForm = reportModel.DoneInElectronicForm,
@@ -92,7 +91,7 @@ public class ReportRepository
 
         reportEntity.DisciplineId = reportModel.DisciplineId.GetValueOrDefault();
         reportEntity.TeacherId = reportEntity.TeacherId;
-        reportEntity.FilePath = reportModel.FilePath;
+        // file_path теперь пишет только ReportFile/Upload
         reportEntity.IsCorrect = reportModel.IsCorrect;
         reportEntity.ResultOfAttestation = reportModel.ResultOfAttestation;
         reportEntity.DoneInPaperForm = reportModel.DoneInPaperForm;
