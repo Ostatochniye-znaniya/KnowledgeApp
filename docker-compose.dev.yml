@@ -1,3 +1,5 @@
+name: knowledgeapp-dev
+
 services:
   db:
     container_name: mysql-db-dev
@@ -74,5 +76,5 @@ volumes:
   minio_data:
 networks:
   app-network:
-    name: app-network
+    name: ${NETWORK_NAME:-app-network-dev}
     external: true
