@@ -33,6 +33,12 @@ public abstract class DocumentControllerBase : BaseController
         {
             return Results.Conflict(new { error = e.Message });
         }
+        catch (DocumentGenerationException e)
+        {
+            HttpContext.RequestServices.GetRequiredService<ILogger<DocumentControllerBase>>()
+                .LogError(e, "Не удалось сформировать документ {Path}", HttpContext.Request.Path);
+            return Results.Json(new { error = e.Message }, statusCode: StatusCodes.Status500InternalServerError);
+        }
         catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
         {
             throw;
