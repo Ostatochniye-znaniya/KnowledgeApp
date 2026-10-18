@@ -112,7 +112,7 @@ public class ReportDocumentService
         {
             Departments = departments,
             AcademicYears = years,
-            Statuses = DocumentStatusInfo.Options()
+            Statuses = DocumentStatusInfo.Options(reportWorkflow: true)
         };
     }
 
@@ -220,7 +220,7 @@ public class ReportDocumentService
             DepartmentId = report.DepartmentId,
             DepartmentName = report.DepartmentName,
             Status = DocumentStatusInfo.Code(status),
-            StatusLabel = DocumentStatusInfo.Label(status),
+            StatusLabel = DocumentStatusInfo.Label(status, reportWorkflow: true),
             FileName = report.FileName,
             UploadedAt = DocumentStatusInfo.AsUtc(report.UploadedAt),
             ReviewComment = report.ReviewComment,

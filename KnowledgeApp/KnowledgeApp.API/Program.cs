@@ -60,6 +60,7 @@ services.AddScoped<DepartmentRepository>();
 services.AddScoped<UserService>();
 services.AddScoped<UserRepository>();
 services.AddScoped<TestingService>();
+services.AddScoped<GroupReportService>();
 services.AddScoped<TestingRepository>();
 services.AddScoped<DisciplineRepository>();
 services.AddScoped<DisciplineService>();

@@ -1,5 +1,6 @@
 ﻿using KnowledgeApp.API.Contracts;
 using KnowledgeApp.Application.Services;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KnowledgeApp.API.Controllers;
@@ -7,11 +8,30 @@ namespace KnowledgeApp.API.Controllers;
 public class ReportFileController : DocumentControllerBase
 {
     private readonly ReportDocumentService _reportDocumentService;
+    private readonly GroupReportService _groupReportService;
 
-    public ReportFileController(ReportDocumentService reportDocumentService)
+    public ReportFileController(
+        ReportDocumentService reportDocumentService,
+        GroupReportService groupReportService)
     {
         _reportDocumentService = reportDocumentService;
+        _groupReportService = groupReportService;
     }
+
+    [HttpGet]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public Task<IResult> DownloadGroupTemplate(
+        [FromQuery, Range(1, int.MaxValue)] int groupId,
+        [FromQuery, Range(1, int.MaxValue)] int semesterId,
+        CancellationToken cancellationToken) =>
+        Execute(async () =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var pdf = await _groupReportService.GenerateTemplate(groupId, semesterId, cancellationToken);
+            return Results.File(pdf, "application/pdf", $"Приказ_с_отчётом_группа_{groupId}_семестр_{semesterId}.pdf");
+        });
 
     [HttpPost("{reportId}")]
     [RequestSizeLimit(UploadRequestLimit)]

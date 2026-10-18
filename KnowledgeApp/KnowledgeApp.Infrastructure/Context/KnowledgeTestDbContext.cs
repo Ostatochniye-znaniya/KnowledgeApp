@@ -271,7 +271,7 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("user_id");
 
             entity.Property(e => e.RecommendedAt)
-            .HasDefaultValue(DateTime.UtcNow)
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
             .HasColumnName("recommended_at");
 
             entity.Property(e => e.SemesterId)
@@ -456,6 +456,7 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.LmsUrl)
                 .HasMaxLength(2048)
                 .HasColumnName("lms_url");
+            entity.Property(e => e.IsInPerson).HasColumnName("is_in_person");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasColumnName("status");

@@ -2,6 +2,7 @@
 using KnowledgeApp.Application.Interfaces;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Action;
+using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Font;
 using iText.Kernel.Geom;
 using iText.Layout;
@@ -344,6 +345,167 @@ namespace KnowledgeApp.Application.Services
                 _logger.LogError(ex, "Ошибка при генерации PDF");
                 throw new Exception($"Ошибка при генерации PDF: {ex.Message}", ex);
             }
+        }
+
+        public byte[] GenerateGroupReportPdf(IReadOnlyList<GroupReportPageDto> pages)
+        {
+            if (pages.Count == 0)
+                throw new ArgumentException("Для формирования отчёта нужна хотя бы одна дисциплина.", nameof(pages));
+
+            try
+            {
+                byte[] reportsPdf;
+                using (var reportsStream = new MemoryStream())
+                using (var reportsPdfDocument = new PdfDocument(new PdfWriter(reportsStream)))
+                using (var document = new Document(reportsPdfDocument, PageSize.A4))
+                {
+                    document.SetMargins(40, 32, 30, 32);
+
+                    for (var pageIndex = 0; pageIndex < pages.Count; pageIndex++)
+                    {
+                        if (pageIndex > 0)
+                            document.Add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+
+                        var report = pages[pageIndex];
+                        var studentFontSize = report.StudentNames.Count > 30
+                            ? 7
+                            : report.StudentNames.Count > 20 ? 8 : 9;
+
+                        document.Add(new Paragraph((pageIndex + 3).ToString())
+                            .SetFont(_timesNewRoman)
+                            .SetFontSize(9)
+                            .SetTextAlignment(TextAlignment.CENTER)
+                            .SetMarginBottom(4));
+                        document.Add(new Paragraph(
+                                "Приложение № 2\nк приказу Московского Политеха\nот « 16 » октября 2025 г. № 1218-ОД")
+                            .SetFont(_timesNewRoman)
+                            .SetFontSize(9)
+                            .SetTextAlignment(TextAlignment.RIGHT)
+                            .SetMarginBottom(10));
+                        document.Add(new Paragraph("Отчет о проверке остаточных знаний")
+                            .SetFont(_timesNewRomanBold)
+                            .SetFontSize(12)
+                            .SetTextAlignment(TextAlignment.CENTER)
+                            .SetMarginBottom(5));
+
+                        var details = new Table(UnitValue.CreatePercentArray(new float[] { 0.65f, 9.35f }))
+                            .SetWidth(UnitValue.CreatePercentValue(87))
+                            .SetHorizontalAlignment(HorizontalAlignment.CENTER);
+                        AddReportCell(details, "№", TextAlignment.CENTER, _timesNewRomanBold, 9, 6);
+                        AddReportCell(details, $"Учебный год: {report.AcademicYear}", TextAlignment.LEFT, _timesNewRomanBold);
+                        AddReportCell(details, $"Код и наименование направления (специальности): {report.StudyProgramCode}", TextAlignment.LEFT, _timesNewRomanBold);
+                        AddReportCell(details, $"Наименование образовательной программы: {report.StudyProgramName}", TextAlignment.LEFT, _timesNewRomanBold);
+                        AddReportCell(details, $"Наименование дисциплины: {report.DisciplineName}", TextAlignment.LEFT, _timesNewRomanBold);
+                        AddReportCell(details, $"ФИО педагогического работника, проводившего занятия в предыдущем семестре: {report.TeacherNames}", TextAlignment.LEFT, _timesNewRomanBold);
+                        AddReportCell(details, $"Учебная группа № {report.GroupName}", TextAlignment.LEFT, _timesNewRomanBold);
+                        document.Add(details);
+
+                        var results = new Table(UnitValue.CreatePercentArray(new float[] { 0.65f, 4.35f, 2.5f, 2.5f }))
+                            .SetWidth(UnitValue.CreatePercentValue(87))
+                            .SetHorizontalAlignment(HorizontalAlignment.CENTER);
+                        AddReportCell(results, "№", TextAlignment.CENTER, _timesNewRomanBold, studentFontSize);
+                        AddReportCell(results, "ФИО обучающегося", TextAlignment.CENTER, _timesNewRomanBold, studentFontSize);
+                        AddReportCell(results, "Результаты\nпромежуточной\nаттестации", TextAlignment.CENTER, _timesNewRomanBold, studentFontSize);
+                        AddReportCell(results, "Результаты\nтестирования", TextAlignment.CENTER, _timesNewRomanBold, studentFontSize);
+
+                        for (var studentIndex = 0; studentIndex < report.StudentNames.Count; studentIndex++)
+                        {
+                            AddReportCell(results, (studentIndex + 1).ToString(), TextAlignment.CENTER, null, studentFontSize);
+                            AddReportCell(results, report.StudentNames[studentIndex], TextAlignment.LEFT, null, studentFontSize);
+                            AddReportCell(results, string.Empty, TextAlignment.CENTER, null, studentFontSize);
+                            AddReportCell(results, string.Empty, TextAlignment.CENTER, null, studentFontSize);
+                        }
+
+                        AddReportSummary(results, $"Всего в группе: {report.StudentNames.Count} (чел.)", studentFontSize);
+                        AddReportSummary(results, "Прошли тестирование: __________ (чел.)", studentFontSize);
+                        AddReportSummary(results, "Не допущены к тестированию: __________ (чел.)", studentFontSize);
+                        AddReportSummary(results, "Не явились на тестирование: __________ (чел.)", studentFontSize);
+                        document.Add(results);
+
+                        var signatures = new Table(UnitValue.CreatePercentArray(new float[] { 6.5f, 3.5f }))
+                            .SetWidth(UnitValue.CreatePercentValue(87))
+                            .SetHorizontalAlignment(HorizontalAlignment.CENTER)
+                            .SetMarginTop(6);
+                        AddSignature(signatures,
+                            $"Заведующий кафедрой\n{report.DepartmentName}",
+                            "________________ /ФИО/");
+                        AddSignature(signatures,
+                            $"Декан факультета / директор института\n{report.FacultyName}",
+                            "________________ /ФИО/");
+                        document.Add(signatures);
+                    }
+
+                    document.Close();
+                    reportsPdf = reportsStream.ToArray();
+                }
+
+                using var templateStream = typeof(PdfGeneratorService).Assembly
+                    .GetManifestResourceStream("KnowledgeApp.Application.Templates.OrderTemplate.pdf");
+                if (templateStream == null)
+                    throw new FileNotFoundException("Не найден PDF-шаблон приказа.");
+
+                using var finalStream = new MemoryStream();
+                using (var finalPdf = new PdfDocument(new PdfWriter(finalStream)))
+                using (var orderPdf = new PdfDocument(new PdfReader(templateStream)))
+                using (var reportPdf = new PdfDocument(new PdfReader(new MemoryStream(reportsPdf))))
+                {
+                    orderPdf.CopyPagesTo(1, 2, finalPdf);
+                    reportPdf.CopyPagesTo(1, reportPdf.GetNumberOfPages(), finalPdf);
+                    while (finalPdf.GetNumberOfPages() > 2 &&
+                           !PdfTextExtractor.GetTextFromPage(finalPdf.GetLastPage()).Any(char.IsLetterOrDigit))
+                    {
+                        finalPdf.RemovePage(finalPdf.GetNumberOfPages());
+                    }
+
+                    finalPdf.Close();
+                }
+
+                return finalStream.ToArray();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при генерации приказа с формой отчёта по группе");
+                throw new Exception($"Ошибка при генерации приказа с формой отчёта: {ex.Message}", ex);
+            }
+        }
+
+        private void AddReportSummary(Table table, string text, float fontSize)
+        {
+            table.AddCell(new Cell(1, 4)
+                .Add(new Paragraph(text).SetFont(_timesNewRoman).SetFontSize(fontSize))
+                .SetBorder(new SolidBorder(0.5f))
+                .SetPadding(0.5f));
+        }
+
+        private void AddReportCell(
+            Table table,
+            string text,
+            TextAlignment alignment,
+            PdfFont? font = null,
+            float fontSize = 9,
+            int rowSpan = 1,
+            int colSpan = 1)
+        {
+            table.AddCell(new Cell(rowSpan, colSpan)
+                .Add(new Paragraph(text)
+                    .SetFont(font ?? _timesNewRoman)
+                    .SetFontSize(fontSize)
+                    .SetTextAlignment(alignment))
+                .SetVerticalAlignment(VerticalAlignment.MIDDLE)
+                .SetBorder(new SolidBorder(0.5f))
+                .SetPadding(0.5f));
+        }
+
+        private void AddSignature(Table table, string title, string signature)
+        {
+            table.AddCell(new Cell()
+                .Add(new Paragraph(title).SetFont(_timesNewRoman).SetFontSize(9).SetItalic())
+                .SetBorder(Border.NO_BORDER)
+                .SetPadding(0));
+            table.AddCell(new Cell()
+                .Add(new Paragraph(signature).SetFont(_timesNewRoman).SetFontSize(9).SetTextAlignment(TextAlignment.RIGHT))
+                .SetBorder(Border.NO_BORDER)
+                .SetPadding(0));
         }
     }
 }

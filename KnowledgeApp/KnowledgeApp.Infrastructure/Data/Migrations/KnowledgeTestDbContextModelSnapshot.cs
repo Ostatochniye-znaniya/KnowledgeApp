@@ -199,7 +199,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("RecommendedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
-                        .HasDefaultValue(new DateTime(2026, 9, 27, 9, 56, 7, 608, DateTimeKind.Utc).AddTicks(6189))
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
                         .HasColumnName("recommended_at");
 
                     b.Property<int>("SemesterId")
@@ -560,6 +560,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<int>("GroupId")
                         .HasColumnType("int")
                         .HasColumnName("group_id");
+
+                    b.Property<bool?>("IsInPerson")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_in_person");
 
                     b.Property<string>("LmsUrl")
                         .HasMaxLength(2048)

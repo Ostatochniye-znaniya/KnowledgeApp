@@ -6,6 +6,7 @@
         public int Number { get; set; }
         public int FacultyId { get; set; }
         public int SemesterId { get; set; }
+        public int? ReportId { get; set; }
         public string GroupName { get; set; } = string.Empty;
         public string ProgramName { get; set; } = string.Empty;
         public string DisciplineName { get; set; } = string.Empty;
@@ -17,5 +18,6 @@
         public TimeSpan Time { get; set; }
         public string? Room { get; set; }
         public string? LmsUrl { get; set; }
+        public bool IsInPerson { get; set; }
     }
 }

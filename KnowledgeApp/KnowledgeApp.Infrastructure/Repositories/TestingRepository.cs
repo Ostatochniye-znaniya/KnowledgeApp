@@ -38,6 +38,7 @@ public class TestingRepository
             ScheduledTime = model.ScheduledTime,
             Room = model.Room,
             LmsUrl = model.LmsUrl,
+            IsInPerson = model.IsInPerson,
             Status = model.Status,
             ResultOfTesting = model.ResultOfTesting,
             ReportId = model.ReportId,
@@ -63,6 +64,7 @@ public class TestingRepository
         entity.ScheduledTime = model.ScheduledTime;
         entity.Room = model.Room;
         entity.LmsUrl = model.LmsUrl;
+        entity.IsInPerson = model.IsInPerson;
         entity.Status = model.Status;
         entity.ResultOfTesting = model.ResultOfTesting;
         entity.ReportId = model.ReportId;
@@ -70,6 +72,24 @@ public class TestingRepository
 
         await _context.SaveChangesAsync();
 
+        return ToModel(entity);
+    }
+
+    public async Task<TestingModel?> UpdateDelivery(
+        int id,
+        bool isInPerson,
+        string? room,
+        string? lmsUrl,
+        CancellationToken cancellationToken)
+    {
+        var entity = await _context.Testings.FindAsync([id], cancellationToken);
+        if (entity == null)
+            return null;
+
+        entity.IsInPerson = isInPerson;
+        entity.Room = room;
+        entity.LmsUrl = lmsUrl;
+        await _context.SaveChangesAsync(cancellationToken);
         return ToModel(entity);
     }
 
@@ -155,7 +175,8 @@ public class TestingRepository
             entity.ReportId,
             entity.SemesterId,
             entity.Room,
-            entity.LmsUrl
+            entity.LmsUrl,
+            entity.IsInPerson ?? !string.IsNullOrWhiteSpace(entity.Room)
         );
     }
 }
