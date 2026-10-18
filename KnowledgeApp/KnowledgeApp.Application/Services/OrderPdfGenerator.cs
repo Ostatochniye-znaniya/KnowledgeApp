@@ -6,6 +6,7 @@ using iText.Layout;
 using iText.Layout.Borders;
 using iText.Layout.Element;
 using iText.Layout.Properties;
+using KnowledgeApp.Application.DTOs;
 using KnowledgeApp.Domain.Entities;
 using PageSize = iText.Kernel.Geom.PageSize;
 
@@ -210,58 +211,10 @@ public class OrderPdfGenerator
 
     private static void AddReportForm(Document document, PdfFont regular, PdfFont bold, string? academicYear)
     {
-        document.Add(Centered("Отчет о проверке остаточных знаний", FontSize).SetFont(bold).SetMarginBottom(8));
-
-        var table = new Table(new float[] { 23, 111, 215, 133 }).SetFixedLayout().SetFontSize(12);
-        table.AddCell(FormCell("№", 7, 1).SetFont(bold));
-        foreach (var caption in new[]
-                 {
-                     $"Учебный год: {academicYear}",
-                     "Наименование направления подготовки/специальности:",
-                     "Наименование профиля/специализации:",
-                     "Наименование дисциплины:",
-                     "ФИО педагогического работника, проводившего занятия в предыдущем семестре:",
-                     "Учебная группа №"
-                 })
+        GroupReportPdfTemplate.AddToDocument(document, new GroupReportDto
         {
-            table.AddCell(FormCell(caption, 1, 3).SetFont(bold).SetMinHeight(28));
-        }
-
-        foreach (var caption in new[]
-                 {
-                     "ФИО\nобучающегося",
-                     "Результаты промежуточной\nаттестации (оценка)",
-                     "Результаты\nтестирования\n(оценка)"
-                 })
-        {
-            table.AddCell(FormCell(caption, 1, 1).SetFont(bold).SetTextAlignment(TextAlignment.CENTER));
-        }
-
-        foreach (var row in new[] { "1", "2", "3", "…", "n" })
-        {
-            table.AddCell(FormCell(row, 1, 1));
-            for (var i = 0; i < 3; i++) table.AddCell(FormCell(string.Empty, 1, 1));
-        }
-
-        document.Add(table);
-
-        document.Add(Line("Всего в группе ___ (чел.)\nНе явилось ___ (чел.)").SetMarginTop(LineHeight));
-        AddSignatureLine(document, regular, "Заведующий кафедрой ");
-        AddSignatureLine(document, regular, "Декан факультета/Директор института ");
-    }
-
-    private static void AddSignatureLine(Document document, PdfFont font, string position)
-    {
-        const string placeholder = "__________";
-        const string caption = "подпись";
-        const float captionSize = 8f;
-
-        var offset = font.GetWidth(position, FontSize) + font.GetWidth(placeholder, FontSize) / 2
-                     - font.GetWidth(caption, captionSize) / 2;
-
-        document.Add(Line($"{position}{placeholder} /ФИО").SetMarginTop(LineHeight));
-        document.Add(new Paragraph(caption).SetFontSize(captionSize).SetFixedLeading(9).SetMargin(0)
-            .SetMarginLeft(offset));
+            AcademicYear = academicYear ?? string.Empty
+        }, regular, bold, isBlankTemplate: true);
     }
 
     private static string ReportDeadlines(OrderModel order) =>
@@ -303,11 +256,6 @@ public class OrderPdfGenerator
 
     private static Cell PlainCell(string text) =>
         new Cell().Add(Line(text)).SetBorder(Border.NO_BORDER).SetPadding(0);
-
-    private static Cell FormCell(string text, int rowspan, int colspan) =>
-        new Cell(rowspan, colspan).Add(new Paragraph(text).SetMultipliedLeading(1f).SetMargin(0))
-            .SetBorder(new SolidBorder(0.5f))
-            .SetPaddings(1, 5, 1, 5);
 
     private static PdfFont LoadFont(string fileName) =>
         PdfFontFactory.CreateFont(Path.Combine(AppContext.BaseDirectory, "Fonts", fileName), PdfEncodings.IDENTITY_H,

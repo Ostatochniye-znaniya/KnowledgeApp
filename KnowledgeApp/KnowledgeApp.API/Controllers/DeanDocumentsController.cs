@@ -26,7 +26,7 @@ public class DeanDocumentsController : DocumentControllerBase
 
     [HttpGet("{id}")]
     public Task<IResult> DownloadReport(int id, CancellationToken cancellationToken) =>
-        Execute(async () => PdfFile(await _reportDocumentService.OpenFileForDean(id, cancellationToken)));
+        Execute(async () => DocumentFile(await _reportDocumentService.OpenFileForDean(id, cancellationToken)));
 
     [HttpPost("{id}")]
     public Task<IResult> ApproveReport(int id) =>
@@ -47,7 +47,7 @@ public class DeanDocumentsController : DocumentControllerBase
 
     [HttpGet("{id}")]
     public Task<IResult> DownloadSchedule(int id, CancellationToken cancellationToken) =>
-        Execute(async () => PdfFile(await _scheduleDocumentService.OpenFile(id, cancellationToken)));
+        Execute(async () => DocumentFile(await _scheduleDocumentService.OpenFile(id, cancellationToken)));
 
     [HttpPost("{id}")]
     public Task<IResult> ApproveSchedule(int id) =>

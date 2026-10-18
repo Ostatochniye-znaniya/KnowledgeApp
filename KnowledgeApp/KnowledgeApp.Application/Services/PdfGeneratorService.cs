@@ -351,122 +351,21 @@ namespace KnowledgeApp.Application.Services
             try
             {
                 var (regularFont, boldFont) = LoadFonts();
-                using var reportsStream = new MemoryStream();
-                using (var document = new Document(
-                           new PdfDocument(new PdfWriter(reportsStream)),
-                           PageSize.A4))
+                using var stream = new MemoryStream();
+                using (var document = new Document(new PdfDocument(new PdfWriter(stream)), PageSize.A4))
                 {
-                    var compactLayout = report.StudentNames.Count > 30;
-                    document.SetMargins(compactLayout ? 24 : 40, 32, compactLayout ? 20 : 30, 32);
-                    var studentFontSize = report.StudentNames.Count > 40
-                        ? 6
-                        : report.StudentNames.Count > 30 ? 7 : report.StudentNames.Count > 20 ? 8 : 9;
-                    var cellPadding = compactLayout ? 0.15f : 0.5f;
-
-                    document.Add(new Paragraph("Отчет о проверке остаточных знаний")
-                        .SetFont(boldFont)
-                        .SetFontSize(12)
-                        .SetTextAlignment(TextAlignment.CENTER)
-                        .SetMarginBottom(5));
-
-                    var details = new Table(UnitValue.CreatePercentArray(new float[] { 0.65f, 9.35f }))
-                        .SetWidth(UnitValue.CreatePercentValue(87))
-                        .SetHorizontalAlignment(HorizontalAlignment.CENTER);
-                    AddReportCell(details, "№", TextAlignment.CENTER, boldFont, 9, 6, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(details, $"Учебный год: {report.AcademicYear}", TextAlignment.LEFT, boldFont, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(details, $"Код и наименование направления (специальности): {report.StudyProgramCode}", TextAlignment.LEFT, boldFont, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(details, $"Наименование образовательной программы: {report.StudyProgramName}", TextAlignment.LEFT, boldFont, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(details, $"Наименование дисциплины: {report.DisciplineName}", TextAlignment.LEFT, boldFont, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(details, $"ФИО педагогического работника, проводившего занятия в предыдущем семестре: {report.TeacherNames}", TextAlignment.LEFT, boldFont, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(details, $"Учебная группа № {report.GroupName}", TextAlignment.LEFT, boldFont, padding: cellPadding, defaultFont: regularFont);
-                    document.Add(details);
-
-                    var results = new Table(UnitValue.CreatePercentArray(new float[] { 0.65f, 4.35f, 2.5f, 2.5f }))
-                        .SetWidth(UnitValue.CreatePercentValue(87))
-                        .SetHorizontalAlignment(HorizontalAlignment.CENTER);
-                    AddReportCell(results, string.Empty, TextAlignment.CENTER, boldFont, studentFontSize, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(results, "ФИО обучающегося", TextAlignment.CENTER, boldFont, studentFontSize, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(results, "Результаты\nпромежуточной\nаттестации", TextAlignment.CENTER, boldFont, studentFontSize, padding: cellPadding, defaultFont: regularFont);
-                    AddReportCell(results, "Результаты\nтестирования", TextAlignment.CENTER, boldFont, studentFontSize, padding: cellPadding, defaultFont: regularFont);
-
-                    for (var studentIndex = 0; studentIndex < report.StudentNames.Count; studentIndex++)
-                    {
-                        AddReportCell(results, (studentIndex + 1).ToString(), TextAlignment.CENTER, null, studentFontSize, padding: cellPadding, defaultFont: regularFont);
-                        AddReportCell(results, report.StudentNames[studentIndex], TextAlignment.LEFT, null, studentFontSize, padding: cellPadding, defaultFont: regularFont);
-                        AddReportCell(results, string.Empty, TextAlignment.CENTER, null, studentFontSize, padding: cellPadding, defaultFont: regularFont);
-                        AddReportCell(results, string.Empty, TextAlignment.CENTER, null, studentFontSize, padding: cellPadding, defaultFont: regularFont);
-                    }
-
-                    AddReportSummary(results, "Всего в группе: __________ (чел.)", studentFontSize, cellPadding, regularFont);
-                    AddReportSummary(results, "Прошли тестирование: __________ (чел.)", studentFontSize, cellPadding, regularFont);
-                    AddReportSummary(results, "Не допущены к тестированию: __________ (чел.)", studentFontSize, cellPadding, regularFont);
-                    AddReportSummary(results, "Не явилось на тестирование: __________ (чел.)", studentFontSize, cellPadding, regularFont);
-                    document.Add(results);
-
-                    var signatures = new Table(UnitValue.CreatePercentArray(new float[] { 6.5f, 3.5f }))
-                        .SetWidth(UnitValue.CreatePercentValue(87))
-                        .SetHorizontalAlignment(HorizontalAlignment.CENTER)
-                        .SetMarginTop(compactLayout ? 2 : 6)
-                        .SetKeepTogether(true);
-                    AddSignature(signatures,
-                        $"Заведующий кафедрой\n{report.DepartmentName}",
-                        "________________\nФИО\nподпись",
-                        regularFont);
-                    AddSignature(signatures,
-                        $"Декан факультета / директор института\n{report.FacultyName}",
-                        "________________\nФИО\nподпись",
-                        regularFont);
-                    document.Add(signatures);
+                    document.SetMargins(report.StudentNames.Count > 30 ? 24 : 40, 32,
+                        report.StudentNames.Count > 30 ? 20 : 30, 32);
+                    GroupReportPdfTemplate.AddToDocument(document, report, regularFont, boldFont);
                 }
 
-                return reportsStream.ToArray();
+                return stream.ToArray();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка при генерации PDF-отчёта по группе");
                 throw new Exception($"Ошибка при генерации PDF-отчёта: {ex.Message}", ex);
             }
-        }
-
-        private void AddReportSummary(Table table, string text, float fontSize, float padding, PdfFont font)
-        {
-            table.AddCell(new Cell(1, 4)
-                .Add(new Paragraph(text).SetFont(font).SetFontSize(fontSize))
-                .SetBorder(new SolidBorder(0.5f))
-                .SetPadding(padding));
-        }
-
-        private void AddReportCell(
-            Table table,
-            string text,
-            TextAlignment alignment,
-            PdfFont? font = null,
-            float fontSize = 9,
-            int rowSpan = 1,
-            int colSpan = 1,
-            float padding = 0.5f,
-            PdfFont? defaultFont = null)
-        {
-            table.AddCell(new Cell(rowSpan, colSpan)
-                .Add(new Paragraph(text)
-                    .SetFont(font ?? defaultFont ?? _timesNewRoman)
-                    .SetFontSize(fontSize)
-                    .SetTextAlignment(alignment))
-                .SetVerticalAlignment(VerticalAlignment.MIDDLE)
-                .SetBorder(new SolidBorder(0.5f))
-                .SetPadding(padding));
-        }
-
-        private void AddSignature(Table table, string title, string signature, PdfFont font)
-        {
-            table.AddCell(new Cell()
-                .Add(new Paragraph(title).SetFont(font).SetFontSize(9))
-                .SetBorder(Border.NO_BORDER)
-                .SetPadding(0));
-            table.AddCell(new Cell()
-                .Add(new Paragraph(signature).SetFont(font).SetFontSize(9).SetTextAlignment(TextAlignment.RIGHT))
-                .SetBorder(Border.NO_BORDER)
-                .SetPadding(0));
         }
 
     }

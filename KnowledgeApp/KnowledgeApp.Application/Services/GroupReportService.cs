@@ -13,18 +13,32 @@ public class GroupReportService
     private readonly KnowledgeTestDbContext _context;
     private readonly ICurrentUserProvider _currentUser;
     private readonly IPdfGeneratorService _pdfGenerator;
+    private readonly IDocxGeneratorService _docxGenerator;
     private readonly IFileStorage _storage;
 
     public GroupReportService(
         KnowledgeTestDbContext context,
         ICurrentUserProvider currentUser,
         IPdfGeneratorService pdfGenerator,
+        IDocxGeneratorService docxGenerator,
         IFileStorage storage)
     {
         _context = context;
         _currentUser = currentUser;
         _pdfGenerator = pdfGenerator;
+        _docxGenerator = docxGenerator;
         _storage = storage;
+    }
+
+    public async Task<byte[]> GeneratePdfPreview(
+        int groupId,
+        int semesterId,
+        int disciplineId,
+        CancellationToken cancellationToken)
+    {
+        var report = await GetReportAsync(groupId, semesterId, disciplineId, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return _pdfGenerator.GenerateGroupReportPdf(report);
     }
 
     public async Task<byte[]> GenerateReport(
@@ -34,12 +48,16 @@ public class GroupReportService
         CancellationToken cancellationToken)
     {
         var report = await GetReportAsync(groupId, semesterId, disciplineId, cancellationToken);
-        var pdf = _pdfGenerator.GenerateGroupReportPdf(report);
-        var storageKey = GetStorageKey(groupId, semesterId, disciplineId);
-        await using var pdfStream = new MemoryStream(pdf, writable: false);
-        await _storage.SaveAsync(storageKey, pdfStream, "application/pdf", cancellationToken);
+        var docx = _docxGenerator.GenerateGroupReportDocx(report);
+        var storageKey = GetStorageKey(groupId, semesterId, disciplineId, "docx");
+        await using var docxStream = new MemoryStream(docx, writable: false);
+        await _storage.SaveAsync(
+            storageKey,
+            docxStream,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            cancellationToken);
 
-        return pdf;
+        return docx;
     }
 
     public async Task<IReadOnlyList<GroupReportDto>> GetReportsAsync(
@@ -80,37 +98,23 @@ public class GroupReportService
             .Select(s => s.User.Name!.Trim())
             .ToListAsync(cancellationToken);
 
-        var teacherRows = await _context.Testings
+        var disciplines = await _context.Testings
             .AsNoTracking()
             .Where(t => t.GroupId == groupId && t.SemesterId == semesterId && t.DisciplineId != null)
-            .SelectMany(
-                t => t.Discipline!.DisciplineTeachers.DefaultIfEmpty(),
-                (t, teacher) => new
-                {
-                    DisciplineId = t.DisciplineId!.Value,
-                    DisciplineName = t.Discipline!.Name,
-                    TeacherName = teacher != null && teacher.ResponsibleTeacher != null
-                        ? teacher.ResponsibleTeacher.Name
-                        : null
-                })
+            .Select(t => new { DisciplineId = t.DisciplineId!.Value, DisciplineName = t.Discipline!.Name })
+            .Distinct()
             .ToListAsync(cancellationToken);
 
-        var reports = teacherRows
-            .GroupBy(row => row.DisciplineId)
-            .OrderBy(groupRows => groupRows.First().DisciplineName)
-            .Select(groupRows => new GroupReportDto
+        var reports = disciplines
+            .OrderBy(discipline => discipline.DisciplineName)
+            .Select(discipline => new GroupReportDto
             {
-                DisciplineId = groupRows.Key,
+                DisciplineId = discipline.DisciplineId,
                 AcademicYear = AcademicPeriod.FormatAcademicYear(
                     semester.SemesterYear, semester.SemesterPart, semester.YearPart) ?? string.Empty,
                 StudyProgramCode = group.StudyProgramCode ?? string.Empty,
                 StudyProgramName = group.StudyProgramName,
-                DisciplineName = groupRows.First().DisciplineName,
-                TeacherNames = string.Join(", ", groupRows
-                    .Select(row => row.TeacherName)
-                    .Where(name => !string.IsNullOrWhiteSpace(name))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(name => name, StringComparer.CurrentCulture)),
+                DisciplineName = discipline.DisciplineName,
                 GroupName = group.GroupNumber,
                 StudentNames = studentNames,
                 DepartmentName = group.DepartmentName,
@@ -131,19 +135,20 @@ public class GroupReportService
         CancellationToken cancellationToken)
     {
         await GetReportAsync(groupId, semesterId, disciplineId, cancellationToken);
-        var storageKey = GetStorageKey(groupId, semesterId, disciplineId);
+        var storageKey = GetStorageKey(groupId, semesterId, disciplineId, "docx");
         var stream = await _storage.OpenReadAsync(storageKey, cancellationToken)
-            ?? throw new DocumentNotFoundException("Сформированный PDF ещё не сохранён");
+            ?? throw new DocumentNotFoundException("Сформированный DOCX ещё не сохранён");
 
         return new DocumentFileDto
         {
             Content = stream,
-            FileName = GetFileName(groupId, semesterId, disciplineId)
+            FileName = GetDocxFileName(groupId, semesterId, disciplineId),
+            ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         };
     }
 
-    public static string GetFileName(int groupId, int semesterId, int disciplineId) =>
-        $"Отчёт_о_проверке_остаточных_знаний_группа_{groupId}_дисциплина_{disciplineId}_семестр_{semesterId}.pdf";
+    public static string GetDocxFileName(int groupId, int semesterId, int disciplineId) =>
+        $"Отчёт_о_проверке_остаточных_знаний_группа_{groupId}_дисциплина_{disciplineId}_семестр_{semesterId}.docx";
 
     private async Task<GroupReportDto> GetReportAsync(
         int groupId,
@@ -156,6 +161,6 @@ public class GroupReportService
             ?? throw new DocumentNotFoundException("Дисциплина не найдена в выбранной группе и семестре");
     }
 
-    private static string GetStorageKey(int groupId, int semesterId, int disciplineId) =>
-        $"group-reports/{groupId}/{semesterId}/{disciplineId}/report.pdf";
+    private static string GetStorageKey(int groupId, int semesterId, int disciplineId, string extension) =>
+        $"group-reports/{groupId}/{semesterId}/{disciplineId}/report.{extension}";
 }

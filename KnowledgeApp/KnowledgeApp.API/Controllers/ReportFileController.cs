@@ -19,7 +19,7 @@ public class ReportFileController : DocumentControllerBase
     }
 
     [HttpGet]
-    [Produces("application/pdf")]
+    [Produces("application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public Task<IResult> GenerateGroupReport(
@@ -29,13 +29,14 @@ public class ReportFileController : DocumentControllerBase
         CancellationToken cancellationToken) =>
         Execute(async () =>
         {
-            var pdf = await _groupReportService.GenerateReport(groupId, semesterId, disciplineId, cancellationToken);
-            return Results.File(pdf, "application/pdf",
-                GroupReportService.GetFileName(groupId, semesterId, disciplineId));
+            var docx = await _groupReportService.GenerateReport(groupId, semesterId, disciplineId, cancellationToken);
+            return Results.File(docx,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                GroupReportService.GetDocxFileName(groupId, semesterId, disciplineId));
         });
 
     [HttpGet]
-    [Produces("application/pdf")]
+    [Produces("application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public Task<IResult> DownloadStoredGroupReport(
@@ -47,7 +48,24 @@ public class ReportFileController : DocumentControllerBase
         {
             var file = await _groupReportService.OpenStoredReport(
                 groupId, semesterId, disciplineId, cancellationToken);
-            return PdfFile(file);
+            return DocumentFile(file);
+        });
+
+    [HttpGet]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public Task<IResult> GenerateGroupReportPdf(
+        [FromQuery, Range(1, int.MaxValue)] int groupId,
+        [FromQuery, Range(1, int.MaxValue)] int semesterId,
+        [FromQuery, Range(1, int.MaxValue)] int disciplineId,
+        CancellationToken cancellationToken) =>
+        Execute(async () =>
+        {
+            var pdf = await _groupReportService.GeneratePdfPreview(
+                groupId, semesterId, disciplineId, cancellationToken);
+            return Results.File(pdf, "application/pdf",
+                $"Отчёт_о_проверке_остаточных_знаний_группа_{groupId}_дисциплина_{disciplineId}_семестр_{semesterId}.pdf");
         });
 
     [HttpPost("{reportId}")]
@@ -67,5 +85,5 @@ public class ReportFileController : DocumentControllerBase
 
     [HttpGet("{reportId}")]
     public Task<IResult> Download(int reportId, CancellationToken cancellationToken) =>
-        Execute(async () => PdfFile(await _reportDocumentService.OpenFile(reportId, cancellationToken)));
+        Execute(async () => DocumentFile(await _reportDocumentService.OpenFile(reportId, cancellationToken)));
 }
