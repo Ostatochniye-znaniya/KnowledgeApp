@@ -14,7 +14,7 @@ namespace KnowledgeApp.Application.Services;
 
 public class OrderPdfGenerator
 {
-    public const string OrderName = "О проведении анкетирования и проверки остаточных знаний обучающихся";
+    public const string OrderName = "О проведении проверки остаточных знаний обучающихся";
 
     private const string Signer = "Г.Х. Шарипзянова";
     private const float FontSize = 14f;
@@ -40,22 +40,18 @@ public class OrderPdfGenerator
         document.SetFont(regular).SetFontSize(FontSize);
 
         var isSpring = order.SemesterPart == 1;
-        var currentSemester = isSpring ? "весеннем" : "осеннем";
         var previousSemester = isSpring ? "осеннем" : "весеннем";
         var academicYear = AcademicPeriod.FormatAcademicYear(order.SemesterYear, order.SemesterPart, null);
         var previousAcademicYear = $"{order.SemesterYear - 1}/{order.SemesterYear}";
         var controlHead = PersonName.Dative(order.EducationControlDepartmentHead);
         var methodicalHead = PersonName.Accusative(order.EducationalMethodicalCenterHead);
 
-        AddOrder(document, bold, order, academicYear, currentSemester, previousSemester, controlHead, methodicalHead);
+        AddOrder(document, bold, order, previousSemester, previousAcademicYear, controlHead, methodicalHead);
 
         AddAppendixHeader(document, 1, order);
-        AddSurveyInstruction(document, bold);
-
-        AddAppendixHeader(document, 2, order);
         AddRecommendations(document, bold, order, isSpring, previousSemester, previousAcademicYear);
 
-        AddAppendixHeader(document, 3, order);
+        AddAppendixHeader(document, 2, order);
         AddReportForm(document, regular, bold, academicYear);
 
         var pageWidth = pdf.GetDefaultPageSize().GetWidth();
@@ -74,8 +70,8 @@ public class OrderPdfGenerator
         return stream.ToArray();
     }
 
-    private static void AddOrder(Document document, PdfFont bold, OrderModel order, string? academicYear,
-        string currentSemester, string previousSemester, string controlHead, string methodicalHead)
+    private static void AddOrder(Document document, PdfFont bold, OrderModel order, string previousSemester,
+        string previousAcademicYear, string controlHead, string methodicalHead)
     {
         document.Add(Centered("МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ", 9));
         document.Add(Centered("ФЕДЕРАЛЬНОЕ ГОСУДАРСТВЕННОЕ АВТОНОМНОЕ ОБРАЗОВАТЕЛЬНОЕ УЧРЕЖДЕНИЕ ВЫСШЕГО ОБРАЗОВАНИЯ", 8)
@@ -91,54 +87,44 @@ public class OrderPdfGenerator
         requisites.AddCell(RequisiteCell(order.Number, underlined: true));
         document.Add(requisites);
 
-        document.Add(Line("О проведении анкетирования\nи проверки остаточных знаний\nобучающихся")
+        document.Add(Line("О проведении проверки остаточных знаний обучающихся")
             .SetFixedLeading(14.5f).SetMarginTop(13).SetMarginBottom(27));
 
-        document.Add(Body($"В целях оценки качества подготовки обучающихся за период {academicYear} учебного года " +
-            "и стимулирования повышения компетентности и уровня квалификации педагогических работников " +
-            "на основании Положения о внутренней системе оценки качества образовательной деятельности " +
+        document.Add(Body("В целях оценки качества подготовки обучающихся в соответствии с Положением " +
+            "о внутренней системе оценки качества образовательной деятельности " +
             "и подготовке обучающихся по основным образовательным программам высшего образования – программ " +
             "бакалавриата, программ специалитета, программ магистратуры в Московском политехническом " +
             "университете и его филиалах, утвержденного приказом от 15.10.2022 № 1058-ОД"));
         document.Add(Body("ПРИКАЗЫВАЮ:").SetFont(bold));
 
-        document.Add(Body("1. Провести анкетирование обучающихся в системе дистанционного обучения Московского " +
-            "Политеха (далее СДО Московского Политеха) по итогам организации образовательного процесса " +
-            $"в {currentSemester} семестре (далее – Анкетирование) в сроки с " +
-            $"{LongDate(order.SurveyStartDate)} по {LongDate(order.SurveyEndDate)}."));
-        document.Add(Body("1.1 Директорам институтов и деканам факультетов:"));
-        document.Add(Body("- организовать и провести Анкетирование обучающихся;"));
-        document.Add(Body("- назначить ответственных лиц за организационное обеспечение Анкетирования;"));
-        document.Add(Body("- поручить проведение Анкетирования академическим тьюторам и кураторам групп " +
-            "в соответствии с инструкцией (Приложение № 1)."));
-        document.Add(Body($"1.2 Начальнику отдела контроля образовательного процесса {controlHead}:"));
-        document.Add(Body("- обеспечить консультирование работников институтов и факультетов по вопросам Анкетирования;"));
-        document.Add(Body("- обеспечить контроль за организацией и проведением Анкетирования;"));
-        document.Add(Body("- подготовить сводный отчет по результатам Анкетирования в срок " +
-            $"до {ShortDate(order.SurveySummaryDeadline)}."));
-
-        document.Add(Body("2. Провести проверку остаточных знаний обучающихся по дисциплинам, освоенным " +
-            $"в {previousSemester} семестре (далее – Проверка), в сроки с {ShortDate(order.TestingStartDate)} " +
-            $"по {ShortDate(order.TestingEndDate)}."));
-        document.Add(Body("2.1 Директорам институтов и деканам факультетов:"));
-        document.Add(Body("- организовать и провести Проверку;"));
-        document.Add(Body("- назначить ответственных лиц за организационное обеспечение Проверки;"));
-        document.Add(Body($"- подготовить отчеты по результатам Проверки (Приложение № 3) {ReportDeadlines(order)} " +
-            "в соответствии с рекомендациями (Приложение № 2)."));
-        document.Add(Body($"2.2 Начальнику отдела контроля образовательного процесса {controlHead}:"));
-        document.Add(Body("- обеспечить консультирование работников институтов и факультетов по вопросам Проверки;"));
-        document.Add(Body("- обеспечить контроль за организацией и проведением Проверки;"));
-        document.Add(Body("- подготовить сводный отчет по результатам Проверки в срок " +
-            $"до {ShortDate(order.InspectionSummaryDeadline)}."));
-        document.Add(Body("3. Контроль за исполнением настоящего приказа возложить на начальника центра " +
+        document.Add(Body("1. Провести проверку остаточных знаний обучающихся в форме тестирования " +
+            $"по дисциплинам, освоенным в {previousSemester} семестре {previousAcademicYear} учебного года, " +
+            $"в период с {ShortDate(order.TestingStartDate)} по {ShortDate(order.TestingEndDate)}."));
+        document.Add(Body("2. Утвердить рекомендации по организации и проведению проверки остаточных знаний " +
+            "обучающихся Университета (Приложение № 1)."));
+        document.Add(Body("3. Деканам факультетов / директорам институтов организовать и провести проверку " +
+            "остаточных знаний в соответствии с рекомендациями и представить отчеты о проверке остаточных знаний " +
+            $"{ReportDeadlines(order)} в отдел контроля образовательного процесса (Приложение № 2)."));
+        document.Add(Body($"4. Начальнику отдела контроля образовательного процесса {controlHead} " +
+            "организовать методическое сопровождение сотрудников факультетов и институтов, ответственных " +
+            "за организацию и проведение проверки остаточных знаний."));
+        document.Add(Body("5. Контроль за исполнением настоящего приказа возложить на начальника центра " +
             $"по учебно-методической работе {methodicalHead}."));
 
-        var signature = new Table(UnitValue.CreatePercentArray(new float[] { 1, 1 }))
+        var signature = new Table(UnitValue.CreatePercentArray(new float[] { 1.2f, 0.8f, 1 }))
             .UseAllAvailableWidth()
             .SetMarginTop(LineHeight * 2)
             .SetKeepTogether(true);
-        signature.AddCell(PlainCell("Проректор по учебной работе"));
-        signature.AddCell(PlainCell(Signer).SetTextAlignment(TextAlignment.RIGHT));
+        signature.AddCell(PlainCell("Проректор по учебной работе")
+            .SetVerticalAlignment(VerticalAlignment.BOTTOM));
+        signature.AddCell(new Cell()
+            .SetBorder(Border.NO_BORDER)
+            .SetBorderBottom(new SolidBorder(0.5f))
+            .SetPaddingBottom(7)
+            .SetMinHeight(32));
+        signature.AddCell(PlainCell(Signer)
+            .SetTextAlignment(TextAlignment.RIGHT)
+            .SetVerticalAlignment(VerticalAlignment.BOTTOM));
         document.Add(signature);
     }
 
@@ -151,29 +137,13 @@ public class OrderPdfGenerator
             .SetMarginBottom(LineHeight * 2));
     }
 
-    private static void AddSurveyInstruction(Document document, PdfFont bold)
-    {
-        document.Add(Centered("Инструкция для проведения Анкетирования обучающихся\nМосковского Политеха", FontSize)
-            .SetFont(bold).SetFixedLeading(LineHeight).SetMarginBottom(10));
-
-        document.Add(Step(1, "Обучающийся входит в систему ЛМС по своему логину и паролю."));
-        document.Add(Step(2, "В верхнем правом углу экрана нажимает кнопку «Мои курсы»."));
-        document.Add(Step(3, "В списке выбирает курс «Анкетирование <Аббревиатура факультета>»."));
-        document.Add(Step(4, "Ищет на странице раздел своей группы со списком дисциплин."));
-        document.Add(Step(5, "Открывает каждую из дисциплин и отвечает на предложенные вопросы."));
-        document.Add(Step(6, "Если в первом вопросе «Преподаватель» перечислено несколько фамилий, " +
-            "то обучающийся выбирает того, кто проводил у него занятия."));
-        document.Add(Step(7, "После выбора всех ответов нажимает на кнопку «Отправить свои ответы»."));
-        document.Add(Step(8, "Нажимает кнопку «Продолжить» и возвращается на главную страницу курса для выбора " +
-            "следующей дисциплины или переходит сразу к следующей дисциплине."));
-    }
-
     private static void AddRecommendations(Document document, PdfFont bold, OrderModel order, bool isSpring,
         string previousSemester, string previousAcademicYear)
     {
         var firstCourse = isSpring ? 1 : 2;
 
-        document.Add(Centered("Рекомендации по проведению проверки\nостаточных знаний обучающихся", FontSize)
+        document.Add(Centered("Рекомендации по организации и проведению проверки\n" +
+            "остаточных знаний обучающихся Университета", FontSize)
             .SetFont(bold).SetFixedLeading(LineHeight));
 
         document.Add(Body("1. Проверка остаточных знаний проводится в три этапа:"));
@@ -239,13 +209,6 @@ public class OrderPdfGenerator
     private static Paragraph Centered(string text, float fontSize) =>
         new Paragraph(text).SetFontSize(fontSize).SetMultipliedLeading(1.15f).SetMargin(0)
             .SetTextAlignment(TextAlignment.CENTER);
-
-    private static Paragraph Step(int number, string text) =>
-        Line($"{number}.").SetFontSize(12).SetFixedLeading(14.7f).SetFirstLineIndent(Indent)
-            .AddTabStops(new TabStop(Indent))
-            .Add(new Tab())
-            .Add(Bind(text))
-            .SetKeepWithNext(true);
 
     private static Cell RequisiteCell(string text, bool underlined)
     {
