@@ -321,7 +321,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("RecommendedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
-                        .HasDefaultValue(new DateTime(2026, 10, 12, 22, 13, 3, 4, DateTimeKind.Utc).AddTicks(2608))
+                        .HasDefaultValue(new DateTime(2026, 9, 27, 9, 56, 7, 608, DateTimeKind.Utc).AddTicks(6189))
                         .HasColumnName("recommended_at");
 
                     b.Property<int>("SemesterId")

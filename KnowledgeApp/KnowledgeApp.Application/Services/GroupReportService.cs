@@ -27,11 +27,11 @@ public class GroupReportService
         _storage = storage;
     }
 
-    public async Task<byte[]> GenerateTemplate(int groupId, int semesterId, CancellationToken cancellationToken)
+    public async Task<byte[]> GenerateReport(int groupId, int semesterId, CancellationToken cancellationToken)
     {
         var pages = await GetReportPagesAsync(groupId, semesterId, cancellationToken);
         var pdf = _pdfGenerator.GenerateGroupReportPdf(pages);
-        var storageKey = $"group-reports/{groupId}/{semesterId}/order-report.pdf";
+        var storageKey = GetStorageKey(groupId, semesterId);
         await using var pdfStream = new MemoryStream(pdf, writable: false);
         await _storage.SaveAsync(storageKey, pdfStream, "application/pdf", cancellationToken);
 
@@ -51,7 +51,6 @@ public class GroupReportService
                 g.GroupNumber,
                 StudyProgramCode = g.StudyProgram!.CypherOfTheDirection,
                 StudyProgramName = g.StudyProgram!.Name,
-                DepartmentId = g.StudyProgram!.DepartmentId,
                 DepartmentName = g.StudyProgram!.Department!.Name,
                 FacultyId = g.StudyProgram!.Department!.FacultyId,
                 FacultyName = g.StudyProgram!.Department!.Faculty!.FacultyName
@@ -120,7 +119,7 @@ public class GroupReportService
         return pages;
     }
 
-    public async Task<DocumentFileDto> OpenStoredTemplate(
+    public async Task<DocumentFileDto> OpenStoredReport(
         int groupId,
         int semesterId,
         CancellationToken cancellationToken)
@@ -141,14 +140,20 @@ public class GroupReportService
         if (!semesterExists)
             throw new DocumentNotFoundException("Семестр не найден");
 
-        var storageKey = $"group-reports/{groupId}/{semesterId}/order-report.pdf";
+        var storageKey = GetStorageKey(groupId, semesterId);
         var stream = await _storage.OpenReadAsync(storageKey, cancellationToken)
             ?? throw new DocumentNotFoundException("Сформированный PDF ещё не сохранён");
 
         return new DocumentFileDto
         {
             Content = stream,
-            FileName = $"Приказ_с_отчётом_группа_{groupId}_семестр_{semesterId}.pdf"
+            FileName = GetFileName(groupId, semesterId)
         };
     }
+
+    public static string GetFileName(int groupId, int semesterId) =>
+        $"Отчёт_о_проверке_остаточных_знаний_группа_{groupId}_семестр_{semesterId}.pdf";
+
+    private static string GetStorageKey(int groupId, int semesterId) =>
+        $"group-reports/{groupId}/{semesterId}/report.pdf";
 }

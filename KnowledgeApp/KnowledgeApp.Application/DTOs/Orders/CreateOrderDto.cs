@@ -5,7 +5,6 @@ public class CreateOrderDto
     public DateOnly? OrderDate { get; set; }
     public string? Number { get; set; }
     public int? SemesterId { get; set; }
-    public int? GroupId { get; set; }
     public string? EducationControlDepartmentHead { get; set; }
     public string? EducationalMethodicalCenterHead { get; set; }
     public DateOnly? InspectionSummaryDeadline { get; set; }

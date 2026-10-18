@@ -22,28 +22,27 @@ public class ReportFileController : DocumentControllerBase
     [Produces("application/pdf")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public Task<IResult> DownloadGroupTemplate(
+    public Task<IResult> GenerateGroupReport(
         [FromQuery, Range(1, int.MaxValue)] int groupId,
         [FromQuery, Range(1, int.MaxValue)] int semesterId,
         CancellationToken cancellationToken) =>
         Execute(async () =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var pdf = await _groupReportService.GenerateTemplate(groupId, semesterId, cancellationToken);
-            return Results.File(pdf, "application/pdf", $"Приказ_с_отчётом_группа_{groupId}_семестр_{semesterId}.pdf");
+            var pdf = await _groupReportService.GenerateReport(groupId, semesterId, cancellationToken);
+            return Results.File(pdf, "application/pdf", GroupReportService.GetFileName(groupId, semesterId));
         });
 
     [HttpGet]
     [Produces("application/pdf")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public Task<IResult> DownloadStoredGroupTemplate(
+    public Task<IResult> DownloadStoredGroupReport(
         [FromQuery, Range(1, int.MaxValue)] int groupId,
         [FromQuery, Range(1, int.MaxValue)] int semesterId,
         CancellationToken cancellationToken) =>
         Execute(async () =>
         {
-            var file = await _groupReportService.OpenStoredTemplate(groupId, semesterId, cancellationToken);
+            var file = await _groupReportService.OpenStoredReport(groupId, semesterId, cancellationToken);
             return PdfFile(file);
         });
 

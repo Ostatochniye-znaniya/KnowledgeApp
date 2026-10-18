@@ -347,31 +347,7 @@ namespace KnowledgeApp.Application.Services
             }
         }
 
-        public byte[] GenerateGroupReportPdf(
-            IReadOnlyList<GroupReportPageDto> pages,
-            string? orderNumber = null,
-            DateOnly? orderDate = null,
-            int appendixNumber = 2,
-            int firstPageNumber = 3)
-            => GenerateGroupReportPdfCore(
-                pages, orderNumber, orderDate, appendixNumber, firstPageNumber, includeOrderTemplate: true);
-
-        public byte[] GenerateGroupReportPagesPdf(
-            IReadOnlyList<GroupReportPageDto> pages,
-            string orderNumber,
-            DateOnly orderDate,
-            int appendixNumber,
-            int firstPageNumber)
-            => GenerateGroupReportPdfCore(
-                pages, orderNumber, orderDate, appendixNumber, firstPageNumber, includeOrderTemplate: false);
-
-        private byte[] GenerateGroupReportPdfCore(
-            IReadOnlyList<GroupReportPageDto> pages,
-            string? orderNumber,
-            DateOnly? orderDate,
-            int appendixNumber,
-            int firstPageNumber,
-            bool includeOrderTemplate)
+        public byte[] GenerateGroupReportPdf(IReadOnlyList<GroupReportPageDto> pages)
         {
             if (pages.Count == 0)
                 throw new ArgumentException("Для формирования отчёта нужна хотя бы одна дисциплина.", nameof(pages));
@@ -396,18 +372,11 @@ namespace KnowledgeApp.Application.Services
                             : report.StudentNames.Count > 30 ? 7 : report.StudentNames.Count > 20 ? 8 : 9;
                         var cellPadding = compactLayout ? 0.15f : 0.5f;
 
-                        document.Add(new Paragraph((pageIndex + firstPageNumber).ToString())
+                        document.Add(new Paragraph((pageIndex + 1).ToString())
                             .SetFont(_timesNewRoman)
                             .SetFontSize(9)
                             .SetTextAlignment(TextAlignment.CENTER)
                             .SetMarginBottom(4));
-                        document.Add(new Paragraph(
-                                $"Приложение № {appendixNumber}\nк приказу Московского Политеха\n" +
-                                FormatOrderReference(orderNumber, orderDate))
-                            .SetFont(_timesNewRoman)
-                            .SetFontSize(9)
-                            .SetTextAlignment(TextAlignment.RIGHT)
-                            .SetMarginBottom(10));
                         document.Add(new Paragraph("Отчет о проверке остаточных знаний")
                             .SetFont(_timesNewRomanBold)
                             .SetFontSize(12)
@@ -470,19 +439,8 @@ namespace KnowledgeApp.Application.Services
                 using (var finalPdf = new PdfDocument(new PdfWriter(finalStream)))
                 using (var reportPdf = new PdfDocument(new PdfReader(new MemoryStream(reportsPdf))))
                 {
-                    if (includeOrderTemplate)
-                    {
-                        using var templateStream = typeof(PdfGeneratorService).Assembly
-                            .GetManifestResourceStream("KnowledgeApp.Application.Templates.OrderTemplate.pdf");
-                        if (templateStream == null)
-                            throw new FileNotFoundException("Не найден PDF-шаблон приказа.");
-
-                        using var orderPdf = new PdfDocument(new PdfReader(templateStream));
-                        orderPdf.CopyPagesTo(1, 2, finalPdf);
-                    }
-
                     reportPdf.CopyPagesTo(1, reportPdf.GetNumberOfPages(), finalPdf);
-                    while (finalPdf.GetNumberOfPages() > 2 &&
+                    while (finalPdf.GetNumberOfPages() > 0 &&
                            !PdfTextExtractor.GetTextFromPage(finalPdf.GetLastPage()).Any(char.IsLetterOrDigit))
                     {
                         finalPdf.RemovePage(finalPdf.GetNumberOfPages());
@@ -502,8 +460,8 @@ namespace KnowledgeApp.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при генерации приказа с формой отчёта по группе");
-                throw new Exception($"Ошибка при генерации приказа с формой отчёта: {ex.Message}", ex);
+                _logger.LogError(ex, "Ошибка при генерации PDF-отчёта по группе");
+                throw new Exception($"Ошибка при генерации PDF-отчёта: {ex.Message}", ex);
             }
         }
 
@@ -547,14 +505,5 @@ namespace KnowledgeApp.Application.Services
                 .SetPadding(0));
         }
 
-        private static string FormatOrderReference(string? orderNumber, DateOnly? orderDate)
-        {
-            if (orderNumber is null && orderDate is null)
-                return "от 16.10.2025 г. № 1218-ОД";
-
-            var date = orderDate ?? new DateOnly(2025, 10, 16);
-            var number = orderNumber ?? "1218-ОД";
-            return $"от {date:dd.MM.yyyy} г. № {number}";
-        }
     }
 }

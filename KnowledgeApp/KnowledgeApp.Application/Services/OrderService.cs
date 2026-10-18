@@ -16,25 +16,15 @@ public class OrderService
 
     private readonly OrderRepository _repository;
     private readonly OrderPdfGenerator _pdfGenerator;
-    private readonly IPdfGeneratorService _groupReportPdfGenerator;
-    private readonly GroupReportService _groupReportService;
     private readonly IFileStorage _storage;
     private readonly ICurrentUserProvider _currentUser;
     private readonly ILogger<OrderService> _logger;
 
-    public OrderService(
-        OrderRepository repository,
-        OrderPdfGenerator pdfGenerator,
-        IPdfGeneratorService groupReportPdfGenerator,
-        GroupReportService groupReportService,
-        IFileStorage storage,
-        ICurrentUserProvider currentUser,
-        ILogger<OrderService> logger)
+    public OrderService(OrderRepository repository, OrderPdfGenerator pdfGenerator, IFileStorage storage,
+        ICurrentUserProvider currentUser, ILogger<OrderService> logger)
     {
         _repository = repository;
         _pdfGenerator = pdfGenerator;
-        _groupReportPdfGenerator = groupReportPdfGenerator;
-        _groupReportService = groupReportService;
         _storage = storage;
         _currentUser = currentUser;
         _logger = logger;
@@ -50,7 +40,6 @@ public class OrderService
             Number = RequireText(request.Number, "Номер приказа", MaxNumberLength),
             Name = OrderPdfGenerator.OrderName,
             OrderDate = RequireDate(request.OrderDate, "Дата приказа"),
-            GroupId = RequireId(request.GroupId, "Группа"),
             EducationControlDepartmentHead = RequireText(request.EducationControlDepartmentHead,
                 "ФИО начальника отдела контроля образовательного процесса", MaxPersonNameLength),
             EducationalMethodicalCenterHead = RequireText(request.EducationalMethodicalCenterHead,
@@ -95,18 +84,11 @@ public class OrderService
         order.SemesterId = semester.Id;
         order.SemesterYear = semester.SemesterYear;
         order.SemesterPart = semester.SemesterPart;
-        var reportPages = await _groupReportService.GetReportPagesAsync(
-            order.GroupId, order.SemesterId, cancellationToken);
-        if (reportPages.Count != 2)
-            throw new DocumentValidationException(
-                $"Для приказа необходимо выбрать группу ровно с двумя дисциплинами; найдено: {reportPages.Count}");
-
         order.FileKey = $"orders/{Guid.NewGuid():N}.pdf";
 
         try
         {
-            var pdf = _pdfGenerator.GenerateWithGroupReports(
-                order, reportPages, _groupReportPdfGenerator);
+            var pdf = _pdfGenerator.Generate(order);
             order.FileSize = pdf.Length;
 
             using var content = new MemoryStream(pdf);
@@ -169,9 +151,6 @@ public class OrderService
 
     private static DateOnly RequireDate(DateOnly? value, string field) =>
         value ?? throw new DocumentValidationException($"Не заполнено поле «{field}»");
-
-    private static int RequireId(int? value, string field) =>
-        value is > 0 ? value.Value : throw new DocumentValidationException($"Не указана корректная сущность «{field}»");
 
     private async Task DeleteQuietly(string key)
     {

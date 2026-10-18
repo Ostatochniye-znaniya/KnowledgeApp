@@ -12,7 +12,8 @@ public class Order
 
     public int SemesterId { get; set; }
 
-    public int GroupId { get; set; }
+    // Retained for historical orders; new orders are not associated with a group.
+    public int? GroupId { get; set; }
 
     public string EducationControlDepartmentHead { get; set; } = null!;
 

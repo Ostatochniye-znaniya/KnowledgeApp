@@ -12,16 +12,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<DateTime>(
-                name: "recommended_at",
-                table: "recommendation_history",
-                type: "datetime(6)",
-                nullable: false,
-                defaultValue: new DateTime(2026, 10, 12, 22, 13, 3, 4, DateTimeKind.Utc).AddTicks(2608),
-                oldClrType: typeof(DateTime),
-                oldType: "datetime(6)",
-                oldDefaultValue: new DateTime(2026, 9, 27, 9, 56, 7, 608, DateTimeKind.Utc).AddTicks(6189));
-
             migrationBuilder.CreateTable(
                 name: "orders",
                 columns: table => new
@@ -90,7 +80,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                 name: "IX_orders_semester_id",
                 table: "orders",
                 column: "semester_id");
-
             migrationBuilder.CreateIndex(
                 name: "IX_orders_group_id",
                 table: "orders",
@@ -102,16 +91,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
         {
             migrationBuilder.DropTable(
                 name: "orders");
-
-            migrationBuilder.AlterColumn<DateTime>(
-                name: "recommended_at",
-                table: "recommendation_history",
-                type: "datetime(6)",
-                nullable: false,
-                defaultValue: new DateTime(2026, 9, 27, 9, 56, 7, 608, DateTimeKind.Utc).AddTicks(6189),
-                oldClrType: typeof(DateTime),
-                oldType: "datetime(6)",
-                oldDefaultValue: new DateTime(2026, 10, 12, 22, 13, 3, 4, DateTimeKind.Utc).AddTicks(2608));
         }
     }
 }

@@ -30,7 +30,6 @@ public class OrderRepository
             Name = order.Name,
             OrderDate = order.OrderDate,
             SemesterId = order.SemesterId,
-            GroupId = order.GroupId,
             EducationControlDepartmentHead = order.EducationControlDepartmentHead,
             EducationalMethodicalCenterHead = order.EducationalMethodicalCenterHead,
             InspectionSummaryDeadline = order.InspectionSummaryDeadline,

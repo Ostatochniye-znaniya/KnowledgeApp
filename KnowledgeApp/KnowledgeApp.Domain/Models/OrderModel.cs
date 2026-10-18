@@ -22,7 +22,6 @@ public class OrderModel
     public DateOnly PreparationStartDate { get; set; }
     public DateOnly PreparationEndDate { get; set; }
     public DateOnly ResultsProcessingStartDate { get; set; }
-    public int GroupId { get; set; }
     public string FileKey { get; set; } = string.Empty;
     public long FileSize { get; set; }
 }

@@ -1,14 +1,11 @@
 using System.Text.RegularExpressions;
 using iText.IO.Font;
-using iText.IO.Image;
 using iText.Kernel.Font;
 using iText.Kernel.Pdf;
 using iText.Layout;
 using iText.Layout.Borders;
 using iText.Layout.Element;
 using iText.Layout.Properties;
-using KnowledgeApp.Application.DTOs;
-using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Domain.Entities;
 using PageSize = iText.Kernel.Geom.PageSize;
 
@@ -30,7 +27,7 @@ public class OrderPdfGenerator
 
     private static readonly Regex ShortWord = new(@"(?<=^|[\s(«])(в|и|о|с|к|у|по|до|на|за|от|из|№) ", RegexOptions.IgnoreCase);
 
-    public byte[] Generate(OrderModel order, bool includeReportForm = true)
+    public byte[] Generate(OrderModel order)
     {
         using var stream = new MemoryStream();
         var pdf = new PdfDocument(new PdfWriter(stream));
@@ -57,11 +54,8 @@ public class OrderPdfGenerator
         AddAppendixHeader(document, 2, order);
         AddRecommendations(document, bold, order, isSpring, previousSemester, previousAcademicYear);
 
-        if (includeReportForm)
-        {
-            AddAppendixHeader(document, 3, order);
-            AddReportForm(document, regular, bold, academicYear);
-        }
+        AddAppendixHeader(document, 3, order);
+        AddReportForm(document, regular, bold, academicYear);
 
         var pageWidth = pdf.GetDefaultPageSize().GetWidth();
         var center = MarginLeft + (pageWidth - MarginLeft - MarginRight) / 2;
@@ -77,35 +71,6 @@ public class OrderPdfGenerator
 
         document.Close();
         return stream.ToArray();
-    }
-
-    public byte[] GenerateWithGroupReports(
-        OrderModel order,
-        IReadOnlyList<GroupReportPageDto> reportPages,
-        IPdfGeneratorService reportGenerator)
-    {
-        if (reportPages.Count != 2)
-            throw new ArgumentException("Для приказа нужны отчёты ровно по двум дисциплинам.", nameof(reportPages));
-
-        var orderPdf = Generate(order, includeReportForm: false);
-        using var orderDocument = new PdfDocument(new PdfReader(new MemoryStream(orderPdf)));
-        var orderPageCount = orderDocument.GetNumberOfPages();
-        var reportsPdf = reportGenerator.GenerateGroupReportPagesPdf(
-            reportPages, order.Number, order.OrderDate, appendixNumber: 3, firstPageNumber: orderPageCount + 1);
-
-        using var output = new MemoryStream();
-        using (var combined = new PdfDocument(new PdfWriter(output)))
-        using (var reportDocument = new PdfDocument(new PdfReader(new MemoryStream(reportsPdf))))
-        {
-            if (orderPageCount == 0 || reportDocument.GetNumberOfPages() != reportPages.Count)
-                throw new InvalidOperationException("Количество сформированных страниц приказа или отчётов не соответствует данным.");
-
-            orderDocument.CopyPagesTo(1, orderDocument.GetNumberOfPages(), combined);
-            reportDocument.CopyPagesTo(1, reportDocument.GetNumberOfPages(), combined);
-            combined.Close();
-        }
-
-        return output.ToArray();
     }
 
     private static void AddOrder(Document document, PdfFont bold, OrderModel order, string? academicYear,
@@ -192,20 +157,14 @@ public class OrderPdfGenerator
 
         document.Add(Step(1, "Обучающийся входит в систему ЛМС по своему логину и паролю."));
         document.Add(Step(2, "В верхнем правом углу экрана нажимает кнопку «Мои курсы»."));
-        document.Add(Screenshot("step2.jpg", 279.4f));
         document.Add(Step(3, "В списке выбирает курс «Анкетирование <Аббревиатура факультета>»."));
-        document.Add(Screenshot("step3.png", 297.8f));
         document.Add(Step(4, "Ищет на странице раздел своей группы со списком дисциплин."));
-        document.Add(Screenshot("step4.png", 360f));
         document.Add(Step(5, "Открывает каждую из дисциплин и отвечает на предложенные вопросы."));
-        document.Add(Screenshot("step5.png", 315.9f));
         document.Add(Step(6, "Если в первом вопросе «Преподаватель» перечислено несколько фамилий, " +
             "то обучающийся выбирает того, кто проводил у него занятия."));
         document.Add(Step(7, "После выбора всех ответов нажимает на кнопку «Отправить свои ответы»."));
-        document.Add(Screenshot("step7.png", 205.9f));
         document.Add(Step(8, "Нажимает кнопку «Продолжить» и возвращается на главную страницу курса для выбора " +
             "следующей дисциплины или переходит сразу к следующей дисциплине."));
-        document.Add(Screenshot("step8.png", 467.8f));
     }
 
     private static void AddRecommendations(Document document, PdfFont bold, OrderModel order, bool isSpring,
@@ -334,16 +293,6 @@ public class OrderPdfGenerator
             .Add(new Tab())
             .Add(Bind(text))
             .SetKeepWithNext(true);
-
-    private static Image Screenshot(string fileName, float width)
-    {
-        var path = Path.Combine(AppContext.BaseDirectory, "Templates", "Order", fileName);
-        return new Image(ImageDataFactory.Create(path))
-            .SetWidth(width)
-            .SetHorizontalAlignment(HorizontalAlignment.CENTER)
-            .SetMarginTop(6)
-            .SetMarginBottom(6);
-    }
 
     private static Cell RequisiteCell(string text, bool underlined)
     {

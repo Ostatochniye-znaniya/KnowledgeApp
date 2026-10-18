@@ -230,6 +230,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("file_size");
 
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("int")
+                        .HasColumnName("group_id");
+
                     b.Property<DateOnly>("InspectionSummaryDeadline")
                         .HasColumnType("date")
                         .HasColumnName("inspection_summary_deadline");
@@ -250,6 +254,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("order_date");
 
+                    b.Property<DateOnly>("PaperReportDeadline")
+                        .HasColumnType("date")
+                        .HasColumnName("paper_report_deadline");
+
                     b.Property<DateOnly>("PreparationEndDate")
                         .HasColumnType("date")
                         .HasColumnName("preparation_end_date");
@@ -258,17 +266,9 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("preparation_start_date");
 
-                    b.Property<DateOnly>("PaperReportDeadline")
-                        .HasColumnType("date")
-                        .HasColumnName("paper_report_deadline");
-
                     b.Property<DateOnly>("ResultsProcessingStartDate")
                         .HasColumnType("date")
                         .HasColumnName("results_processing_start_date");
-
-                    b.Property<int>("GroupId")
-                        .HasColumnType("int")
-                        .HasColumnName("group_id");
 
                     b.Property<int>("SemesterId")
                         .HasColumnType("int")
@@ -294,12 +294,12 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("testing_start_date");
 
-                    b.HasIndex("GroupId");
-
                     b.HasKey("Id")
                         .HasName("PRIMARY");
 
                     b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("GroupId");
 
                     b.HasIndex("SemesterId");
 
@@ -318,8 +318,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("RecommendedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
-                        .HasColumnName("recommended_at");
+                        .HasColumnName("recommended_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                     b.Property<int>("SemesterId")
                         .HasColumnType("int")
@@ -869,6 +869,12 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("orders_created_by_fk");
 
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyGroup", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("orders_group_fk");
+
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.Semester", "Semester")
                         .WithMany()
                         .HasForeignKey("SemesterId")
@@ -876,14 +882,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("orders_semester_fk");
 
-                    b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyGroup", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("orders_group_fk");
-
                     b.Navigation("Group");
+
                     b.Navigation("Semester");
                 });
 
