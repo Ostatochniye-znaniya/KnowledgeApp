@@ -25,11 +25,13 @@ public class ReportFileController : DocumentControllerBase
     public Task<IResult> GenerateGroupReport(
         [FromQuery, Range(1, int.MaxValue)] int groupId,
         [FromQuery, Range(1, int.MaxValue)] int semesterId,
+        [FromQuery, Range(1, int.MaxValue)] int disciplineId,
         CancellationToken cancellationToken) =>
         Execute(async () =>
         {
-            var pdf = await _groupReportService.GenerateReport(groupId, semesterId, cancellationToken);
-            return Results.File(pdf, "application/pdf", GroupReportService.GetFileName(groupId, semesterId));
+            var pdf = await _groupReportService.GenerateReport(groupId, semesterId, disciplineId, cancellationToken);
+            return Results.File(pdf, "application/pdf",
+                GroupReportService.GetFileName(groupId, semesterId, disciplineId));
         });
 
     [HttpGet]
@@ -39,10 +41,12 @@ public class ReportFileController : DocumentControllerBase
     public Task<IResult> DownloadStoredGroupReport(
         [FromQuery, Range(1, int.MaxValue)] int groupId,
         [FromQuery, Range(1, int.MaxValue)] int semesterId,
+        [FromQuery, Range(1, int.MaxValue)] int disciplineId,
         CancellationToken cancellationToken) =>
         Execute(async () =>
         {
-            var file = await _groupReportService.OpenStoredReport(groupId, semesterId, cancellationToken);
+            var file = await _groupReportService.OpenStoredReport(
+                groupId, semesterId, disciplineId, cancellationToken);
             return PdfFile(file);
         });
 

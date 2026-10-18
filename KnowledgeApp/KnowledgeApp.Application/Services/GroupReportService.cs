@@ -27,18 +27,22 @@ public class GroupReportService
         _storage = storage;
     }
 
-    public async Task<byte[]> GenerateReport(int groupId, int semesterId, CancellationToken cancellationToken)
+    public async Task<byte[]> GenerateReport(
+        int groupId,
+        int semesterId,
+        int disciplineId,
+        CancellationToken cancellationToken)
     {
-        var pages = await GetReportPagesAsync(groupId, semesterId, cancellationToken);
-        var pdf = _pdfGenerator.GenerateGroupReportPdf(pages);
-        var storageKey = GetStorageKey(groupId, semesterId);
+        var report = await GetReportAsync(groupId, semesterId, disciplineId, cancellationToken);
+        var pdf = _pdfGenerator.GenerateGroupReportPdf(report);
+        var storageKey = GetStorageKey(groupId, semesterId, disciplineId);
         await using var pdfStream = new MemoryStream(pdf, writable: false);
         await _storage.SaveAsync(storageKey, pdfStream, "application/pdf", cancellationToken);
 
         return pdf;
     }
 
-    public async Task<IReadOnlyList<GroupReportPageDto>> GetReportPagesAsync(
+    public async Task<IReadOnlyList<GroupReportDto>> GetReportsAsync(
         int groupId,
         int semesterId,
         CancellationToken cancellationToken)
@@ -91,11 +95,12 @@ public class GroupReportService
                 })
             .ToListAsync(cancellationToken);
 
-        var pages = teacherRows
+        var reports = teacherRows
             .GroupBy(row => row.DisciplineId)
             .OrderBy(groupRows => groupRows.First().DisciplineName)
-            .Select(groupRows => new GroupReportPageDto
+            .Select(groupRows => new GroupReportDto
             {
+                DisciplineId = groupRows.Key,
                 AcademicYear = AcademicPeriod.FormatAcademicYear(
                     semester.SemesterYear, semester.SemesterPart, semester.YearPart) ?? string.Empty,
                 StudyProgramCode = group.StudyProgramCode ?? string.Empty,
@@ -113,47 +118,44 @@ public class GroupReportService
             })
             .ToList();
 
-        if (pages.Count == 0)
+        if (reports.Count == 0)
             throw new DocumentNotFoundException("Для группы нет дисциплин в выбранном семестре");
 
-        return pages;
+        return reports;
     }
 
     public async Task<DocumentFileDto> OpenStoredReport(
         int groupId,
         int semesterId,
+        int disciplineId,
         CancellationToken cancellationToken)
     {
-        var facultyId = await _context.StudyGroups
-            .AsNoTracking()
-            .Where(group => group.Id == groupId)
-            .Select(group => (int?)group.StudyProgram!.Department!.FacultyId)
-            .SingleOrDefaultAsync(cancellationToken);
-
-        if (facultyId == null || facultyId != _currentUser.FacultyId)
-            throw new DocumentNotFoundException("Группа не найдена");
-
-        var semesterExists = await _context.Semesters
-            .AsNoTracking()
-            .AnyAsync(semester => semester.Id == semesterId, cancellationToken);
-
-        if (!semesterExists)
-            throw new DocumentNotFoundException("Семестр не найден");
-
-        var storageKey = GetStorageKey(groupId, semesterId);
+        await GetReportAsync(groupId, semesterId, disciplineId, cancellationToken);
+        var storageKey = GetStorageKey(groupId, semesterId, disciplineId);
         var stream = await _storage.OpenReadAsync(storageKey, cancellationToken)
             ?? throw new DocumentNotFoundException("Сформированный PDF ещё не сохранён");
 
         return new DocumentFileDto
         {
             Content = stream,
-            FileName = GetFileName(groupId, semesterId)
+            FileName = GetFileName(groupId, semesterId, disciplineId)
         };
     }
 
-    public static string GetFileName(int groupId, int semesterId) =>
-        $"Отчёт_о_проверке_остаточных_знаний_группа_{groupId}_семестр_{semesterId}.pdf";
+    public static string GetFileName(int groupId, int semesterId, int disciplineId) =>
+        $"Отчёт_о_проверке_остаточных_знаний_группа_{groupId}_дисциплина_{disciplineId}_семестр_{semesterId}.pdf";
 
-    private static string GetStorageKey(int groupId, int semesterId) =>
-        $"group-reports/{groupId}/{semesterId}/report.pdf";
+    private async Task<GroupReportDto> GetReportAsync(
+        int groupId,
+        int semesterId,
+        int disciplineId,
+        CancellationToken cancellationToken)
+    {
+        var reports = await GetReportsAsync(groupId, semesterId, cancellationToken);
+        return reports.SingleOrDefault(report => report.DisciplineId == disciplineId)
+            ?? throw new DocumentNotFoundException("Дисциплина не найдена в выбранной группе и семестре");
+    }
+
+    private static string GetStorageKey(int groupId, int semesterId, int disciplineId) =>
+        $"group-reports/{groupId}/{semesterId}/{disciplineId}/report.pdf";
 }

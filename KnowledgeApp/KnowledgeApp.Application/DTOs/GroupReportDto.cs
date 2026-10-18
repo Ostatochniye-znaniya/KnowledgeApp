@@ -1,7 +1,8 @@
 namespace KnowledgeApp.Application.DTOs;
 
-public sealed class GroupReportPageDto
+public sealed class GroupReportDto
 {
+    public int DisciplineId { get; init; }
     public string AcademicYear { get; init; } = string.Empty;
     public string StudyProgramCode { get; init; } = string.Empty;
     public string StudyProgramName { get; init; } = string.Empty;

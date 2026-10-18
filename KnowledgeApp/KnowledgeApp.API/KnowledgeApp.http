@@ -5,12 +5,12 @@ Accept: application/json
 
 ###
 
-### Сформировать отдельный отчёт по группе и сохранить его в MinIO
-GET {{KnowledgeApp_HostAddress}}/csh/api/ReportFile/GenerateGroupReport?groupId=1&semesterId=1
+### Сформировать отдельный отчёт по дисциплине и сохранить его в MinIO
+GET {{KnowledgeApp_HostAddress}}/csh/api/ReportFile/GenerateGroupReport?groupId=1&semesterId=1&disciplineId=1
 Accept: application/pdf
 
 ### Скачать ранее сформированный отчёт из MinIO
-GET {{KnowledgeApp_HostAddress}}/csh/api/ReportFile/DownloadStoredGroupReport?groupId=1&semesterId=1
+GET {{KnowledgeApp_HostAddress}}/csh/api/ReportFile/DownloadStoredGroupReport?groupId=1&semesterId=1&disciplineId=1
 Accept: application/pdf
 
 ### Указать очный формат и аудиторию (для LMS укажите isInPerson=false и lmsUrl)
