@@ -31,6 +31,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<ScheduleDocument> ScheduleDocuments { get; set; }
 
+    public virtual DbSet<Order> Orders { get; set; }
+
     public virtual DbSet<Status> Statuses { get; set; }
 
     public virtual DbSet<Student> Students { get; set; }
@@ -331,6 +333,62 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasForeignKey(d => d.ReviewedByUserId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("schedule_documents_reviewed_by_fk");
+        });
+
+        modelBuilder.Entity<Order>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("orders");
+
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.Number)
+                .HasMaxLength(50)
+                .HasColumnName("number");
+            entity.Property(e => e.Name)
+                .HasMaxLength(255)
+                .HasColumnName("name");
+            entity.Property(e => e.OrderDate).HasColumnName("order_date");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+            entity.Property(e => e.GroupId).HasColumnName("group_id");
+            entity.Property(e => e.EducationControlDepartmentHead)
+                .HasMaxLength(200)
+                .HasColumnName("education_control_department_head");
+            entity.Property(e => e.EducationalMethodicalCenterHead)
+                .HasMaxLength(200)
+                .HasColumnName("educational_methodical_center_head");
+            entity.Property(e => e.InspectionSummaryDeadline).HasColumnName("inspection_summary_deadline");
+            entity.Property(e => e.SurveySummaryDeadline).HasColumnName("survey_summary_deadline");
+            entity.Property(e => e.PaperReportDeadline).HasColumnName("paper_report_deadline");
+            entity.Property(e => e.ElectronicReportDeadline).HasColumnName("electronic_report_deadline");
+            entity.Property(e => e.TestingStartDate).HasColumnName("testing_start_date");
+            entity.Property(e => e.TestingEndDate).HasColumnName("testing_end_date");
+            entity.Property(e => e.SurveyStartDate).HasColumnName("survey_start_date");
+            entity.Property(e => e.SurveyEndDate).HasColumnName("survey_end_date");
+            entity.Property(e => e.PreparationStartDate).HasColumnName("preparation_start_date");
+            entity.Property(e => e.PreparationEndDate).HasColumnName("preparation_end_date");
+            entity.Property(e => e.ResultsProcessingStartDate).HasColumnName("results_processing_start_date");
+            entity.Property(e => e.FileKey)
+                .HasMaxLength(255)
+                .HasColumnName("file_key");
+            entity.Property(e => e.FileSize).HasColumnName("file_size");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+
+            entity.HasOne(d => d.Semester).WithMany()
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("orders_semester_fk");
+
+            entity.HasOne(d => d.Group).WithMany()
+                .HasForeignKey(d => d.GroupId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("orders_group_fk");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("orders_created_by_fk");
         });
 
         modelBuilder.Entity<Semester>(entity =>

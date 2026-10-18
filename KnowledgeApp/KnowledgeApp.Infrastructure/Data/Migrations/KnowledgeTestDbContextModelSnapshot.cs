@@ -187,6 +187,125 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("faculties", (string)null);
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Order", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("EducationControlDepartmentHead")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("education_control_department_head");
+
+                    b.Property<string>("EducationalMethodicalCenterHead")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("educational_methodical_center_head");
+
+                    b.Property<DateOnly>("ElectronicReportDeadline")
+                        .HasColumnType("date")
+                        .HasColumnName("electronic_report_deadline");
+
+                    b.Property<string>("FileKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("file_key");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size");
+
+                    b.Property<DateOnly>("InspectionSummaryDeadline")
+                        .HasColumnType("date")
+                        .HasColumnName("inspection_summary_deadline");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("number");
+
+                    b.Property<DateOnly>("OrderDate")
+                        .HasColumnType("date")
+                        .HasColumnName("order_date");
+
+                    b.Property<DateOnly>("PreparationEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("preparation_end_date");
+
+                    b.Property<DateOnly>("PreparationStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("preparation_start_date");
+
+                    b.Property<DateOnly>("PaperReportDeadline")
+                        .HasColumnType("date")
+                        .HasColumnName("paper_report_deadline");
+
+                    b.Property<DateOnly>("ResultsProcessingStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("results_processing_start_date");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("int")
+                        .HasColumnName("group_id");
+
+                    b.Property<int>("SemesterId")
+                        .HasColumnType("int")
+                        .HasColumnName("semester_id");
+
+                    b.Property<DateOnly>("SurveyEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("survey_end_date");
+
+                    b.Property<DateOnly>("SurveyStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("survey_start_date");
+
+                    b.Property<DateOnly>("SurveySummaryDeadline")
+                        .HasColumnType("date")
+                        .HasColumnName("survey_summary_deadline");
+
+                    b.Property<DateOnly>("TestingEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("testing_end_date");
+
+                    b.Property<DateOnly>("TestingStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("testing_start_date");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("SemesterId");
+
+                    b.ToTable("orders", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.RecommendationHistory", b =>
                 {
                     b.Property<int>("Id")
@@ -740,6 +859,32 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Order", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("orders_created_by_fk");
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Semester", "Semester")
+                        .WithMany()
+                        .HasForeignKey("SemesterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("orders_semester_fk");
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyGroup", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("orders_group_fk");
+
+                    b.Navigation("Group");
+                    b.Navigation("Semester");
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.RecommendationHistory", b =>

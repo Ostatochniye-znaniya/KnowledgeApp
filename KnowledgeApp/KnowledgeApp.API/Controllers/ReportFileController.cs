@@ -33,6 +33,20 @@ public class ReportFileController : DocumentControllerBase
             return Results.File(pdf, "application/pdf", $"Приказ_с_отчётом_группа_{groupId}_семестр_{semesterId}.pdf");
         });
 
+    [HttpGet]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public Task<IResult> DownloadStoredGroupTemplate(
+        [FromQuery, Range(1, int.MaxValue)] int groupId,
+        [FromQuery, Range(1, int.MaxValue)] int semesterId,
+        CancellationToken cancellationToken) =>
+        Execute(async () =>
+        {
+            var file = await _groupReportService.OpenStoredTemplate(groupId, semesterId, cancellationToken);
+            return PdfFile(file);
+        });
+
     [HttpPost("{reportId}")]
     [RequestSizeLimit(UploadRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = UploadRequestLimit)]

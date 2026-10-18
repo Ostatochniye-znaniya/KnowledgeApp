@@ -1,7 +1,9 @@
 using KnowledgeApp.Application.DTOs;
+using KnowledgeApp.Application.DTOs.Documents;
 using KnowledgeApp.Application.Exceptions;
 using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Infrastructure.Context;
+using KnowledgeApp.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeApp.Application.Services;
@@ -11,18 +13,35 @@ public class GroupReportService
     private readonly KnowledgeTestDbContext _context;
     private readonly ICurrentUserProvider _currentUser;
     private readonly IPdfGeneratorService _pdfGenerator;
+    private readonly IFileStorage _storage;
 
     public GroupReportService(
         KnowledgeTestDbContext context,
         ICurrentUserProvider currentUser,
-        IPdfGeneratorService pdfGenerator)
+        IPdfGeneratorService pdfGenerator,
+        IFileStorage storage)
     {
         _context = context;
         _currentUser = currentUser;
         _pdfGenerator = pdfGenerator;
+        _storage = storage;
     }
 
     public async Task<byte[]> GenerateTemplate(int groupId, int semesterId, CancellationToken cancellationToken)
+    {
+        var pages = await GetReportPagesAsync(groupId, semesterId, cancellationToken);
+        var pdf = _pdfGenerator.GenerateGroupReportPdf(pages);
+        var storageKey = $"group-reports/{groupId}/{semesterId}/order-report.pdf";
+        await using var pdfStream = new MemoryStream(pdf, writable: false);
+        await _storage.SaveAsync(storageKey, pdfStream, "application/pdf", cancellationToken);
+
+        return pdf;
+    }
+
+    public async Task<IReadOnlyList<GroupReportPageDto>> GetReportPagesAsync(
+        int groupId,
+        int semesterId,
+        CancellationToken cancellationToken)
     {
         var group = await _context.StudyGroups
             .AsNoTracking()
@@ -98,6 +117,38 @@ public class GroupReportService
         if (pages.Count == 0)
             throw new DocumentNotFoundException("Для группы нет дисциплин в выбранном семестре");
 
-        return _pdfGenerator.GenerateGroupReportPdf(pages);
+        return pages;
+    }
+
+    public async Task<DocumentFileDto> OpenStoredTemplate(
+        int groupId,
+        int semesterId,
+        CancellationToken cancellationToken)
+    {
+        var facultyId = await _context.StudyGroups
+            .AsNoTracking()
+            .Where(group => group.Id == groupId)
+            .Select(group => (int?)group.StudyProgram!.Department!.FacultyId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (facultyId == null || facultyId != _currentUser.FacultyId)
+            throw new DocumentNotFoundException("Группа не найдена");
+
+        var semesterExists = await _context.Semesters
+            .AsNoTracking()
+            .AnyAsync(semester => semester.Id == semesterId, cancellationToken);
+
+        if (!semesterExists)
+            throw new DocumentNotFoundException("Семестр не найден");
+
+        var storageKey = $"group-reports/{groupId}/{semesterId}/order-report.pdf";
+        var stream = await _storage.OpenReadAsync(storageKey, cancellationToken)
+            ?? throw new DocumentNotFoundException("Сформированный PDF ещё не сохранён");
+
+        return new DocumentFileDto
+        {
+            Content = stream,
+            FileName = $"Приказ_с_отчётом_группа_{groupId}_семестр_{semesterId}.pdf"
+        };
     }
 }
