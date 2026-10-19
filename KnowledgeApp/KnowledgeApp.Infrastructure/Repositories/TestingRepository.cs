@@ -65,7 +65,24 @@ public class TestingRepository
             var approvals = await _context.TestingTeacherApprovals
                 .Where(a => a.TestingId == model.Id)
                 .ToListAsync();
-            _context.TestingTeacherApprovals.RemoveRange(approvals);
+            foreach (var approval in approvals)
+            {
+                approval.Status = "pending";
+                approval.Comment = null;
+                approval.RespondedAt = null;
+                _context.WorkflowNotifications.Add(new WorkflowNotification
+                {
+                    RecipientUserId = approval.TeacherId,
+                    TestingId = model.Id,
+                    Type = "testing_time_updated",
+                    Title = "Изменилось время проверки",
+                    Message = model.ScheduledDate.HasValue && model.ScheduledTime.HasValue
+                        ? $"Предложено время: {model.ScheduledDate.Value:dd.MM.yyyy} в {model.ScheduledTime.Value:hh\\:mm}. Подтвердите/отклоните или выберите удобную пару в заданном периоде."
+                        : "Время проверки изменено. Выберите удобную пару в заданном периоде.",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            entity.ScheduledPair = null;
         }
 
         entity.GroupId = model.GroupId;

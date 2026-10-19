@@ -1,0 +1,29 @@
+@baseUrl = http://localhost:5134/csh/api
+
+### Get the available pair schedule
+GET {{baseUrl}}/Testing/pair-slots
+
+### Get the available pair schedule
+GET {{baseUrl}}/Testing/pair-slots
+
+### Get testing period and assigned teachers
+GET {{baseUrl}}/Testing/1/teacher-assignments
+
+### Get eligible teachers for the testing's discipline
+GET {{baseUrl}}/Testing/1/available-teachers
+
+### Assign teachers and set the date range for their time selection
+PUT {{baseUrl}}/Testing/1/teacher-assignments
+Content-Type: application/json
+
+{
+  "periodStart": "2026-11-02",
+  "periodEnd": "2026-11-06",
+  "teacherIds": [7, 12]
+}
+
+### Get unread notifications for the department
+GET {{baseUrl}}/Testing/department-notifications?unreadOnly=true
+
+### Mark department notification 1 as read
+PUT {{baseUrl}}/Testing/department-notifications/1/read

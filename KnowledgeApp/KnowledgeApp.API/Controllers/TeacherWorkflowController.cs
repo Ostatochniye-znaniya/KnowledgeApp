@@ -55,6 +55,39 @@ public sealed class TeacherWorkflowController : DocumentControllerBase
         Execute(async () => Results.Json(
             await _teacherWorkflowService.RejectTesting(id, request?.Comment, cancellationToken)));
 
+    /// <summary>Выбирает дату и время тестирования в пределах периода, заданного заведующим кафедрой.</summary>
+    [HttpPut("{id:int}/choose-time")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public Task<IResult> ChooseTestingTime(
+        int id,
+        [FromBody] ChooseTestingTimeRequest request,
+        CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _teacherWorkflowService.ChooseTestingTime(
+            id, request.Date, request.PairNumber, cancellationToken)));
+
+    /// <summary>Возвращает уведомления текущего преподавателя.</summary>
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IResult> GetNotifications(
+        [FromQuery] bool unreadOnly,
+        CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(
+            await _teacherWorkflowService.GetNotifications(unreadOnly, cancellationToken)));
+
+    /// <summary>Отмечает уведомление текущего преподавателя как прочитанное.</summary>
+    [HttpPut("{id:int}/read")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public Task<IResult> MarkNotificationRead(int id, CancellationToken cancellationToken) =>
+        Execute(async () =>
+        {
+            await _teacherWorkflowService.MarkNotificationRead(id, cancellationToken);
+            return Results.NoContent();
+        });
+
     /// <summary>Возвращает отчёты, назначенные текущему преподавателю.</summary>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]

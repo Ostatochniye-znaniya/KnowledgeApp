@@ -44,6 +44,8 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<Testing> Testings { get; set; }
     public virtual DbSet<TestingTeacherApproval> TestingTeacherApprovals { get; set; }
 
+    public virtual DbSet<WorkflowNotification> WorkflowNotifications { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -509,6 +511,13 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.ScheduledTime)
                 .HasColumnType("time")
                 .HasColumnName("scheduled_time");
+            entity.Property(e => e.ScheduledPair).HasColumnName("scheduled_pair");
+            entity.Property(e => e.SelectionPeriodStart)
+                .HasColumnType("date")
+                .HasColumnName("selection_period_start");
+            entity.Property(e => e.SelectionPeriodEnd)
+                .HasColumnType("date")
+                .HasColumnName("selection_period_end");
             entity.Property(e => e.Room)
                 .HasMaxLength(255)
                 .HasColumnName("room");
@@ -556,6 +565,34 @@ public partial class KnowledgeTestDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<User>().WithMany()
                 .HasForeignKey(e => e.TeacherId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WorkflowNotification>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("workflow_notifications");
+            entity.HasIndex(e => e.RecipientUserId, "recipient_user_id");
+            entity.HasIndex(e => e.RecipientDepartmentId, "recipient_department_id");
+            entity.HasIndex(e => new { e.RecipientUserId, e.ReadAt, e.CreatedAt }, "ix_workflow_notifications_user_read_created");
+            entity.HasIndex(e => new { e.RecipientDepartmentId, e.ReadAt, e.CreatedAt }, "ix_workflow_notifications_department_read_created");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.RecipientUserId).HasColumnName("recipient_user_id");
+            entity.Property(e => e.RecipientDepartmentId).HasColumnName("recipient_department_id");
+            entity.Property(e => e.TestingId).HasColumnName("testing_id");
+            entity.Property(e => e.Type).HasMaxLength(50).HasColumnName("type");
+            entity.Property(e => e.Title).HasMaxLength(200).HasColumnName("title");
+            entity.Property(e => e.Message).HasMaxLength(1000).HasColumnName("message");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.ReadAt).HasColumnName("read_at");
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(e => e.RecipientUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Department>().WithMany()
+                .HasForeignKey(e => e.RecipientDepartmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Testing>().WithMany()
+                .HasForeignKey(e => e.TestingId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

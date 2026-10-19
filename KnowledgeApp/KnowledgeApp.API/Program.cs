@@ -60,6 +60,7 @@ services.AddScoped<DepartmentRepository>();
 services.AddScoped<UserService>();
 services.AddScoped<UserRepository>();
 services.AddScoped<TestingService>();
+services.AddScoped<TestingAssignmentService>();
 services.AddScoped<TeacherWorkflowService>();
 services.AddScoped<GroupReportService>();
 services.AddScoped<IDocxGeneratorService, DocxGeneratorService>();

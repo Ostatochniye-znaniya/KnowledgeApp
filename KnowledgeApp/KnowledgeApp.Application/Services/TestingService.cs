@@ -3,6 +3,7 @@ using KnowledgeApp.Infrastructure.Entities;
 using KnowledgeApp.Infrastructure.Repositories;
 using KnowledgeApp.Domain.Entities;
 using KnowledgeApp.Application.DTOs;
+using KnowledgeApp.Application.Exceptions;
 using KnowledgeApp.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,12 +34,85 @@ public class TestingService
 
     public async Task<TestingModel> Create(TestingModel testingModel)
     {
-        return await _testingRepository.Create(testingModel);
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable);
+        await EnsureScheduleAvailable(testingModel);
+        var created = await _testingRepository.Create(testingModel);
+        await transaction.CommitAsync();
+        return created;
     }
 
     public async Task<TestingModel> Update(TestingModel testingModel)
     {
-        return await _testingRepository.Update(testingModel);
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable);
+        await EnsureScheduleAvailable(testingModel);
+        var updated = await _testingRepository.Update(testingModel);
+        await transaction.CommitAsync();
+        return updated;
+    }
+
+    private async Task EnsureScheduleAvailable(TestingModel testing)
+    {
+        if (!testing.ScheduledDate.HasValue || !testing.ScheduledTime.HasValue)
+            return;
+        if (testing.ScheduledTime.Value < TimeSpan.Zero ||
+            testing.ScheduledTime.Value >= TimeSpan.FromDays(1))
+        {
+            throw new DocumentValidationException("Время тестирования должно быть в пределах суток.");
+        }
+
+        var selectedDate = testing.ScheduledDate.Value.Date;
+        var nextDate = selectedDate.AddDays(1);
+        var selectedTime = TimeOnly.FromTimeSpan(testing.ScheduledTime.Value);
+        if (testing.Id > 0)
+        {
+            var period = await _context.Testings
+                .AsNoTracking()
+                .Where(t => t.Id == testing.Id)
+                .Select(t => new { t.SelectionPeriodStart, t.SelectionPeriodEnd })
+                .SingleOrDefaultAsync();
+            if (period?.SelectionPeriodStart is not null &&
+                period.SelectionPeriodEnd is not null &&
+                (selectedDate < period.SelectionPeriodStart.Value.Date ||
+                 selectedDate > period.SelectionPeriodEnd.Value.Date))
+            {
+                throw new DocumentValidationException("Дата проверки должна входить в заданный период.");
+            }
+        }
+
+        var currentTeacherIds = testing.Id > 0
+            ? await _context.TestingTeacherApprovals
+                .Where(a => a.TestingId == testing.Id)
+                .Select(a => a.TeacherId)
+                .ToListAsync()
+            : new List<int>();
+
+        var sameDayTestings = await _context.Testings
+            .Where(t => t.Id != testing.Id &&
+                        t.ScheduledDate >= selectedDate &&
+                        t.ScheduledDate < nextDate &&
+                        t.ScheduledTime.HasValue)
+            .Select(t => new { t.Id, t.GroupId, t.ScheduledTime })
+            .ToListAsync();
+        var overlapping = sameDayTestings
+            .Where(t => TestingPairSchedule.Overlaps(
+                selectedTime, TimeOnly.FromTimeSpan(t.ScheduledTime!.Value)))
+            .ToList();
+
+        if (overlapping.Any(t => t.GroupId == testing.GroupId))
+            throw new DocumentConflictException("У группы уже есть проверка в это время.");
+
+        if (currentTeacherIds.Count > 0)
+        {
+            var overlappingIds = overlapping.Select(t => t.Id).ToList();
+            var teacherConflict = await _context.TestingTeacherApprovals
+                .AnyAsync(a => overlappingIds.Contains(a.TestingId) &&
+                               currentTeacherIds.Contains(a.TeacherId));
+            if (teacherConflict)
+                throw new DocumentConflictException(
+                    "У одного из назначенных преподавателей уже есть проверка в это время.");
+        }
     }
 
     public async Task<TestingModel?> UpdateDelivery(
