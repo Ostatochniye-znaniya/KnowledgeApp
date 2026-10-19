@@ -40,6 +40,9 @@ GET {{baseUrl}}/TeacherWorkflow/GetReports
 ### Download a DOCX report template
 GET {{baseUrl}}/TeacherWorkflow/GenerateReport?groupId=1&semesterId=1&disciplineId=1
 
+### Download a blank DOCX report template
+GET {{baseUrl}}/TeacherWorkflow/GenerateBlankReportTemplate
+
 ### Upload a completed DOCX report
 POST {{baseUrl}}/TeacherWorkflow/UploadReport/1/upload
 Content-Type: multipart/form-data; boundary=----teacher-report-form

@@ -80,6 +80,20 @@ public sealed class TeacherWorkflowController : DocumentControllerBase
                 GroupReportService.GetDocxFileName(groupId, semesterId, disciplineId));
         });
 
+    /// <summary>Возвращает пустой DOCX-шаблон отчёта без данных группы.</summary>
+    [HttpGet]
+    [Produces("application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IResult> GenerateBlankReportTemplate() =>
+        Execute(() =>
+        {
+            var docx = _teacherWorkflowService.GenerateBlankReportTemplate();
+            return Task.FromResult<IResult>(Results.File(
+                docx,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "Шаблон_отчёта.docx"));
+        });
+
     /// <summary>Загружает DOCX-отчёт текущего преподавателя на проверку.</summary>
     [HttpPost("{id:int}/upload")]
     [RequestSizeLimit(UploadRequestLimit)]

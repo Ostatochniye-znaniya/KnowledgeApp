@@ -215,6 +215,9 @@ public sealed class TeacherWorkflowService
         return await _groupReportService.GenerateTemplate(groupId, semesterId, disciplineId, cancellationToken);
     }
 
+    public byte[] GenerateBlankReportTemplate() =>
+        _groupReportService.GenerateBlankReportTemplate();
+
     public async Task<ReportDocumentDto> UploadReport(
         int reportId,
         Stream content,

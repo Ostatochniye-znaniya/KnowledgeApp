@@ -71,6 +71,9 @@ public class GroupReportService
         return _docxGenerator.GenerateGroupReportDocx(report);
     }
 
+    public byte[] GenerateBlankReportTemplate() =>
+        _docxGenerator.GenerateBlankReportDocx();
+
     public async Task<IReadOnlyList<GroupReportDto>> GetReportsAsync(
         int groupId,
         int semesterId,

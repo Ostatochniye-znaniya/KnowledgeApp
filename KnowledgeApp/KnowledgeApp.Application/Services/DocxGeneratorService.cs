@@ -11,14 +11,12 @@ public sealed class DocxGeneratorService : IDocxGeneratorService
     private const int DetailRows = 6;
     private const int SummaryRows = 4;
 
+    public byte[] GenerateBlankReportDocx() => ReadTemplate();
+
     public byte[] GenerateGroupReportDocx(GroupReportDto report)
     {
-        var templatePath = Path.Combine(AppContext.BaseDirectory, "Templates", "GroupReportTemplate.docx");
-        if (!File.Exists(templatePath))
-            throw new FileNotFoundException("Не найден шаблон отчёта DOCX.", templatePath);
-
         using var stream = new MemoryStream();
-        stream.Write(File.ReadAllBytes(templatePath));
+        stream.Write(ReadTemplate());
         stream.Position = 0;
         using (var document = WordprocessingDocument.Open(stream, true))
         {
@@ -95,6 +93,15 @@ public sealed class DocxGeneratorService : IDocxGeneratorService
         }
 
         return stream.ToArray();
+    }
+
+    private static byte[] ReadTemplate()
+    {
+        var templatePath = Path.Combine(AppContext.BaseDirectory, "Templates", "GroupReportTemplate.docx");
+        if (!File.Exists(templatePath))
+            throw new FileNotFoundException("Не найден шаблон отчёта DOCX.", templatePath);
+
+        return File.ReadAllBytes(templatePath);
     }
 
     private static void SetCellText(TableCell cell, string text, bool italic = false)
