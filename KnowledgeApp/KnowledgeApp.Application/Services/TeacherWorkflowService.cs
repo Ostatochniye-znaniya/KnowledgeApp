@@ -231,7 +231,7 @@ public sealed class TeacherWorkflowService
         if (!ownsReport)
             throw new DocumentNotFoundException("Отчёт не найден");
 
-        return await _reportDocumentService.UploadFile(reportId, content, fileName, size, cancellationToken);
+        return await _reportDocumentService.UploadDocx(reportId, content, fileName, size, cancellationToken);
     }
 
     private async Task<TeacherTestingApprovalDto> ReviewTesting(

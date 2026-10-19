@@ -80,7 +80,7 @@ public sealed class TeacherWorkflowController : DocumentControllerBase
                 GroupReportService.GetDocxFileName(groupId, semesterId, disciplineId));
         });
 
-    /// <summary>Загружает PDF-отчёт текущего преподавателя на проверку.</summary>
+    /// <summary>Загружает DOCX-отчёт текущего преподавателя на проверку.</summary>
     [HttpPost("{id:int}/upload")]
     [RequestSizeLimit(UploadRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = UploadRequestLimit)]

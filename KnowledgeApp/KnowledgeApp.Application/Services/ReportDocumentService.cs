@@ -37,14 +37,48 @@ public class ReportDocumentService
             throw new DocumentConflictException("Отчёт уже подписан деканом, заменить файл нельзя");
 
         using var upload = await PdfUpload.ReadAsync(content, fileName, declaredSize, cancellationToken);
+        return await StoreUpload(
+            reportId, upload.Content, upload.FileName, ".pdf", "application/pdf", cancellationToken);
+    }
 
-        var key = $"reports/{reportId}/{Guid.NewGuid():N}.pdf";
-        await _storage.SaveAsync(key, upload.Content, "application/pdf", cancellationToken);
+    public async Task<ReportDocumentDto> UploadDocx(
+        int reportId,
+        Stream content,
+        string? fileName,
+        long? declaredSize,
+        CancellationToken cancellationToken)
+    {
+        DocxUpload.EnsureDeclaredSize(declaredSize);
+
+        var report = await GetTeacherReport(reportId, cancellationToken);
+        if (report.Status == DocumentStatus.Signed)
+            throw new DocumentConflictException("Отчёт уже подписан деканом, заменить файл нельзя");
+
+        using var upload = await DocxUpload.ReadAsync(content, fileName, declaredSize, cancellationToken);
+        return await StoreUpload(
+            reportId,
+            upload.Content,
+            upload.FileName,
+            ".docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            cancellationToken);
+    }
+
+    private async Task<ReportDocumentDto> StoreUpload(
+        int reportId,
+        Stream content,
+        string fileName,
+        string extension,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        var key = $"reports/{reportId}/{Guid.NewGuid():N}{extension}";
+        await _storage.SaveAsync(key, content, contentType, cancellationToken);
 
         (bool Replaced, string? PreviousKey) result;
         try
         {
-            result = await _repository.AttachFile(reportId, key, upload.FileName, DateTime.UtcNow);
+            result = await _repository.AttachFile(reportId, key, fileName, DateTime.UtcNow);
         }
         catch
         {
@@ -193,7 +227,13 @@ public class ReportDocumentService
         return new DocumentFileDto
         {
             Content = stream,
-            FileName = report.FileName ?? $"Отчёт_{report.ReportId}.pdf"
+            FileName = report.FileName ?? $"Отчёт_{report.ReportId}{Path.GetExtension(report.FileKey)}",
+            ContentType = Path.GetExtension(report.FileName ?? report.FileKey).ToLowerInvariant() switch
+            {
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".pdf" => "application/pdf",
+                _ => "application/octet-stream"
+            }
         };
     }
 
