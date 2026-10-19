@@ -17,6 +17,11 @@ public class OrderModel
     public DateOnly ElectronicReportDeadline { get; set; }
     public DateOnly TestingStartDate { get; set; }
     public DateOnly TestingEndDate { get; set; }
+    public DateOnly SurveyStartDate { get; set; }
+    public DateOnly SurveyEndDate { get; set; }
+    public DateOnly PreparationStartDate { get; set; }
+    public DateOnly PreparationEndDate { get; set; }
+    public DateOnly ResultsProcessingStartDate { get; set; }
     public string FileKey { get; set; } = string.Empty;
     public long FileSize { get; set; }
 }

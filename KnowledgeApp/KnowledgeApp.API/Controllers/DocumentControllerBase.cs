@@ -51,7 +51,7 @@ public abstract class DocumentControllerBase : BaseController
         }
     }
 
-    protected IResult PdfFile(DocumentFileDto file)
+    protected IResult DocumentFile(DocumentFileDto file)
     {
         HttpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
         return Results.File(file.Content, file.ContentType, file.FileName);

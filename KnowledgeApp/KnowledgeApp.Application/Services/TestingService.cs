@@ -41,6 +41,41 @@ public class TestingService
         return await _testingRepository.Update(testingModel);
     }
 
+    public async Task<TestingModel?> UpdateDelivery(
+        int testingId,
+        bool isInPerson,
+        string? room,
+        string? lmsUrl,
+        CancellationToken cancellationToken)
+    {
+        room = string.IsNullOrWhiteSpace(room) ? null : room.Trim();
+        lmsUrl = string.IsNullOrWhiteSpace(lmsUrl) ? null : lmsUrl.Trim();
+
+        if (isInPerson)
+        {
+            if (room == null)
+                throw new ArgumentException("Для очного тестирования укажите аудиторию.");
+            if (room.Length > 255)
+                throw new ArgumentException("Название аудитории не должно превышать 255 символов.");
+
+            lmsUrl = null;
+        }
+        else
+        {
+            room = null;
+            if (lmsUrl != null &&
+                (!Uri.TryCreate(lmsUrl, UriKind.Absolute, out var uri) ||
+                 (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
+            {
+                throw new ArgumentException("Ссылка LMS должна быть абсолютным URL с протоколом HTTP или HTTPS.");
+            }
+            if (lmsUrl?.Length > 2048)
+                throw new ArgumentException("Ссылка LMS не должна превышать 2048 символов.");
+        }
+
+        return await _testingRepository.UpdateDelivery(testingId, isInPerson, room, lmsUrl, cancellationToken);
+    }
+
     public async Task<bool> Delete(int id)
     {
         return await _testingRepository.Delete(id);
@@ -74,6 +109,7 @@ public class TestingService
                     select new TestingScheduleDto
                     {
                         Id = t.Id,  // ДОБАВЛЕНО
+                        ReportId = t.ReportId,
                         FacultyId = f != null ? f.Id : 0,
                         SemesterId = t.SemesterId ?? 0,
                         GroupName = sg.GroupNumber,
@@ -85,7 +121,8 @@ public class TestingService
                         Date = t.ScheduledDate ?? DateTime.MinValue,
                         Time = t.ScheduledTime ?? TimeSpan.Zero,
                         Room = t.Room,
-                        LmsUrl = t.LmsUrl
+                        LmsUrl = t.LmsUrl,
+                        IsInPerson = t.IsInPerson ?? !string.IsNullOrWhiteSpace(t.Room)
                     };
 
         var rows = await query.ToListAsync();
@@ -126,6 +163,7 @@ public class TestingService
                     select new TestingScheduleWithFacultyDto
                     {
                         Id = t.Id,  // ДОБАВЛЕНО
+                        ReportId = t.ReportId,
                         FacultyId = f.Id,
                         GroupName = sg.GroupNumber,
                         ProgramName = sp.Name,
@@ -137,6 +175,7 @@ public class TestingService
                         Time = t.ScheduledTime ?? TimeSpan.Zero,
                         Room = t.Room,
                         LmsUrl = t.LmsUrl,
+                        IsInPerson = t.IsInPerson ?? !string.IsNullOrWhiteSpace(t.Room),
                         SemesterId = t.SemesterId ?? 0
                     };
 

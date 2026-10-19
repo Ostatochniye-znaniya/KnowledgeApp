@@ -253,13 +253,37 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("order_date");
 
+                    b.Property<DateOnly>("PreparationEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("preparation_end_date");
+
+                    b.Property<DateOnly>("PreparationStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("preparation_start_date");
+
                     b.Property<DateOnly>("PaperReportDeadline")
                         .HasColumnType("date")
                         .HasColumnName("paper_report_deadline");
 
+                    b.Property<DateOnly>("ResultsProcessingStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("results_processing_start_date");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("int")
+                        .HasColumnName("group_id");
+
                     b.Property<int>("SemesterId")
                         .HasColumnType("int")
                         .HasColumnName("semester_id");
+
+                    b.Property<DateOnly>("SurveyEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("survey_end_date");
+
+                    b.Property<DateOnly>("SurveyStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("survey_start_date");
 
                     b.Property<DateOnly>("SurveySummaryDeadline")
                         .HasColumnType("date")
@@ -272,6 +296,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<DateOnly>("TestingStartDate")
                         .HasColumnType("date")
                         .HasColumnName("testing_start_date");
+
+                    b.HasIndex("GroupId");
 
                     b.HasKey("Id")
                         .HasName("PRIMARY");
@@ -849,6 +875,14 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("orders_semester_fk");
 
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyGroup", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("orders_group_fk");
+
+                    b.Navigation("Group");
                     b.Navigation("Semester");
                 });
 

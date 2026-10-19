@@ -73,6 +73,7 @@ public class ReportController : BaseController
         try
         {
             var updatedReportModel = new ReportModel(
+                    reportId,
                     reportRequest.DisciplineId,
                     reportRequest.TeacherId,
                     reportRequest.FilePath,

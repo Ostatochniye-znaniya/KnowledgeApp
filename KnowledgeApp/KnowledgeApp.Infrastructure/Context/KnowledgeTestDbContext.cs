@@ -42,6 +42,7 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<StudyProgram> StudyPrograms { get; set; }
 
     public virtual DbSet<Testing> Testings { get; set; }
+    public virtual DbSet<TestingTeacherApproval> TestingTeacherApprovals { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
@@ -273,7 +274,7 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("user_id");
 
             entity.Property(e => e.RecommendedAt)
-            .HasDefaultValue(DateTime.UtcNow)
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
             .HasColumnName("recommended_at");
 
             entity.Property(e => e.SemesterId)
@@ -350,6 +351,7 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("name");
             entity.Property(e => e.OrderDate).HasColumnName("order_date");
             entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+            entity.Property(e => e.GroupId).HasColumnName("group_id");
             entity.Property(e => e.EducationControlDepartmentHead)
                 .HasMaxLength(200)
                 .HasColumnName("education_control_department_head");
@@ -362,6 +364,11 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.ElectronicReportDeadline).HasColumnName("electronic_report_deadline");
             entity.Property(e => e.TestingStartDate).HasColumnName("testing_start_date");
             entity.Property(e => e.TestingEndDate).HasColumnName("testing_end_date");
+            entity.Property(e => e.SurveyStartDate).HasColumnName("survey_start_date");
+            entity.Property(e => e.SurveyEndDate).HasColumnName("survey_end_date");
+            entity.Property(e => e.PreparationStartDate).HasColumnName("preparation_start_date");
+            entity.Property(e => e.PreparationEndDate).HasColumnName("preparation_end_date");
+            entity.Property(e => e.ResultsProcessingStartDate).HasColumnName("results_processing_start_date");
             entity.Property(e => e.FileKey)
                 .HasMaxLength(255)
                 .HasColumnName("file_key");
@@ -373,6 +380,11 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("orders_semester_fk");
+
+            entity.HasOne(d => d.Group).WithMany()
+                .HasForeignKey(d => d.GroupId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("orders_group_fk");
 
             entity.HasOne<User>().WithMany()
                 .HasForeignKey(d => d.CreatedByUserId)
@@ -503,6 +515,7 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.LmsUrl)
                 .HasMaxLength(2048)
                 .HasColumnName("lms_url");
+            entity.Property(e => e.IsInPerson).HasColumnName("is_in_person");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasColumnName("status");
@@ -526,6 +539,24 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_4");
+        });
+
+        modelBuilder.Entity<TestingTeacherApproval>(entity =>
+        {
+            entity.HasKey(e => new { e.TestingId, e.TeacherId }).HasName("PRIMARY");
+            entity.ToTable("testing_teacher_approval");
+            entity.HasIndex(e => e.TeacherId, "teacher_id");
+            entity.Property(e => e.TestingId).HasColumnName("testing_id");
+            entity.Property(e => e.TeacherId).HasColumnName("teacher_id");
+            entity.Property(e => e.Status).HasMaxLength(20).HasColumnName("status");
+            entity.Property(e => e.Comment).HasMaxLength(1000).HasColumnName("comment");
+            entity.Property(e => e.RespondedAt).HasColumnName("responded_at");
+            entity.HasOne<Testing>().WithMany()
+                .HasForeignKey(e => e.TestingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(e => e.TeacherId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<User>(entity =>

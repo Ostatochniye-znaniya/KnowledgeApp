@@ -18,6 +18,8 @@ public partial class Testing
 
     public string? LmsUrl { get; set; }
 
+    public bool? IsInPerson { get; set; }
+
     public string? Status { get; set; }
 
     public string? ResultOfTesting { get; set; }

@@ -158,6 +158,7 @@ namespace KnowledgeApp.API.Controllers
                 var scheduleDto = filteredData.Select(x => new TestingScheduleDto
                 {
                     Number = x.Number,
+                    ReportId = x.ReportId,
                     FacultyId = x.FacultyId,
                     GroupName = x.GroupName,
                     ProgramName = x.ProgramName,

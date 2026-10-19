@@ -1,4 +1,4 @@
-﻿using KnowledgeApp.Application.DTOs;
+using KnowledgeApp.Application.DTOs;
 using KnowledgeApp.Application.Interfaces;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Action;
@@ -345,5 +345,28 @@ namespace KnowledgeApp.Application.Services
                 throw new Exception($"Ошибка при генерации PDF: {ex.Message}", ex);
             }
         }
+
+        public byte[] GenerateGroupReportPdf(GroupReportDto report)
+        {
+            try
+            {
+                var (regularFont, boldFont) = LoadFonts();
+                using var stream = new MemoryStream();
+                using (var document = new Document(new PdfDocument(new PdfWriter(stream)), PageSize.A4))
+                {
+                    document.SetMargins(report.StudentNames.Count > 30 ? 24 : 40, 32,
+                        report.StudentNames.Count > 30 ? 20 : 30, 32);
+                    GroupReportPdfTemplate.AddToDocument(document, report, regularFont, boldFont);
+                }
+
+                return stream.ToArray();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при генерации PDF-отчёта по группе");
+                throw new Exception($"Ошибка при генерации PDF-отчёта: {ex.Message}", ex);
+            }
+        }
+
     }
 }

@@ -58,7 +58,8 @@ public class TestingController : BaseController
                 testingRequest.ReportId,
                 testingRequest.SemesterId,
                 testingRequest.Room,
-                testingRequest.LmsUrl
+                testingRequest.LmsUrl,
+                testingRequest.IsInPerson
             );
 
             TestingModel createdTesting = await _testingService.Create(testingModel);
@@ -75,6 +76,7 @@ public class TestingController : BaseController
     {
         try
         {
+            var current = await _testingService.GetById(id);
             var testingModel = new TestingModel(
                 id,
                 testingRequest.GroupId,
@@ -86,7 +88,8 @@ public class TestingController : BaseController
                 testingRequest.ReportId,
                 testingRequest.SemesterId,
                 testingRequest.Room,
-                testingRequest.LmsUrl
+                testingRequest.LmsUrl,
+                testingRequest.IsInPerson ?? current.IsInPerson
             );
 
             TestingModel updatedTesting = await _testingService.Update(testingModel);
@@ -95,6 +98,27 @@ public class TestingController : BaseController
         catch (Exception e)
         {
             return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpPatch("{id}")]
+    public async Task<IResult> UpdateDelivery(
+        int id,
+        [FromBody]
+        TestingDeliveryRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updated = await _testingService.UpdateDelivery(
+                id, request.IsInPerson, request.Room, request.LmsUrl, cancellationToken);
+            return updated == null
+                ? Results.NotFound(new { error = "Тестирование не найдено" })
+                : Results.Json(updated);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new { error = ex.Message });
         }
     }
 

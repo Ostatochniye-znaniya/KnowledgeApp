@@ -51,11 +51,30 @@ public class OrderService
             PaperReportDeadline = RequireDate(request.PaperReportDeadline, "Срок сдачи бумажных отчётов"),
             ElectronicReportDeadline = RequireDate(request.ElectronicReportDeadline, "Срок сдачи электронных отчётов"),
             TestingStartDate = RequireDate(request.TestingStartDate, "Начало тестирования"),
-            TestingEndDate = RequireDate(request.TestingEndDate, "Конец тестирования")
+            TestingEndDate = RequireDate(request.TestingEndDate, "Конец тестирования"),
+            SurveyStartDate = RequireDate(request.SurveyStartDate, "Начало анкетирования"),
+            SurveyEndDate = RequireDate(request.SurveyEndDate, "Окончание анкетирования"),
+            PreparationStartDate = RequireDate(request.PreparationStartDate, "Начало подготовительного этапа"),
+            PreparationEndDate = RequireDate(request.PreparationEndDate, "Окончание подготовительного этапа"),
+            ResultsProcessingStartDate = RequireDate(
+                request.ResultsProcessingStartDate, "Начало этапа обработки результатов")
         };
 
         if (order.TestingEndDate < order.TestingStartDate)
             throw new DocumentValidationException("Конец тестирования раньше его начала");
+        if (order.SurveyEndDate < order.SurveyStartDate)
+            throw new DocumentValidationException("Окончание анкетирования раньше его начала");
+        if (order.SurveySummaryDeadline < order.SurveyEndDate)
+            throw new DocumentValidationException("Сводный отчёт по анкетированию нельзя сдавать до окончания анкетирования");
+        if (order.PreparationEndDate < order.PreparationStartDate)
+            throw new DocumentValidationException("Окончание подготовительного этапа раньше его начала");
+        if (order.PreparationStartDate < order.OrderDate || order.PreparationEndDate > order.TestingStartDate)
+            throw new DocumentValidationException(
+                "Подготовительный этап должен проходить между датой приказа и началом тестирования");
+        if (order.ResultsProcessingStartDate < order.TestingEndDate ||
+            order.InspectionSummaryDeadline < order.ResultsProcessingStartDate)
+            throw new DocumentValidationException(
+                "Этап обработки результатов должен идти после тестирования и завершиться до срока сводного отчёта");
 
         if (request.SemesterId == null)
             throw new DocumentValidationException("Семестр не указан");

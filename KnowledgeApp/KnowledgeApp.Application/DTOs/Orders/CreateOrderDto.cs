@@ -13,4 +13,9 @@ public class CreateOrderDto
     public DateOnly? ElectronicReportDeadline { get; set; }
     public DateOnly? TestingStartDate { get; set; }
     public DateOnly? TestingEndDate { get; set; }
+    public DateOnly? SurveyStartDate { get; set; }
+    public DateOnly? SurveyEndDate { get; set; }
+    public DateOnly? PreparationStartDate { get; set; }
+    public DateOnly? PreparationEndDate { get; set; }
+    public DateOnly? ResultsProcessingStartDate { get; set; }
 }

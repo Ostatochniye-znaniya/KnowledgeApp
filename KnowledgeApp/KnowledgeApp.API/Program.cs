@@ -60,6 +60,9 @@ services.AddScoped<DepartmentRepository>();
 services.AddScoped<UserService>();
 services.AddScoped<UserRepository>();
 services.AddScoped<TestingService>();
+services.AddScoped<TeacherWorkflowService>();
+services.AddScoped<GroupReportService>();
+services.AddScoped<IDocxGeneratorService, DocxGeneratorService>();
 services.AddScoped<TestingRepository>();
 services.AddScoped<DisciplineRepository>();
 services.AddScoped<DisciplineService>();
@@ -102,9 +105,20 @@ services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 
 var app = builder.Build();
 
-// Миграции базы данных
-using (var scope = app.Services.CreateScope())
+var skipDatabaseMigrationsValue = Environment.GetEnvironmentVariable("SKIP_DATABASE_MIGRATIONS");
+if (!string.IsNullOrWhiteSpace(skipDatabaseMigrationsValue) &&
+    !bool.TryParse(skipDatabaseMigrationsValue, out _))
 {
+    throw new InvalidOperationException("SKIP_DATABASE_MIGRATIONS must be either 'true' or 'false'.");
+}
+
+if (bool.TryParse(skipDatabaseMigrationsValue, out var skipDatabaseMigrations) && skipDatabaseMigrations)
+{
+    app.Logger.LogWarning("Database migrations were skipped because SKIP_DATABASE_MIGRATIONS is enabled.");
+}
+else
+{
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<KnowledgeTestDbContext>();
     dbContext.Database.Migrate();
 }

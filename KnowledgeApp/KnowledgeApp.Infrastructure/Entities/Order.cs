@@ -12,6 +12,9 @@ public class Order
 
     public int SemesterId { get; set; }
 
+    // Retained for historical orders; new orders are not associated with a group.
+    public int? GroupId { get; set; }
+
     public string EducationControlDepartmentHead { get; set; } = null!;
 
     public string EducationalMethodicalCenterHead { get; set; } = null!;
@@ -28,6 +31,16 @@ public class Order
 
     public DateOnly TestingEndDate { get; set; }
 
+    public DateOnly SurveyStartDate { get; set; }
+
+    public DateOnly SurveyEndDate { get; set; }
+
+    public DateOnly PreparationStartDate { get; set; }
+
+    public DateOnly PreparationEndDate { get; set; }
+
+    public DateOnly ResultsProcessingStartDate { get; set; }
+
     public string FileKey { get; set; } = null!;
 
     public long FileSize { get; set; }
@@ -37,4 +50,6 @@ public class Order
     public int? CreatedByUserId { get; set; }
 
     public virtual Semester? Semester { get; set; }
+
+    public virtual StudyGroup? Group { get; set; }
 }

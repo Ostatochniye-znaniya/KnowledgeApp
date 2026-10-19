@@ -24,6 +24,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     order_date = table.Column<DateOnly>(type: "date", nullable: false),
                     semester_id = table.Column<int>(type: "int", nullable: false),
+                    group_id = table.Column<int>(type: "int", nullable: false),
                     education_control_department_head = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false, collation: "utf8mb4_0900_ai_ci")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     educational_methodical_center_head = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false, collation: "utf8mb4_0900_ai_ci")
@@ -34,6 +35,11 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     electronic_report_deadline = table.Column<DateOnly>(type: "date", nullable: false),
                     testing_start_date = table.Column<DateOnly>(type: "date", nullable: false),
                     testing_end_date = table.Column<DateOnly>(type: "date", nullable: false),
+                    survey_start_date = table.Column<DateOnly>(type: "date", nullable: false),
+                    survey_end_date = table.Column<DateOnly>(type: "date", nullable: false),
+                    preparation_start_date = table.Column<DateOnly>(type: "date", nullable: false),
+                    preparation_end_date = table.Column<DateOnly>(type: "date", nullable: false),
+                    results_processing_start_date = table.Column<DateOnly>(type: "date", nullable: false),
                     file_key = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false, collation: "utf8mb4_0900_ai_ci")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     file_size = table.Column<long>(type: "bigint", nullable: false),
@@ -55,6 +61,12 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         principalTable: "semesters",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "orders_group_fk",
+                        column: x => x.group_id,
+                        principalTable: "study_groups",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .Annotation("Relational:Collation", "utf8mb4_0900_ai_ci");
@@ -68,6 +80,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                 name: "IX_orders_semester_id",
                 table: "orders",
                 column: "semester_id");
+            migrationBuilder.CreateIndex(
+                name: "IX_orders_group_id",
+                table: "orders",
+                column: "group_id");
         }
 
         /// <inheritdoc />
