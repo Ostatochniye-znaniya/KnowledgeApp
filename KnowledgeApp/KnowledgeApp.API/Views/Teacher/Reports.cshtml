@@ -1,0 +1,338 @@
+@{
+    Layout = "_TeacherLayout";
+    ViewData["Title"] = "Мои отчёты";
+}
+
+<header class="page-heading">
+    <div>
+        <h1>Мои отчёты</h1>
+        <p>Скачайте форму отчёта, загрузите подписанный электронный вариант и следите за замечаниями ЛПР. После доработки отправьте исправленный файл.</p>
+    </div>
+</header>
+
+<section class="surface-card" aria-label="Отчёты по тестированиям">
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <input class="search" id="search" type="search" placeholder="Поиск по группе или дисциплине" aria-label="Поиск по группе или дисциплине">
+        </div>
+        <div class="toolbar-right">
+            <select class="select" id="status-filter" aria-label="Фильтр по статусу">
+                <option value="">Все статусы</option>
+                <option value="not_submitted">Не отправлен</option>
+                <option value="pending">На проверке</option>
+                <option value="rejected">Нужна доработка</option>
+                <option value="signed">Сделан</option>
+            </select>
+            <span class="badge badge-accent" id="row-count">Загрузка…</span>
+        </div>
+    </div>
+    <p id="message" class="notice" role="status" aria-live="polite">Загружаем отчёты…</p>
+    <div class="table-scroll">
+        <table class="app-table teacher-report-table">
+            <thead>
+                <tr>
+                    <th>Группа / дисциплина</th>
+                    <th class="table-status">Электронный отчёт</th>
+                    <th class="table-status">Бумажный отчёт</th>
+                    <th class="table-actions">Шаблон отчёта</th>
+                    <th>Замечание ЛПР</th>
+                    <th class="table-actions">Действия</th>
+                </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+        </table>
+    </div>
+</section>
+<p class="footer-note">Отметку о сдаче бумажного экземпляра вносит ответственное подразделение.</p>
+
+@section Scripts {
+<script>
+    const listUrl = '@Url.Action("GetReports", "TeacherWorkflow")';
+    const generateUrl = '@Url.Action("GenerateReport", "TeacherWorkflow")';
+    const apiBaseUrl = listUrl.replace(/\/GetReports$/, '');
+    const rows = document.getElementById('rows');
+    const message = document.getElementById('message');
+    const count = document.getElementById('row-count');
+    let items = [];
+
+    function setCellText(row, text, className) {
+        const cell = row.insertCell();
+        cell.textContent = text;
+        if (className) cell.className = className;
+        return cell;
+    }
+
+    function addBadge(cell, text, kind) {
+        const badge = document.createElement('span');
+        badge.className = `badge ${kind || ''}`;
+        badge.textContent = text;
+        cell.append(badge);
+    }
+
+    function deliveryText(value) {
+        return value === true ? 'Сдано' : value === false ? 'Не сдано' : 'Не отмечено';
+    }
+
+    function deliveryKind(value) {
+        return value === true ? 'badge-success' : value === false ? 'badge-danger' : '';
+    }
+
+    function render() {
+        rows.replaceChildren();
+        const query = document.getElementById('search').value.trim().toLocaleLowerCase('ru');
+        const statusFilter = document.getElementById('status-filter').value;
+        const visible = items.filter(item =>
+            `${item.groupName} ${item.disciplineName}`.toLocaleLowerCase('ru').includes(query) &&
+            (!statusFilter || item.status === statusFilter));
+        count.textContent = `${visible.length} из ${items.length}`;
+        if (!visible.length) {
+            message.hidden = false;
+            message.className = 'notice';
+            message.innerHTML = '<strong>Отчёты не найдены</strong>Попробуйте изменить поисковый запрос или фильтр.';
+            return;
+        }
+        message.hidden = true;
+
+        for (const item of visible) {
+            const row = rows.insertRow();
+            const identity = setCellText(row, '');
+            const group = document.createElement('div');
+            group.className = 'primary-text';
+            group.textContent = item.groupName || '—';
+            const discipline = document.createElement('div');
+            discipline.className = 'secondary-text';
+            discipline.textContent = item.disciplineName || '—';
+            identity.append(group, discipline);
+
+            const electronic = row.insertCell();
+            electronic.className = 'table-status';
+            addBadge(electronic, item.statusLabel || 'Не отправлен',
+                item.status === 'signed' ? 'badge-success' :
+                    item.status === 'rejected' ? 'badge-danger' :
+                    item.status === 'pending' ? 'badge-warning' : '');
+            if (item.uploadedAt) {
+                const date = document.createElement('div');
+                date.className = 'secondary-text';
+                date.textContent = `Загружен ${new Date(item.uploadedAt).toLocaleDateString('ru-RU')}`;
+                electronic.append(date);
+            }
+            if (item.fileName) {
+                const fileName = document.createElement('div');
+                fileName.className = 'secondary-text file-name';
+                fileName.textContent = item.fileName;
+                fileName.title = item.fileName;
+                electronic.append(fileName);
+            }
+
+            const paper = row.insertCell();
+            paper.className = 'table-status';
+            addBadge(paper, deliveryText(item.doneInPaperForm), deliveryKind(item.doneInPaperForm));
+
+            const templateCell = row.insertCell();
+            templateCell.className = 'table-actions';
+            const queryString = new URLSearchParams({
+                groupId: item.groupId,
+                semesterId: item.semesterId,
+                disciplineId: item.disciplineId
+            });
+            const download = document.createElement('a');
+            download.href = `${generateUrl}?${queryString}`;
+            download.download = '';
+            download.className = 'button button-subtle template-download';
+            download.setAttribute('aria-label', `Скачать шаблон отчёта: ${item.groupName} — ${item.disciplineName}`);
+            download.title = 'Скачать шаблон отчёта';
+            const downloadIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            downloadIcon.setAttribute('viewBox', '0 0 24 24');
+            downloadIcon.setAttribute('width', '18');
+            downloadIcon.setAttribute('height', '18');
+            downloadIcon.setAttribute('fill', 'none');
+            downloadIcon.setAttribute('stroke', 'currentColor');
+            downloadIcon.setAttribute('stroke-width', '2');
+            downloadIcon.setAttribute('stroke-linecap', 'round');
+            downloadIcon.setAttribute('stroke-linejoin', 'round');
+            downloadIcon.setAttribute('aria-hidden', 'true');
+            const downloadPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            downloadPath.setAttribute('d', 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3');
+            downloadIcon.append(downloadPath);
+            const downloadLabel = document.createElement('span');
+            downloadLabel.textContent = 'Скачать шаблон';
+            download.append(downloadIcon, downloadLabel);
+            templateCell.append(download);
+
+            const comment = setCellText(row, item.reviewComment || 'Замечаний нет');
+            if (item.reviewComment) comment.className = 'secondary-text';
+
+            const actionsCell = row.insertCell();
+            actionsCell.className = 'table-actions';
+            const actions = document.createElement('div');
+            actions.className = 'row-actions';
+            actionsCell.append(actions);
+
+            if (item.reportId) {
+                const form = document.createElement('form');
+                form.className = 'report-upload-form';
+                const file = document.createElement('input');
+                const fileInputId = `report-file-${item.reportId}`;
+                file.id = fileInputId;
+                file.type = 'file';
+                file.accept = 'application/pdf,.pdf';
+                file.required = true;
+                file.className = 'file-input-hidden';
+                file.setAttribute('aria-label', `PDF отчёта: ${item.groupName} — ${item.disciplineName}`);
+                file.disabled = item.status === 'signed';
+                const chooseFile = document.createElement('label');
+                chooseFile.className = 'button button-subtle file-select-button';
+                chooseFile.htmlFor = fileInputId;
+                chooseFile.textContent = 'Выбрать PDF';
+                const fileName = document.createElement('span');
+                fileName.className = 'file-name';
+                fileName.textContent = 'Файл не выбран';
+                const submit = document.createElement('button');
+                submit.type = 'submit';
+                submit.className = 'button button-primary';
+                submit.textContent = item.status === 'rejected' ? 'Отправить исправленный' : 'Загрузить PDF';
+                submit.disabled = item.status === 'signed' || !file.files.length;
+                form.append(file, chooseFile, fileName, submit);
+                file.addEventListener('change', () => {
+                    const selected = file.files[0];
+                    fileName.textContent = selected ? selected.name : 'Файл не выбран';
+                    fileName.title = selected?.name || '';
+                    submit.disabled = item.status === 'signed' || !selected;
+                    if (selected && !isPdfFile(selected)) {
+                        showError('Выберите файл в формате PDF.');
+                        file.value = '';
+                        fileName.textContent = 'Файл не выбран';
+                        submit.disabled = true;
+                        return;
+                    }
+                    message.hidden = true;
+                });
+                form.onsubmit = async event => {
+                    event.preventDefault();
+                    const selected = file.files[0];
+                    if (!selected) {
+                        showError('Сначала выберите PDF-файл.');
+                        return;
+                    }
+                    if (!isPdfFile(selected)) {
+                        showError('Выберите файл в формате PDF.');
+                        return;
+                    }
+                    submit.disabled = true;
+                    file.disabled = true;
+                    chooseFile.setAttribute('aria-disabled', 'true');
+                    submit.textContent = 'Загрузка…';
+                    showNotice(`Отправляем файл «${selected.name}» для группы ${item.groupName} — ${item.disciplineName}…`);
+                    try {
+                        const data = new FormData();
+                        data.append('File', selected);
+                        const uploaded = await uploadPdf(
+                            `${apiBaseUrl}/UploadReport/${item.reportId}/upload`,
+                            data,
+                            percent => {
+                                submit.textContent = `Загрузка ${percent}%`;
+                                showNotice(`Передаём файл «${selected.name}»: ${percent}%`);
+                            });
+                        submit.textContent = 'Файл передан, сохраняем…';
+                        showNotice('Файл передан серверу. Сохраняем отчёт и отправляем ЛПР на проверку…');
+                        await load();
+                        message.hidden = false;
+                        message.className = 'notice success feedback';
+                        message.textContent = `Файл «${uploaded.fileName || selected.name}» загружен для группы ${item.groupName} по дисциплине «${item.disciplineName}» и отправлен ЛПР на проверку.`;
+                    } catch (error) {
+                        showError(error.message || 'Не удалось загрузить PDF.');
+                    } finally {
+                        file.disabled = item.status === 'signed';
+                        submit.disabled = item.status === 'signed' || !file.files.length;
+                        submit.textContent = item.status === 'rejected' ? 'Отправить исправленный' : 'Загрузить PDF';
+                        chooseFile.removeAttribute('aria-disabled');
+                    }
+                };
+                actions.append(form);
+            } else {
+                const unavailable = document.createElement('span');
+                unavailable.className = 'secondary-text';
+                unavailable.textContent = 'Загрузка недоступна: запись отчёта ещё не создана. Обратитесь к ответственному подразделению.';
+                actions.append(unavailable);
+            }
+        }
+    }
+
+    function showError(text) {
+        message.hidden = false;
+        message.className = 'notice error';
+        message.textContent = text;
+    }
+
+    function showNotice(text) {
+        message.hidden = false;
+        message.className = 'notice';
+        message.textContent = text;
+    }
+
+    function isPdfFile(file) {
+        return file.name.toLocaleLowerCase('ru').endsWith('.pdf') &&
+            (!file.type || file.type === 'application/pdf');
+    }
+
+    function uploadPdf(url, data, onProgress) {
+        return new Promise((resolve, reject) => {
+            const request = new XMLHttpRequest();
+            request.open('POST', url);
+            request.timeout = 120000;
+            request.upload.addEventListener('progress', event => {
+                if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100));
+            });
+            request.addEventListener('load', () => {
+                let payload = {};
+                try {
+                    payload = request.responseText ? JSON.parse(request.responseText) : {};
+                } catch {
+                    if (request.status >= 200 && request.status < 300) {
+                        reject(new Error('Сервер вернул некорректный ответ после загрузки файла.'));
+                        return;
+                    }
+                }
+                if (request.status < 200 || request.status >= 300) {
+                    reject(new Error(payload.error || `Не удалось загрузить файл (${request.status})`));
+                    return;
+                }
+                resolve(payload);
+            });
+            request.addEventListener('error', () => reject(new Error('Не удалось связаться с сервером при загрузке файла.')));
+            request.addEventListener('timeout', () => reject(new Error('Загрузка не завершилась за 2 минуты. Проверьте соединение и попробуйте ещё раз.')));
+            request.addEventListener('abort', () => reject(new Error('Загрузка файла была прервана.')));
+            request.send(data);
+        });
+    }
+
+    async function load() {
+        message.hidden = false;
+        message.className = 'notice';
+        message.textContent = 'Загружаем отчёты…';
+        try {
+            const response = await fetch(listUrl);
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `Ошибка загрузки (${response.status})`);
+            }
+            items = await response.json();
+            if (!items.length) {
+                rows.replaceChildren();
+                count.textContent = '0 отчётов';
+                message.hidden = false;
+                message.innerHTML = '<strong>Задач пока нет</strong>Назначенные вам отчёты появятся здесь.';
+                return;
+            }
+            render();
+        } catch (error) {
+            count.textContent = 'Ошибка';
+            showError(error.message || 'Не удалось загрузить отчёты.');
+        }
+    }
+
+    document.getElementById('search').addEventListener('input', render);
+    document.getElementById('status-filter').addEventListener('change', render);
+    load();
+</script>
+}

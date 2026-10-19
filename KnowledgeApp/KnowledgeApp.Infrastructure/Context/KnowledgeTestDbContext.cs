@@ -42,6 +42,7 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<StudyProgram> StudyPrograms { get; set; }
 
     public virtual DbSet<Testing> Testings { get; set; }
+    public virtual DbSet<TestingTeacherApproval> TestingTeacherApprovals { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
@@ -538,6 +539,24 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_4");
+        });
+
+        modelBuilder.Entity<TestingTeacherApproval>(entity =>
+        {
+            entity.HasKey(e => new { e.TestingId, e.TeacherId }).HasName("PRIMARY");
+            entity.ToTable("testing_teacher_approval");
+            entity.HasIndex(e => e.TeacherId, "teacher_id");
+            entity.Property(e => e.TestingId).HasColumnName("testing_id");
+            entity.Property(e => e.TeacherId).HasColumnName("teacher_id");
+            entity.Property(e => e.Status).HasMaxLength(20).HasColumnName("status");
+            entity.Property(e => e.Comment).HasMaxLength(1000).HasColumnName("comment");
+            entity.Property(e => e.RespondedAt).HasColumnName("responded_at");
+            entity.HasOne<Testing>().WithMany()
+                .HasForeignKey(e => e.TestingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(e => e.TeacherId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<User>(entity =>

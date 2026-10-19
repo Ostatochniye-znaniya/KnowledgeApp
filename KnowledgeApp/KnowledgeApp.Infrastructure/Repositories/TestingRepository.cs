@@ -58,6 +58,16 @@ public class TestingRepository
 
         ValidateModel(model);
 
+        var scheduleChanged = entity.ScheduledDate != model.ScheduledDate ||
+                              entity.ScheduledTime != model.ScheduledTime;
+        if (scheduleChanged)
+        {
+            var approvals = await _context.TestingTeacherApprovals
+                .Where(a => a.TestingId == model.Id)
+                .ToListAsync();
+            _context.TestingTeacherApprovals.RemoveRange(approvals);
+        }
+
         entity.GroupId = model.GroupId;
         entity.DisciplineId = model.DisciplineId;
         entity.ScheduledDate = model.ScheduledDate;

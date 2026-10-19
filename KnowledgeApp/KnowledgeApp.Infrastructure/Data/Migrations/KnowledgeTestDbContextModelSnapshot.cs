@@ -735,6 +735,39 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("testing", (string)null);
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingTeacherApproval", b =>
+                {
+                    b.Property<int>("TestingId")
+                        .HasColumnType("int")
+                        .HasColumnName("testing_id");
+
+                    b.Property<int>("TeacherId")
+                        .HasColumnType("int")
+                        .HasColumnName("teacher_id");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("comment");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("responded_at");
+
+                    b.HasKey("TestingId", "TeacherId")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex(new[] { "TeacherId" }, "teacher_id")
+                        .HasDatabaseName("teacher_id");
+
+                    b.ToTable("testing_teacher_approval", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1040,6 +1073,21 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingTeacherApproval", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Testing", null)
+                        .WithMany()
+                        .HasForeignKey("TestingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("TeacherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.User", b =>

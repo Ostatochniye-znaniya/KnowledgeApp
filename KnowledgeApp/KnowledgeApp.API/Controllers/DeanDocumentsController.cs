@@ -24,18 +24,28 @@ public class DeanDocumentsController : DocumentControllerBase
     public Task<IResult> GetReportFilters() =>
         Execute(async () => Results.Json(await _reportDocumentService.GetFilterOptions()));
 
-    [HttpGet("{id}")]
+    [HttpGet("~/DeanDocuments/DownloadReport/{id:int}")]
     public Task<IResult> DownloadReport(int id, CancellationToken cancellationToken) =>
         Execute(async () => DocumentFile(await _reportDocumentService.OpenFileForDean(id, cancellationToken)));
 
-    [HttpPost("{id}")]
+    [HttpPost("~/DeanDocuments/ApproveReport/{id:int}/approve")]
     public Task<IResult> ApproveReport(int id) =>
         Execute(async () => Results.Json(await _reportDocumentService.Approve(id)));
 
-    [HttpPost("{id}")]
+    [HttpPost("~/DeanDocuments/RejectReport/{id:int}/reject")]
     public Task<IResult> RejectReport(int id,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RejectDocumentRequest? request) =>
         Execute(async () => Results.Json(await _reportDocumentService.Reject(id, request?.Comment)));
+
+    [HttpPut("{id:int}/paper-delivery")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public Task<IResult> SetPaperDelivery(
+        int id,
+        [FromBody] PaperReportDeliveryRequest request,
+        CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _reportDocumentService.SetPaperDelivery(
+            id, request.Submitted, cancellationToken)));
 
     [HttpGet]
     public Task<IResult> GetSchedules([FromQuery] int? semesterId, [FromQuery] string? status) =>
@@ -45,15 +55,15 @@ public class DeanDocumentsController : DocumentControllerBase
     public Task<IResult> GetScheduleFilters() =>
         Execute(async () => Results.Json(await _scheduleDocumentService.GetFilterOptions()));
 
-    [HttpGet("{id}")]
+    [HttpGet("~/DeanDocuments/DownloadSchedule/{id:int}")]
     public Task<IResult> DownloadSchedule(int id, CancellationToken cancellationToken) =>
         Execute(async () => DocumentFile(await _scheduleDocumentService.OpenFile(id, cancellationToken)));
 
-    [HttpPost("{id}")]
+    [HttpPost("~/DeanDocuments/ApproveSchedule/{id:int}/approve")]
     public Task<IResult> ApproveSchedule(int id) =>
         Execute(async () => Results.Json(await _scheduleDocumentService.Approve(id)));
 
-    [HttpPost("{id}")]
+    [HttpPost("~/DeanDocuments/RejectSchedule/{id:int}/reject")]
     public Task<IResult> RejectSchedule(int id,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RejectDocumentRequest? request) =>
         Execute(async () => Results.Json(await _scheduleDocumentService.Reject(id, request?.Comment)));

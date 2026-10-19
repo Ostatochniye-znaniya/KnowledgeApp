@@ -60,6 +60,17 @@ public class GroupReportService
         return docx;
     }
 
+    public async Task<byte[]> GenerateTemplate(
+        int groupId,
+        int semesterId,
+        int disciplineId,
+        CancellationToken cancellationToken)
+    {
+        var report = await GetReportAsync(groupId, semesterId, disciplineId, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return _docxGenerator.GenerateGroupReportDocx(report);
+    }
+
     public async Task<IReadOnlyList<GroupReportDto>> GetReportsAsync(
         int groupId,
         int semesterId,

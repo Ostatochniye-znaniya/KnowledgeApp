@@ -1,0 +1,310 @@
+@{
+    Layout = "_TeacherLayout";
+    ViewData["Title"] = "Проверка отчётов";
+}
+
+<header class="page-heading">
+    <div>
+        <h1>Проверка отчётов</h1>
+        <p>Проверьте электронные отчёты подразделения. При необходимости верните документ на доработку с пояснением для преподавателя.</p>
+    </div>
+</header>
+
+<section class="surface-card" aria-label="Отчёты на проверку">
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <input class="search" id="search" type="search" placeholder="Поиск по группе, дисциплине или преподавателю" aria-label="Поиск по группе, дисциплине или преподавателю">
+        </div>
+        <div class="toolbar-right">
+            <select class="select" id="department-filter" aria-label="Фильтр по кафедре">
+                <option value="">Все подразделения</option>
+            </select>
+            <select class="select" id="year-filter" aria-label="Фильтр по учебному году">
+                <option value="">Все учебные годы</option>
+            </select>
+            <select class="select" id="status-filter" aria-label="Фильтр по статусу">
+                <option value="">Все статусы</option>
+                <option value="pending">На проверке</option>
+                <option value="rejected">На доработке</option>
+                <option value="signed">Сделан</option>
+            </select>
+            <span class="badge badge-accent" id="row-count">Загрузка…</span>
+        </div>
+    </div>
+    <p id="message" class="notice" role="status">Загружаем отчёты…</p>
+    <div class="table-scroll">
+        <table class="app-table dean-report-table">
+            <thead>
+                <tr>
+                    <th>Группа / учебный год</th>
+                    <th>Дисциплина</th>
+                    <th>Преподаватель / кафедра</th>
+                    <th class="table-status">Электронный отчёт</th>
+                    <th class="table-status">Бумажный отчёт</th>
+                    <th class="table-actions">Действия</th>
+                </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+        </table>
+    </div>
+</section>
+
+<div class="modal-backdrop" id="reject-modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h2 id="modal-title">Отправить на доработку</h2>
+        <p>Опишите, что нужно исправить. Комментарий увидит преподаватель на странице отчётов.</p>
+        <textarea id="reject-comment" maxlength="1000" placeholder="Комментарий ЛПР" required></textarea>
+        <div class="modal-actions">
+            <button class="button" type="button" id="cancel-reject">Отмена</button>
+            <button class="button button-danger" type="button" id="confirm-reject">Отправить на доработку</button>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+<script>
+    const listUrl = '@Url.Action("GetReports", "DeanDocuments")';
+    const optionsUrl = '@Url.Action("GetReportFilters", "DeanDocuments")';
+    const apiBaseUrl = listUrl.replace(/\/GetReports$/, '');
+    const rows = document.getElementById('rows');
+    const message = document.getElementById('message');
+    const count = document.getElementById('row-count');
+    const modal = document.getElementById('reject-modal');
+    const commentInput = document.getElementById('reject-comment');
+    let items = [];
+    let rejectReportId = null;
+
+    function statusBadge(status) {
+        if (status === 'signed') return ['Сделан', 'badge-success'];
+        if (status === 'rejected') return ['На доработке', 'badge-danger'];
+        return ['На проверке', 'badge-warning'];
+    }
+
+    function delivery(value) {
+        return value === true ? ['Сдано', 'badge-success']
+            : value === false ? ['Не сдано', 'badge-danger']
+            : ['Не отмечено', ''];
+    }
+
+    function addBadge(cell, text, kind) {
+        const badge = document.createElement('span');
+        badge.className = `badge ${kind}`;
+        badge.textContent = text;
+        cell.append(badge);
+    }
+
+    function addActionButton(cell, text, className, callback) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `button ${className}`;
+        button.textContent = text;
+        button.onclick = callback;
+        cell.append(button);
+    }
+
+    function render() {
+        rows.replaceChildren();
+        const search = document.getElementById('search').value.trim().toLocaleLowerCase('ru');
+        const department = document.getElementById('department-filter').value;
+        const academicYear = document.getElementById('year-filter').value;
+        const status = document.getElementById('status-filter').value;
+        const visible = items.filter(item => {
+            const text = `${item.groupNumber} ${item.disciplineName} ${item.teacherName} ${item.departmentName}`.toLocaleLowerCase('ru');
+            return text.includes(search) &&
+                (!department || String(item.departmentId) === department) &&
+                (!academicYear || item.academicYear === academicYear) &&
+                (!status || item.status === status);
+        });
+        count.textContent = `${visible.length} из ${items.length}`;
+        if (!visible.length) {
+            message.hidden = false;
+            message.className = 'notice';
+            message.innerHTML = '<strong>Отчёты не найдены</strong>По заданным фильтрам нет отправленных документов.';
+            return;
+        }
+        message.hidden = true;
+
+        for (const item of visible) {
+            const row = rows.insertRow();
+            const group = row.insertCell();
+            const groupName = document.createElement('div');
+            groupName.className = 'primary-text';
+            groupName.textContent = item.groupNumber || '—';
+            const year = document.createElement('div');
+            year.className = 'secondary-text';
+            year.textContent = item.academicYear || 'Учебный год не указан';
+            group.append(groupName, year);
+
+            const discipline = row.insertCell();
+            discipline.textContent = item.disciplineName || '—';
+
+            const teacher = row.insertCell();
+            const teacherName = document.createElement('div');
+            teacherName.className = 'primary-text';
+            teacherName.textContent = item.teacherName || 'Преподаватель не указан';
+            const departmentName = document.createElement('div');
+            departmentName.className = 'secondary-text';
+            departmentName.textContent = item.departmentName || '—';
+            teacher.append(teacherName, departmentName);
+
+            const electronic = row.insertCell();
+            electronic.className = 'table-status';
+            const [label, kind] = statusBadge(item.status);
+            addBadge(electronic, label, kind);
+            const download = document.createElement('a');
+            download.href = `${apiBaseUrl}/DownloadReport/${item.id}`;
+            download.className = 'button button-subtle';
+            download.textContent = 'Открыть PDF';
+            download.target = '_blank';
+            download.rel = 'noopener noreferrer';
+            download.style.marginTop = '7px';
+            electronic.append(download);
+            if (item.reviewComment) {
+                const comment = document.createElement('div');
+                comment.className = 'secondary-text';
+                comment.textContent = `Комментарий: ${item.reviewComment}`;
+                electronic.append(comment);
+            }
+
+            const paper = row.insertCell();
+            paper.className = 'table-status';
+            const [paperLabel, paperKind] = delivery(item.doneInPaperForm);
+            addBadge(paper, paperLabel, paperKind);
+            if (item.doneInPaperForm !== true) {
+                addActionButton(paper, 'Отметить получение', 'button-subtle',
+                    () => setPaperDelivery(item.id, true));
+            } else {
+                addActionButton(paper, 'Отменить отметку', 'button',
+                    () => setPaperDelivery(item.id, false));
+            }
+
+            const actionsCell = row.insertCell();
+            actionsCell.className = 'table-actions';
+            const actions = document.createElement('div');
+            actions.className = 'row-actions';
+            actionsCell.append(actions);
+            if (item.status === 'pending') {
+                addActionButton(actions, 'Принять', 'button-primary', () => review(item.id, 'approve'));
+                addActionButton(actions, 'На доработку', 'button-danger', () => openReject(item.id));
+            } else {
+                const [finalLabel, finalKind] = statusBadge(item.status);
+                addBadge(actions, finalLabel, finalKind);
+            }
+        }
+    }
+
+    function showError(text) {
+        message.hidden = false;
+        message.className = 'notice error';
+        message.textContent = text;
+    }
+
+    async function review(reportId, decision, comment) {
+        try {
+            const response = await fetch(`${apiBaseUrl}/${decision === 'approve' ? 'ApproveReport' : 'RejectReport'}/${reportId}/${decision}`, {
+                method: 'POST',
+                headers: comment ? { 'Content-Type': 'application/json' } : {},
+                body: comment ? JSON.stringify({ comment }) : undefined
+            });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `Не удалось сохранить решение (${response.status})`);
+            }
+            modal.hidden = true;
+            commentInput.value = '';
+            await load();
+        } catch (error) {
+            showError(error.message || 'Не удалось сохранить решение.');
+        }
+    }
+
+    async function setPaperDelivery(reportId, submitted) {
+        try {
+            const response = await fetch(`${apiBaseUrl}/SetPaperDelivery/${reportId}/paper-delivery`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ submitted })
+            });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `Не удалось изменить статус бумажного отчёта (${response.status})`);
+            }
+            await load();
+        } catch (error) {
+            showError(error.message || 'Не удалось обновить статус бумажного отчёта.');
+        }
+    }
+
+    function openReject(reportId) {
+        rejectReportId = reportId;
+        commentInput.value = '';
+        modal.hidden = false;
+        commentInput.focus();
+    }
+
+    async function loadFilters() {
+        const response = await fetch(optionsUrl);
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || `Не удалось загрузить фильтры (${response.status})`);
+        }
+        const options = await response.json();
+        for (const [id, values, emptyLabel] of [
+            ['department-filter', options.departments, 'Все подразделения'],
+            ['year-filter', options.academicYears, 'Все учебные годы']
+        ]) {
+            const select = document.getElementById(id);
+            select.replaceChildren(new Option(emptyLabel, ''));
+            for (const option of values) select.add(new Option(option.label, option.value));
+        }
+    }
+
+    async function load() {
+        message.hidden = false;
+        message.className = 'notice';
+        message.textContent = 'Загружаем отчёты…';
+        try {
+            await loadFilters();
+            const response = await fetch(listUrl);
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `Ошибка загрузки (${response.status})`);
+            }
+            items = await response.json();
+            if (!items.length) {
+                rows.replaceChildren();
+                count.textContent = '0 отчётов';
+                message.hidden = false;
+                message.innerHTML = '<strong>Нет отчётов на проверку</strong>Отправленные преподавателями документы появятся здесь.';
+                return;
+            }
+            render();
+        } catch (error) {
+            count.textContent = 'Ошибка';
+            showError(error.message || 'Не удалось загрузить отчёты.');
+        }
+    }
+
+    for (const id of ['search', 'department-filter', 'year-filter', 'status-filter']) {
+        document.getElementById(id).addEventListener(id === 'search' ? 'input' : 'change', render);
+    }
+    document.getElementById('cancel-reject').addEventListener('click', () => { modal.hidden = true; });
+    document.getElementById('confirm-reject').addEventListener('click', async () => {
+        const comment = commentInput.value.trim();
+        if (!comment) {
+            commentInput.setCustomValidity('Введите комментарий для доработки.');
+            commentInput.reportValidity();
+            return;
+        }
+        commentInput.setCustomValidity('');
+        await review(rejectReportId, 'reject', comment);
+    });
+    modal.addEventListener('click', event => {
+        if (event.target === modal) modal.hidden = true;
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !modal.hidden) modal.hidden = true;
+    });
+    load();
+</script>
+}
