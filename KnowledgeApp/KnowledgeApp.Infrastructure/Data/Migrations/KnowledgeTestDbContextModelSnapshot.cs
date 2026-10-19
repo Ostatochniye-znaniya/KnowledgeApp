@@ -199,7 +199,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<DateTime>("RecommendedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
-                        .HasDefaultValue(new DateTime(2026, 9, 8, 18, 1, 40, 189, DateTimeKind.Utc).AddTicks(628))
+                        .HasDefaultValue(new DateTime(2026, 9, 24, 23, 17, 45, 438, DateTimeKind.Utc).AddTicks(8436))
                         .HasColumnName("recommended_at");
 
                     b.Property<int>("SemesterId")
@@ -445,7 +445,7 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("DisciplineId")
+                    b.Property<int?>("DisciplineId")
                         .HasColumnType("int")
                         .HasColumnName("discipline_id");
 
@@ -721,7 +721,6 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .WithMany("Testings")
                         .HasForeignKey("DisciplineId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("testing_ibfk_2");
 
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyGroup", "Group")
