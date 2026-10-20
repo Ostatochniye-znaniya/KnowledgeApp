@@ -34,22 +34,20 @@ public class TestingService
 
     public async Task<TestingModel> Create(TestingModel testingModel)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync(
-            System.Data.IsolationLevel.Serializable);
-        await EnsureScheduleAvailable(testingModel);
-        var created = await _testingRepository.Create(testingModel);
-        await transaction.CommitAsync();
-        return created;
+        return await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            await EnsureScheduleAvailable(testingModel);
+            return await _testingRepository.Create(testingModel);
+        });
     }
 
     public async Task<TestingModel> Update(TestingModel testingModel)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync(
-            System.Data.IsolationLevel.Serializable);
-        await EnsureScheduleAvailable(testingModel);
-        var updated = await _testingRepository.Update(testingModel);
-        await transaction.CommitAsync();
-        return updated;
+        return await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            await EnsureScheduleAvailable(testingModel);
+            return await _testingRepository.Update(testingModel);
+        });
     }
 
     private async Task EnsureScheduleAvailable(TestingModel testing)

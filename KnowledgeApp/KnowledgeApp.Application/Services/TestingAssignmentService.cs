@@ -124,61 +124,201 @@ public sealed class TestingAssignmentService
 
         if (periodChanged || assignmentsChanged)
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-            var requestedTeacherIds = teacherIds.ToHashSet();
-            var removed = existing.Where(a => !requestedTeacherIds.Contains(a.TeacherId)).ToList();
-            _context.TestingTeacherApprovals.RemoveRange(removed);
-
-            if (periodChanged)
+            await _context.InTransactionAsync(async () =>
             {
-                testing.ScheduledDate = null;
-                testing.ScheduledTime = null;
-                testing.ScheduledPair = null;
-                foreach (var assignment in existing.Except(removed))
+                var requestedTeacherIds = teacherIds.ToHashSet();
+                var removed = existing.Where(a => !requestedTeacherIds.Contains(a.TeacherId)).ToList();
+                _context.TestingTeacherApprovals.RemoveRange(removed);
+
+                if (periodChanged)
                 {
-                    assignment.Status = "pending";
-                    assignment.Comment = null;
-                    assignment.RespondedAt = null;
+                    testing.ScheduledDate = null;
+                    testing.ScheduledTime = null;
+                    testing.ScheduledPair = null;
+                    foreach (var assignment in existing.Except(removed))
+                    {
+                        assignment.Status = "pending";
+                        assignment.Comment = null;
+                        assignment.RespondedAt = null;
+                    }
                 }
-            }
 
-            foreach (var teacherId in teacherIds.Where(id => !existingTeacherIds.Contains(id)))
-            {
-                _context.TestingTeacherApprovals.Add(new TestingTeacherApproval
+                foreach (var teacherId in teacherIds.Where(id => !existingTeacherIds.Contains(id)))
                 {
-                    TestingId = testingId,
-                    TeacherId = teacherId,
-                    Status = "pending"
-                });
-            }
+                    _context.TestingTeacherApprovals.Add(new TestingTeacherApproval
+                    {
+                        TestingId = testingId,
+                        TeacherId = teacherId,
+                        Status = "pending"
+                    });
+                }
 
-            testing.SelectionPeriodStart = startDate;
-            testing.SelectionPeriodEnd = endDate;
-            var notificationTeacherIds = periodChanged
-                ? teacherIds
-                : teacherIds.Where(id => !existingTeacherIds.Contains(id));
-            foreach (var teacherId in notificationTeacherIds)
-            {
-                _context.WorkflowNotifications.Add(new WorkflowNotification
+                testing.SelectionPeriodStart = startDate;
+                testing.SelectionPeriodEnd = endDate;
+                var notificationTeacherIds = periodChanged
+                    ? teacherIds
+                    : teacherIds.Where(id => !existingTeacherIds.Contains(id));
+                foreach (var teacherId in notificationTeacherIds)
                 {
-                    RecipientUserId = teacherId,
-                    TestingId = testingId,
-                    Type = periodChanged ? "testing_period_updated" : "testing_assigned",
-                    Title = periodChanged ? "Изменился период проверки" : "Назначена проверка",
-                    Message = periodChanged
-                        ? $"Период выбора времени: {periodStart:dd.MM.yyyy}–{periodEnd:dd.MM.yyyy}."
-                        : $"Вам назначена проверка. Выберите пару с {periodStart:dd.MM.yyyy} по {periodEnd:dd.MM.yyyy}.",
-                    CreatedAt = DateTime.UtcNow
-                });
-            }
-            await _context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+                    _context.WorkflowNotifications.Add(new WorkflowNotification
+                    {
+                        RecipientUserId = teacherId,
+                        TestingId = testingId,
+                        Type = periodChanged ? "testing_period_updated" : "testing_assigned",
+                        Title = periodChanged ? "Изменился период проверки" : "Назначена проверка",
+                        Message = periodChanged
+                            ? $"Период выбора времени: {periodStart:dd.MM.yyyy}–{periodEnd:dd.MM.yyyy}."
+                            : $"Вам назначена проверка. Выберите пару с {periodStart:dd.MM.yyyy} по {periodEnd:dd.MM.yyyy}.",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+            }, cancellationToken);
         }
 
         return await GetAssignments(testingId, cancellationToken);
     }
 
     public IReadOnlyList<TestingPairSlotDto> GetPairSlots() => TestingPairSchedule.All;
+
+    /// <summary>
+    /// Проверки для страницы «Выбор преподавателей» в последнем семестре:
+    /// группы своей кафедры с выбранными дисциплинами (own — назначаем сами, outgoing — нужна заявка)
+    /// и заявки от кафедр других факультетов по дисциплинам своей кафедры (incoming).
+    /// </summary>
+    public async Task<IReadOnlyList<DepartmentTestingDto>> GetDepartmentTestings(CancellationToken cancellationToken)
+    {
+        var departmentId = RequireDepartment();
+        var semesterId = await _context.Semesters
+            .OrderByDescending(s => s.SemesterYear)
+            .ThenByDescending(s => s.SemesterPart)
+            .Select(s => (int?)s.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (semesterId is null)
+            return Array.Empty<DepartmentTestingDto>();
+
+        var rows = await _context.Testings
+            .AsNoTracking()
+            .Where(t => t.SemesterId == semesterId && t.DisciplineId != null)
+            .Where(t => t.Group!.StudyProgram!.DepartmentId == departmentId ||
+                        (t.Discipline!.DepartmentId == departmentId && t.ExternalRequestSentAt != null))
+            .Select(t => new
+            {
+                t.Id,
+                t.GroupId,
+                GroupName = t.Group!.GroupNumber,
+                GroupDepartmentId = t.Group.StudyProgram!.DepartmentId,
+                GroupDepartmentName = t.Group.StudyProgram.Department!.Name,
+                GroupFacultyId = t.Group.StudyProgram.Department.FacultyId,
+                GroupFacultyName = t.Group.StudyProgram.Department.Faculty!.FacultyName,
+                DisciplineId = t.DisciplineId!.Value,
+                DisciplineName = t.Discipline!.Name,
+                DisciplineDepartmentId = t.Discipline.DepartmentId,
+                DisciplineDepartmentName = t.Discipline.Department!.Name,
+                DisciplineFacultyId = t.Discipline.Department.FacultyId,
+                t.ExternalRequestSentAt,
+                t.SelectionPeriodStart,
+                t.SelectionPeriodEnd,
+                t.ScheduledDate,
+                t.ScheduledTime,
+                t.ScheduledPair
+            })
+            .ToListAsync(cancellationToken);
+
+        var testingIds = rows.Select(r => r.Id).ToList();
+        var teachers = await (
+            from approval in _context.TestingTeacherApprovals.AsNoTracking()
+            join teacher in _context.Users.AsNoTracking() on approval.TeacherId equals teacher.Id
+            where testingIds.Contains(approval.TestingId)
+            orderby teacher.Name
+            select new { approval.TestingId, approval.TeacherId, teacher.Name, approval.Status, approval.Comment, approval.RespondedAt })
+            .ToListAsync(cancellationToken);
+        var teachersByTesting = teachers.ToLookup(a => a.TestingId);
+
+        return rows
+            .Select(r =>
+            {
+                var info = new TestingManagingDepartment.Info(
+                    r.GroupDepartmentId, r.GroupFacultyId,
+                    r.DisciplineDepartmentId, r.DisciplineFacultyId, r.ExternalRequestSentAt);
+                var kind = r.GroupDepartmentId == departmentId
+                    ? (info.IsExternal ? "outgoing" : "own")
+                    : "incoming";
+                return new DepartmentTestingDto(
+                    r.Id,
+                    r.GroupId,
+                    r.GroupName,
+                    r.GroupDepartmentName,
+                    r.GroupFacultyName,
+                    r.DisciplineId,
+                    r.DisciplineName,
+                    r.DisciplineDepartmentName,
+                    kind,
+                    info.ManagingDepartmentId == departmentId,
+                    r.ExternalRequestSentAt.HasValue ? ToUtc(r.ExternalRequestSentAt.Value) : null,
+                    r.SelectionPeriodStart.HasValue ? DateOnly.FromDateTime(r.SelectionPeriodStart.Value) : null,
+                    r.SelectionPeriodEnd.HasValue ? DateOnly.FromDateTime(r.SelectionPeriodEnd.Value) : null,
+                    r.ScheduledDate.HasValue ? DateOnly.FromDateTime(r.ScheduledDate.Value) : null,
+                    r.ScheduledTime.HasValue ? TimeOnly.FromTimeSpan(r.ScheduledTime.Value) : null,
+                    r.ScheduledPair,
+                    teachersByTesting[r.Id]
+                        .Select(a => new TestingTeacherAssignmentDto(
+                            a.TeacherId,
+                            a.Name,
+                            a.Status ?? "pending",
+                            a.Comment,
+                            a.RespondedAt.HasValue ? ToUtc(a.RespondedAt.Value) : null))
+                        .ToList());
+            })
+            .OrderBy(r => r.Kind == "incoming")
+            .ThenBy(r => r.GroupName)
+            .ThenBy(r => r.DisciplineName)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Заявка кафедре другого факультета: дисциплина группы своей кафедры закреплена за ней,
+    /// поэтому преподавателей и период назначает она. Повторная отправка ничего не меняет.
+    /// </summary>
+    public async Task<DateTimeOffset> SendExternalRequest(int testingId, CancellationToken cancellationToken)
+    {
+        var departmentId = RequireDepartment();
+        var testing = await _context.Testings
+            .Include(t => t.Group)
+            .Include(t => t.Discipline)
+            .SingleOrDefaultAsync(t => t.Id == testingId, cancellationToken)
+            ?? throw new DocumentNotFoundException("Тестирование не найдено");
+        var info = await TestingManagingDepartment.LoadAsync(_context, testingId, cancellationToken);
+        if (info?.GroupDepartmentId != departmentId)
+            throw new DocumentAccessException("Заявку отправляет кафедра, за которой закреплена группа.");
+        if (!testing.DisciplineId.HasValue || !info.IsExternal || info.DisciplineDepartmentId is null)
+            throw new DocumentValidationException("Заявка нужна только для дисциплин кафедр другого факультета.");
+
+        if (testing.ExternalRequestSentAt is null)
+        {
+            var groupDepartmentName = await _context.Departments
+                .Where(d => d.Id == departmentId)
+                .Select(d => d.Name)
+                .SingleOrDefaultAsync(cancellationToken);
+            testing.ExternalRequestSentAt = DateTime.UtcNow;
+            _context.WorkflowNotifications.Add(new WorkflowNotification
+            {
+                RecipientDepartmentId = info.DisciplineDepartmentId,
+                TestingId = testingId,
+                Type = "testing_external_request",
+                Title = "Заявка на проверку остаточных знаний",
+                Message = $"Кафедра {groupDepartmentName} просит назначить преподавателей и период проверки: " +
+                          $"группа {testing.Group?.GroupNumber}, дисциплина «{testing.Discipline?.Name}».",
+                CreatedAt = testing.ExternalRequestSentAt.Value
+            });
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        return ToUtc(testing.ExternalRequestSentAt.Value);
+    }
+
+    private static DateTimeOffset ToUtc(DateTime value) =>
+        new(DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
     public async Task<IReadOnlyList<WorkflowNotificationDto>> GetDepartmentNotifications(
         bool unreadOnly,
@@ -236,8 +376,12 @@ public sealed class TestingAssignmentService
             .SingleOrDefaultAsync(t => t.Id == testingId, cancellationToken);
         if (testing is null)
             throw new DocumentNotFoundException("Тестирование не найдено");
-        if (testing.Discipline?.DepartmentId != departmentId)
-            throw new DocumentAccessException("Нельзя управлять тестированием другой кафедры.");
+
+        var info = await TestingManagingDepartment.LoadAsync(_context, testingId, cancellationToken);
+        if (info?.ManagingDepartmentId != departmentId)
+            throw new DocumentAccessException(info is { IsExternal: true, ExternalRequestSentAt: null }
+                ? "Дисциплина закреплена за кафедрой другого факультета: отправьте ей заявку."
+                : "Нельзя управлять тестированием другой кафедры.");
 
         return testing;
     }

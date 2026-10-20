@@ -30,3 +30,26 @@ public sealed record WorkflowNotificationDto(
     string Message,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ReadAt);
+
+/// <summary>
+/// Строка страницы «Выбор преподавателей». Kind: own — дисциплина своего факультета, назначаем сами;
+/// outgoing — дисциплина другого факультета, нужна заявка; incoming — заявка от кафедры другого факультета.
+/// </summary>
+public sealed record DepartmentTestingDto(
+    int TestingId,
+    int GroupId,
+    string GroupName,
+    string? GroupDepartmentName,
+    string? GroupFacultyName,
+    int DisciplineId,
+    string DisciplineName,
+    string? DisciplineDepartmentName,
+    string Kind,
+    bool CanManage,
+    DateTimeOffset? ExternalRequestSentAt,
+    DateOnly? PeriodStart,
+    DateOnly? PeriodEnd,
+    DateOnly? ScheduledDate,
+    TimeOnly? ScheduledTime,
+    int? ScheduledPair,
+    IReadOnlyList<TestingTeacherAssignmentDto> Teachers);

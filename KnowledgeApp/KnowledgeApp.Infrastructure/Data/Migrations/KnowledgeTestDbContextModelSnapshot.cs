@@ -676,6 +676,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("discipline_id");
 
+                    b.Property<DateTime?>("ExternalRequestSentAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("external_request_sent_at");
+
                     b.Property<int>("GroupId")
                         .HasColumnType("int")
                         .HasColumnName("group_id");

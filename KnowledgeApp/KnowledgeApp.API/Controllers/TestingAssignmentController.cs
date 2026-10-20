@@ -32,6 +32,29 @@ public sealed class TestingAssignmentController : DocumentControllerBase
         Execute(async () => Results.Json(
             await _assignmentService.GetAvailableTeachers(testingId, cancellationToken)));
 
+    /// <summary>
+    /// Проверки для страницы «Выбор преподавателей» кафедры текущего пользователя:
+    /// свои группы и заявки от кафедр других факультетов.
+    /// </summary>
+    [HttpGet("~/Testing/department-testings")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public Task<IResult> GetDepartmentTestings(CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(
+            await _assignmentService.GetDepartmentTestings(cancellationToken)));
+
+    /// <summary>Отправляет заявку кафедре другого факультета, за которой закреплена дисциплина.</summary>
+    [HttpPost("~/Testing/{testingId:int}/external-request")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public Task<IResult> SendExternalRequest(int testingId, CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(new
+        {
+            externalRequestSentAt = await _assignmentService.SendExternalRequest(testingId, cancellationToken)
+        }));
+
     /// <summary>Возвращает сетку пар и время начала и окончания каждой пары.</summary>
     [HttpGet("~/Testing/pair-slots")]
     [ProducesResponseType(StatusCodes.Status200OK)]

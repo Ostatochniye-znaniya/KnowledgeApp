@@ -182,73 +182,72 @@ public sealed class TeacherWorkflowService
         var scheduledTime = pair.StartsAt.ToTimeSpan();
         var currentScheduledDate = testing.ScheduledDate;
         var currentScheduledTime = testing.ScheduledTime;
-        await using var transaction = await _context.Database.BeginTransactionAsync(
-            System.Data.IsolationLevel.Serializable, cancellationToken);
-        await EnsureSlotIsAvailable(testing, selectedDate, pair.StartsAt, cancellationToken);
-
-        var changed = await _context.Testings
-            .Where(t => t.Id == testingId &&
-                        t.ScheduledDate == currentScheduledDate &&
-                        t.ScheduledTime == currentScheduledTime &&
-                        !_context.TestingTeacherApprovals.Any(a =>
-                            a.TestingId == t.Id && a.Status == "approved") &&
-                        t.SelectionPeriodStart <= scheduledDate &&
-                        t.SelectionPeriodEnd >= scheduledDate)
-            .ExecuteUpdateAsync(update => update
-                .SetProperty(t => t.ScheduledDate, scheduledDate)
-                .SetProperty(t => t.ScheduledTime, scheduledTime)
-                .SetProperty(t => t.ScheduledPair, pairNumber), cancellationToken);
-        if (changed == 0)
-            throw new DocumentConflictException("Время уже выбрал другой преподаватель.");
-
-        var respondedAt = DateTime.UtcNow;
-        var approvalUpdated = await _context.TestingTeacherApprovals
-            .Where(a => a.TestingId == testingId &&
-                        a.TeacherId == teacherId &&
-                        a.Status == PendingApproval)
-            .ExecuteUpdateAsync(update => update
-                .SetProperty(a => a.Status, "approved")
-                .SetProperty(a => a.Comment, (string?)null)
-                .SetProperty(a => a.RespondedAt, respondedAt), cancellationToken);
-        if (approvalUpdated == 0)
-            throw new DocumentConflictException("Ответ по этому тестированию уже отправлен.");
-
-        var otherTeacherIds = await _context.TestingTeacherApprovals
-            .Where(a => a.TestingId == testingId &&
-                        a.TeacherId != teacherId &&
-                        a.Status == PendingApproval)
-            .Select(a => a.TeacherId)
-            .ToListAsync(cancellationToken);
-        foreach (var otherTeacherId in otherTeacherIds)
+        await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
         {
-            _context.WorkflowNotifications.Add(new WorkflowNotification
+            await EnsureSlotIsAvailable(testing, selectedDate, pair.StartsAt, cancellationToken);
+
+            var changed = await _context.Testings
+                .Where(t => t.Id == testingId &&
+                            t.ScheduledDate == currentScheduledDate &&
+                            t.ScheduledTime == currentScheduledTime &&
+                            !_context.TestingTeacherApprovals.Any(a =>
+                                a.TestingId == t.Id && a.Status == "approved") &&
+                            t.SelectionPeriodStart <= scheduledDate &&
+                            t.SelectionPeriodEnd >= scheduledDate)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(t => t.ScheduledDate, scheduledDate)
+                    .SetProperty(t => t.ScheduledTime, scheduledTime)
+                    .SetProperty(t => t.ScheduledPair, pairNumber), cancellationToken);
+            if (changed == 0)
+                throw new DocumentConflictException("Время уже выбрал другой преподаватель.");
+
+            var respondedAt = DateTime.UtcNow;
+            var approvalUpdated = await _context.TestingTeacherApprovals
+                .Where(a => a.TestingId == testingId &&
+                            a.TeacherId == teacherId &&
+                            a.Status == PendingApproval)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(a => a.Status, "approved")
+                    .SetProperty(a => a.Comment, (string?)null)
+                    .SetProperty(a => a.RespondedAt, respondedAt), cancellationToken);
+            if (approvalUpdated == 0)
+                throw new DocumentConflictException("Ответ по этому тестированию уже отправлен.");
+
+            var otherTeacherIds = await _context.TestingTeacherApprovals
+                .Where(a => a.TestingId == testingId &&
+                            a.TeacherId != teacherId &&
+                            a.Status == PendingApproval)
+                .Select(a => a.TeacherId)
+                .ToListAsync(cancellationToken);
+            foreach (var otherTeacherId in otherTeacherIds)
             {
-                RecipientUserId = otherTeacherId,
-                TestingId = testingId,
-                Type = "testing_time_proposed",
-                Title = "Преподаватель выбрал время проверки",
-                Message = $"Выбрана {pairNumber}-я пара ({pair.StartsAt:HH:mm}–{pair.EndsAt:HH:mm}) на {selectedDate:dd.MM.yyyy}. Подтвердите или отклоните время.",
-                CreatedAt = respondedAt
-            });
-        }
-        var departmentId = await _context.Disciplines
-            .Where(d => d.Id == testing.DisciplineId)
-            .Select(d => d.DepartmentId)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (departmentId.HasValue)
-        {
-            _context.WorkflowNotifications.Add(new WorkflowNotification
+                _context.WorkflowNotifications.Add(new WorkflowNotification
+                {
+                    RecipientUserId = otherTeacherId,
+                    TestingId = testingId,
+                    Type = "testing_time_proposed",
+                    Title = "Преподаватель выбрал время проверки",
+                    Message = $"Выбрана {pairNumber}-я пара ({pair.StartsAt:HH:mm}–{pair.EndsAt:HH:mm}) на {selectedDate:dd.MM.yyyy}. Подтвердите или отклоните время.",
+                    CreatedAt = respondedAt
+                });
+            }
+            // уведомляем кафедру, которая назначала проверку (своя или кафедра дисциплины по заявке)
+            var departmentId = (await TestingManagingDepartment.LoadAsync(_context, testing.Id, cancellationToken))
+                ?.ManagingDepartmentId;
+            if (departmentId.HasValue)
             {
-                RecipientDepartmentId = departmentId.Value,
-                TestingId = testingId,
-                Type = "testing_time_selected",
-                Title = "Выбрано время проверки",
-                Message = $"Для тестирования №{testingId} выбрана {pairNumber}-я пара ({pair.StartsAt:HH:mm}–{pair.EndsAt:HH:mm}) на {selectedDate:dd.MM.yyyy}.",
-                CreatedAt = respondedAt
-            });
-        }
-        await _context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+                _context.WorkflowNotifications.Add(new WorkflowNotification
+                {
+                    RecipientDepartmentId = departmentId.Value,
+                    TestingId = testingId,
+                    Type = "testing_time_selected",
+                    Title = "Выбрано время проверки",
+                    Message = $"Для тестирования №{testingId} выбрана {pairNumber}-я пара ({pair.StartsAt:HH:mm}–{pair.EndsAt:HH:mm}) на {selectedDate:dd.MM.yyyy}.",
+                    CreatedAt = respondedAt
+                });
+            }
+            await _context.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
 
         return (await GetTestings(cancellationToken))
             .Single(t => t.TestingId == testingId);
@@ -476,38 +475,38 @@ public sealed class TeacherWorkflowService
         }
 
         var respondedAt = DateTime.UtcNow;
-        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        var updated = await _context.TestingTeacherApprovals
-            .Where(a => a.TestingId == testingId &&
-                        a.TeacherId == teacherId &&
-                        a.Status == PendingApproval)
-            .ExecuteUpdateAsync(update => update
-                .SetProperty(a => a.Status, status)
-                .SetProperty(a => a.Comment, comment)
-                .SetProperty(a => a.RespondedAt, respondedAt), cancellationToken);
-        if (updated == 0)
-            throw new DocumentConflictException("Ответ по этому тестированию уже отправлен.");
-
-        var departmentId = await _context.Disciplines
-            .Where(d => d.Id == testing.DisciplineId)
-            .Select(d => d.DepartmentId)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (departmentId.HasValue)
+        await _context.InTransactionAsync(async () =>
         {
-            _context.WorkflowNotifications.Add(new WorkflowNotification
+            var updated = await _context.TestingTeacherApprovals
+                .Where(a => a.TestingId == testingId &&
+                            a.TeacherId == teacherId &&
+                            a.Status == PendingApproval)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(a => a.Status, status)
+                    .SetProperty(a => a.Comment, comment)
+                    .SetProperty(a => a.RespondedAt, respondedAt), cancellationToken);
+            if (updated == 0)
+                throw new DocumentConflictException("Ответ по этому тестированию уже отправлен.");
+
+            // уведомляем кафедру, которая назначала проверку (своя или кафедра дисциплины по заявке)
+            var departmentId = (await TestingManagingDepartment.LoadAsync(_context, testing.Id, cancellationToken))
+                ?.ManagingDepartmentId;
+            if (departmentId.HasValue)
             {
-                RecipientDepartmentId = departmentId.Value,
-                TestingId = testingId,
-                Type = status == "rejected" ? "testing_rejected" : "testing_approved",
-                Title = status == "rejected" ? "Преподаватель отклонил время" : "Преподаватель подтвердил время",
-                Message = status == "rejected"
-                    ? $"Преподаватель отклонил время тестирования №{testingId}. Причина: {comment}"
-                    : $"Преподаватель подтвердил время тестирования №{testingId}.",
-                CreatedAt = respondedAt
-            });
-        }
-        await _context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+                _context.WorkflowNotifications.Add(new WorkflowNotification
+                {
+                    RecipientDepartmentId = departmentId.Value,
+                    TestingId = testingId,
+                    Type = status == "rejected" ? "testing_rejected" : "testing_approved",
+                    Title = status == "rejected" ? "Преподаватель отклонил время" : "Преподаватель подтвердил время",
+                    Message = status == "rejected"
+                        ? $"Преподаватель отклонил время тестирования №{testingId}. Причина: {comment}"
+                        : $"Преподаватель подтвердил время тестирования №{testingId}.",
+                    CreatedAt = respondedAt
+                });
+            }
+            await _context.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
 
         return (await GetTestings(cancellationToken))
             .Single(t => t.TestingId == testingId);

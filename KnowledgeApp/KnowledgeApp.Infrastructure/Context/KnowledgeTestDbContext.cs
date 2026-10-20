@@ -518,6 +518,9 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.SelectionPeriodEnd)
                 .HasColumnType("date")
                 .HasColumnName("selection_period_end");
+            entity.Property(e => e.ExternalRequestSentAt)
+                .HasColumnType("datetime(6)")
+                .HasColumnName("external_request_sent_at");
             entity.Property(e => e.Room)
                 .HasMaxLength(255)
                 .HasColumnName("room");
