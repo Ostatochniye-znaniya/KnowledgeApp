@@ -676,6 +676,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("discipline_id");
 
+                    b.Property<DateTime?>("ExternalRequestSentAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("external_request_sent_at");
+
                     b.Property<int>("GroupId")
                         .HasColumnType("int")
                         .HasColumnName("group_id");
@@ -706,9 +710,21 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("scheduled_date");
 
+                    b.Property<int?>("ScheduledPair")
+                        .HasColumnType("int")
+                        .HasColumnName("scheduled_pair");
+
                     b.Property<TimeSpan?>("ScheduledTime")
                         .HasColumnType("time")
                         .HasColumnName("scheduled_time");
+
+                    b.Property<DateTime?>("SelectionPeriodEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("selection_period_end");
+
+                    b.Property<DateTime?>("SelectionPeriodStart")
+                        .HasColumnType("date")
+                        .HasColumnName("selection_period_start");
 
                     b.Property<int?>("SemesterId")
                         .HasColumnType("int")
@@ -750,20 +766,20 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("varchar(1000)")
                         .HasColumnName("comment");
 
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("responded_at");
+
                     b.Property<string>("Status")
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)")
                         .HasColumnName("status");
 
-                    b.Property<DateTime?>("RespondedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("responded_at");
-
                     b.HasKey("TestingId", "TeacherId")
                         .HasName("PRIMARY");
 
                     b.HasIndex(new[] { "TeacherId" }, "teacher_id")
-                        .HasDatabaseName("teacher_id");
+                        .HasDatabaseName("teacher_id1");
 
                     b.ToTable("testing_teacher_approval", (string)null);
                 });
@@ -840,6 +856,69 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasDatabaseName("user_id1");
 
                     b.ToTable("user_role", (string)null);
+                });
+
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.WorkflowNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("message");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("read_at");
+
+                    b.Property<int?>("RecipientDepartmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("recipient_department_id");
+
+                    b.Property<int?>("RecipientUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("recipient_user_id");
+
+                    b.Property<int?>("TestingId")
+                        .HasColumnType("int")
+                        .HasColumnName("testing_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex("TestingId");
+
+                    b.HasIndex(new[] { "RecipientDepartmentId", "ReadAt", "CreatedAt" }, "ix_workflow_notifications_department_read_created");
+
+                    b.HasIndex(new[] { "RecipientUserId", "ReadAt", "CreatedAt" }, "ix_workflow_notifications_user_read_created");
+
+                    b.HasIndex(new[] { "RecipientDepartmentId" }, "recipient_department_id");
+
+                    b.HasIndex(new[] { "RecipientUserId" }, "recipient_user_id");
+
+                    b.ToTable("workflow_notifications", (string)null);
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Department", b =>
@@ -1077,15 +1156,15 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingTeacherApproval", b =>
                 {
-                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Testing", null)
-                        .WithMany()
-                        .HasForeignKey("TestingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("TeacherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Testing", null)
+                        .WithMany()
+                        .HasForeignKey("TestingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1124,6 +1203,24 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.WorkflowNotification", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Department", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientDepartmentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Testing", null)
+                        .WithMany()
+                        .HasForeignKey("TestingId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Department", b =>

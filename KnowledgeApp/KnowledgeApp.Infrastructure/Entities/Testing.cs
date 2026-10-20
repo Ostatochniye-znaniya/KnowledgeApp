@@ -14,6 +14,15 @@ public partial class Testing
 
     public TimeSpan? ScheduledTime { get; set; }
 
+    public int? ScheduledPair { get; set; }
+
+    public DateTime? SelectionPeriodStart { get; set; }
+
+    public DateTime? SelectionPeriodEnd { get; set; }
+
+    /// <summary>Когда кафедра группы отправила заявку кафедре другого факультета (дисциплина чужого факультета).</summary>
+    public DateTime? ExternalRequestSentAt { get; set; }
+
     public string? Room { get; set; }
 
     public string? LmsUrl { get; set; }

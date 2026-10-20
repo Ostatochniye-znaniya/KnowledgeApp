@@ -34,6 +34,21 @@ Content-Type: application/json
   "comment": "Не подходит назначенное время"
 }
 
+### Choose a date and time within the assigned testing period
+PUT {{baseUrl}}/TeacherWorkflow/ChooseTestingTime/1/choose-time
+Content-Type: application/json
+
+{
+  "date": "2026-11-02",
+  "pairNumber": 1
+}
+
+### Get unread teacher workflow notifications
+GET {{baseUrl}}/TeacherWorkflow/GetNotifications?unreadOnly=true
+
+### Mark notification 1 as read
+PUT {{baseUrl}}/TeacherWorkflow/MarkNotificationRead/1/read
+
 ### Get current teacher's report tasks
 GET {{baseUrl}}/TeacherWorkflow/GetReports
 
