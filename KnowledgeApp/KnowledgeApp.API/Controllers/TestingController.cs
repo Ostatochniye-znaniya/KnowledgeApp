@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using KnowledgeApp.Application.Services;
 using KnowledgeApp.API.Contracts;
 using KnowledgeApp.Domain.Entities;
+using KnowledgeApp.Application.Exceptions;
 
 namespace KnowledgeApp.API.Controllers;
 
@@ -56,11 +57,22 @@ public class TestingController : BaseController
                 testingRequest.Status ?? "scheduled",
                 testingRequest.ResultOfTesting,
                 testingRequest.ReportId,
-                testingRequest.SemesterId
+                testingRequest.SemesterId,
+                testingRequest.Room,
+                testingRequest.LmsUrl,
+                testingRequest.IsInPerson
             );
 
             TestingModel createdTesting = await _testingService.Create(testingModel);
             return Results.Json(createdTesting);
+        }
+        catch (DocumentValidationException e)
+        {
+            return Results.BadRequest(new { error = e.Message });
+        }
+        catch (DocumentConflictException e)
+        {
+            return Results.Conflict(new { error = e.Message });
         }
         catch (Exception e)
         {
@@ -73,6 +85,7 @@ public class TestingController : BaseController
     {
         try
         {
+            var current = await _testingService.GetById(id);
             var testingModel = new TestingModel(
                 id,
                 testingRequest.GroupId,
@@ -82,15 +95,47 @@ public class TestingController : BaseController
                 testingRequest.Status ?? "scheduled",
                 testingRequest.ResultOfTesting,
                 testingRequest.ReportId,
-                testingRequest.SemesterId
+                testingRequest.SemesterId,
+                testingRequest.Room,
+                testingRequest.LmsUrl,
+                testingRequest.IsInPerson ?? current.IsInPerson
             );
 
             TestingModel updatedTesting = await _testingService.Update(testingModel);
             return Results.Json(updatedTesting);
         }
+        catch (DocumentValidationException e)
+        {
+            return Results.BadRequest(new { error = e.Message });
+        }
+        catch (DocumentConflictException e)
+        {
+            return Results.Conflict(new { error = e.Message });
+        }
         catch (Exception e)
         {
             return Results.Problem(e.Message);
+        }
+    }
+
+    [HttpPatch("{id}")]
+    public async Task<IResult> UpdateDelivery(
+        int id,
+        [FromBody]
+        TestingDeliveryRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updated = await _testingService.UpdateDelivery(
+                id, request.IsInPerson, request.Room, request.LmsUrl, cancellationToken);
+            return updated == null
+                ? Results.NotFound(new { error = "Тестирование не найдено" })
+                : Results.Json(updated);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new { error = ex.Message });
         }
     }
 

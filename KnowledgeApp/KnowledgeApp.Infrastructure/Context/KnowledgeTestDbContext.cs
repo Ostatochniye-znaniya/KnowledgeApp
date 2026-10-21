@@ -29,6 +29,10 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<Semester> Semesters { get; set; }
 
+    public virtual DbSet<ScheduleDocument> ScheduleDocuments { get; set; }
+
+    public virtual DbSet<Order> Orders { get; set; }
+
     public virtual DbSet<Status> Statuses { get; set; }
 
     public virtual DbSet<Student> Students { get; set; }
@@ -38,6 +42,9 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<StudyProgram> StudyPrograms { get; set; }
 
     public virtual DbSet<Testing> Testings { get; set; }
+    public virtual DbSet<TestingTeacherApproval> TestingTeacherApprovals { get; set; }
+
+    public virtual DbSet<WorkflowNotification> WorkflowNotifications { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
@@ -165,6 +172,26 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnType("text")
                 .HasColumnName("result_of_attestation");
             entity.Property(e => e.TeacherId).HasColumnName("teacher_id");
+            entity.Property(e => e.FileName)
+                .HasMaxLength(255)
+                .HasColumnName("file_name");
+            entity.Property(e => e.UploadedAt).HasColumnName("uploaded_at");
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasColumnName("status");
+            entity.Property(e => e.ReviewComment)
+                .HasMaxLength(1000)
+                .HasColumnName("review_comment");
+            entity.Property(e => e.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(e => e.ReviewedByUserId).HasColumnName("reviewed_by_user_id");
+
+            entity.HasIndex(e => e.Status, "reports_status");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("reports_reviewed_by_fk");
 
             entity.HasOne(d => d.Discipline).WithMany(p => p.Reports)
                 .HasForeignKey(d => d.DisciplineId)
@@ -249,7 +276,7 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("user_id");
 
             entity.Property(e => e.RecommendedAt)
-            .HasDefaultValue(DateTime.UtcNow)
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
             .HasColumnName("recommended_at");
 
             entity.Property(e => e.SemesterId)
@@ -259,6 +286,114 @@ public partial class KnowledgeTestDbContext : DbContext
             .HasColumnName("study_group_id");
         });
         
+        modelBuilder.Entity<ScheduleDocument>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("schedule_documents");
+
+            entity.HasIndex(e => new { e.FacultyId, e.SemesterId }, "schedule_documents_faculty_semester").IsUnique();
+            entity.HasIndex(e => e.Status, "schedule_documents_status");
+
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.FacultyId).HasColumnName("faculty_id");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+            entity.Property(e => e.FileKey)
+                .HasMaxLength(255)
+                .HasColumnName("file_key");
+            entity.Property(e => e.FileName)
+                .HasMaxLength(255)
+                .HasColumnName("file_name");
+            entity.Property(e => e.FileSize).HasColumnName("file_size");
+            entity.Property(e => e.UploadedAt).HasColumnName("uploaded_at");
+            entity.Property(e => e.UploadedByUserId).HasColumnName("uploaded_by_user_id");
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasColumnName("status");
+            entity.Property(e => e.ReviewComment)
+                .HasMaxLength(1000)
+                .HasColumnName("review_comment");
+            entity.Property(e => e.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(e => e.ReviewedByUserId).HasColumnName("reviewed_by_user_id");
+
+            entity.HasOne(d => d.Faculty).WithMany()
+                .HasForeignKey(d => d.FacultyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("schedule_documents_faculty_fk");
+
+            entity.HasOne(d => d.Semester).WithMany()
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("schedule_documents_semester_fk");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.UploadedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("schedule_documents_uploaded_by_fk");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("schedule_documents_reviewed_by_fk");
+        });
+
+        modelBuilder.Entity<Order>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("orders");
+
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.Number)
+                .HasMaxLength(50)
+                .HasColumnName("number");
+            entity.Property(e => e.Name)
+                .HasMaxLength(255)
+                .HasColumnName("name");
+            entity.Property(e => e.OrderDate).HasColumnName("order_date");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+            entity.Property(e => e.GroupId).HasColumnName("group_id");
+            entity.Property(e => e.EducationControlDepartmentHead)
+                .HasMaxLength(200)
+                .HasColumnName("education_control_department_head");
+            entity.Property(e => e.EducationalMethodicalCenterHead)
+                .HasMaxLength(200)
+                .HasColumnName("educational_methodical_center_head");
+            entity.Property(e => e.InspectionSummaryDeadline).HasColumnName("inspection_summary_deadline");
+            entity.Property(e => e.SurveySummaryDeadline).HasColumnName("survey_summary_deadline");
+            entity.Property(e => e.PaperReportDeadline).HasColumnName("paper_report_deadline");
+            entity.Property(e => e.ElectronicReportDeadline).HasColumnName("electronic_report_deadline");
+            entity.Property(e => e.TestingStartDate).HasColumnName("testing_start_date");
+            entity.Property(e => e.TestingEndDate).HasColumnName("testing_end_date");
+            entity.Property(e => e.SurveyStartDate).HasColumnName("survey_start_date");
+            entity.Property(e => e.SurveyEndDate).HasColumnName("survey_end_date");
+            entity.Property(e => e.PreparationStartDate).HasColumnName("preparation_start_date");
+            entity.Property(e => e.PreparationEndDate).HasColumnName("preparation_end_date");
+            entity.Property(e => e.ResultsProcessingStartDate).HasColumnName("results_processing_start_date");
+            entity.Property(e => e.FileKey)
+                .HasMaxLength(255)
+                .HasColumnName("file_key");
+            entity.Property(e => e.FileSize).HasColumnName("file_size");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+
+            entity.HasOne(d => d.Semester).WithMany()
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("orders_semester_fk");
+
+            entity.HasOne(d => d.Group).WithMany()
+                .HasForeignKey(d => d.GroupId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("orders_group_fk");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("orders_created_by_fk");
+        });
+
         modelBuilder.Entity<Semester>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -376,6 +511,23 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.ScheduledTime)
                 .HasColumnType("time")
                 .HasColumnName("scheduled_time");
+            entity.Property(e => e.ScheduledPair).HasColumnName("scheduled_pair");
+            entity.Property(e => e.SelectionPeriodStart)
+                .HasColumnType("date")
+                .HasColumnName("selection_period_start");
+            entity.Property(e => e.SelectionPeriodEnd)
+                .HasColumnType("date")
+                .HasColumnName("selection_period_end");
+            entity.Property(e => e.ExternalRequestSentAt)
+                .HasColumnType("datetime(6)")
+                .HasColumnName("external_request_sent_at");
+            entity.Property(e => e.Room)
+                .HasMaxLength(255)
+                .HasColumnName("room");
+            entity.Property(e => e.LmsUrl)
+                .HasMaxLength(2048)
+                .HasColumnName("lms_url");
+            entity.Property(e => e.IsInPerson).HasColumnName("is_in_person");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasColumnName("status");
@@ -399,6 +551,52 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_4");
+        });
+
+        modelBuilder.Entity<TestingTeacherApproval>(entity =>
+        {
+            entity.HasKey(e => new { e.TestingId, e.TeacherId }).HasName("PRIMARY");
+            entity.ToTable("testing_teacher_approval");
+            entity.HasIndex(e => e.TeacherId, "teacher_id");
+            entity.Property(e => e.TestingId).HasColumnName("testing_id");
+            entity.Property(e => e.TeacherId).HasColumnName("teacher_id");
+            entity.Property(e => e.Status).HasMaxLength(20).HasColumnName("status");
+            entity.Property(e => e.Comment).HasMaxLength(1000).HasColumnName("comment");
+            entity.Property(e => e.RespondedAt).HasColumnName("responded_at");
+            entity.HasOne<Testing>().WithMany()
+                .HasForeignKey(e => e.TestingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(e => e.TeacherId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WorkflowNotification>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("workflow_notifications");
+            entity.HasIndex(e => e.RecipientUserId, "recipient_user_id");
+            entity.HasIndex(e => e.RecipientDepartmentId, "recipient_department_id");
+            entity.HasIndex(e => new { e.RecipientUserId, e.ReadAt, e.CreatedAt }, "ix_workflow_notifications_user_read_created");
+            entity.HasIndex(e => new { e.RecipientDepartmentId, e.ReadAt, e.CreatedAt }, "ix_workflow_notifications_department_read_created");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.RecipientUserId).HasColumnName("recipient_user_id");
+            entity.Property(e => e.RecipientDepartmentId).HasColumnName("recipient_department_id");
+            entity.Property(e => e.TestingId).HasColumnName("testing_id");
+            entity.Property(e => e.Type).HasMaxLength(50).HasColumnName("type");
+            entity.Property(e => e.Title).HasMaxLength(200).HasColumnName("title");
+            entity.Property(e => e.Message).HasMaxLength(1000).HasColumnName("message");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.ReadAt).HasColumnName("read_at");
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(e => e.RecipientUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Department>().WithMany()
+                .HasForeignKey(e => e.RecipientDepartmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Testing>().WithMany()
+                .HasForeignKey(e => e.TestingId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<User>(entity =>

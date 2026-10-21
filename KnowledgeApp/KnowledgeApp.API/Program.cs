@@ -6,6 +6,8 @@ using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Repositories;
 using KnowledgeApp.API.Authentication;
 using Microsoft.AspNetCore.Authentication;
+using KnowledgeApp.Infrastructure.Storage;
+using KnowledgeApp.API.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
@@ -119,6 +121,10 @@ services.AddScoped<DepartmentRepository>();
 services.AddScoped<UserService>();
 services.AddScoped<UserRepository>();
 services.AddScoped<TestingService>();
+services.AddScoped<TestingAssignmentService>();
+services.AddScoped<TeacherWorkflowService>();
+services.AddScoped<GroupReportService>();
+services.AddScoped<IDocxGeneratorService, DocxGeneratorService>();
 services.AddScoped<TestingRepository>();
 services.AddScoped<DisciplineRepository>();
 services.AddScoped<DisciplineService>();
@@ -142,14 +148,37 @@ services.AddScoped<EmployeeRightsRequestRepository>();
 services.AddScoped<EmployeeRightsRequestService>();
 services.AddScoped<RecommendationHistoryRepository>();
 services.AddScoped<RecommendationHistoryService>();
+services.AddScoped<GroupDisciplineRepository>();
+services.AddScoped<GroupDisciplineService>();
+
+services.AddSingleton(S3StorageOptions.FromEnvironment());
+services.AddSingleton<IFileStorage, S3FileStorage>();
+services.AddScoped<ReportDocumentRepository>();
+services.AddScoped<ReportDocumentService>();
+services.AddScoped<ScheduleDocumentRepository>();
+services.AddScoped<ScheduleDocumentService>();
+services.AddScoped<OrderRepository>();
+services.AddScoped<OrderService>();
+services.AddSingleton<OrderPdfGenerator>();
+services.AddScoped<ICurrentUserProvider, TestCurrentUserProvider>();
 
 // Регистрация PDF сервиса
 services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 
 var app = builder.Build();
 
-// Миграции базы данных
-try
+var skipDatabaseMigrationsValue = Environment.GetEnvironmentVariable("SKIP_DATABASE_MIGRATIONS");
+if (!string.IsNullOrWhiteSpace(skipDatabaseMigrationsValue) &&
+    !bool.TryParse(skipDatabaseMigrationsValue, out _))
+{
+    throw new InvalidOperationException("SKIP_DATABASE_MIGRATIONS must be either 'true' or 'false'.");
+}
+
+if (bool.TryParse(skipDatabaseMigrationsValue, out var skipDatabaseMigrations) && skipDatabaseMigrations)
+{
+    app.Logger.LogWarning("Database migrations were skipped because SKIP_DATABASE_MIGRATIONS is enabled.");
+}
+else
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<KnowledgeTestDbContext>();

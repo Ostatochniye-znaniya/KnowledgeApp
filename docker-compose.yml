@@ -1,3 +1,5 @@
+name: knowledgeapp-prod
+
 services:
   db:
     container_name: mysql-db-dev
@@ -22,6 +24,24 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  minio:
+    container_name: minio
+    # minio/minio убрали с Docker Hub, это сборка того же MinIO
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}"
+      MINIO_ROOT_PASSWORD: "${S3_SECRET_KEY:?S3_SECRET_KEY is required}"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
   api:
     container_name: knowledgeapp-api-dev
     build:
@@ -34,6 +54,8 @@ services:
         condition: service_healthy
     env_file:
       - .env
+      minio:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: "http://+:8080"
@@ -42,12 +64,21 @@ services:
       MOCK_AUTH_ENABLED: "${MOCK_AUTH_ENABLED:-true}"
       MOCK_AUTH_DEFAULT_ROLE: "${MOCK_AUTH_DEFAULT_ROLE:-Admin}"
       MOCK_AUTH_HEADER_NAME: "${MOCK_AUTH_HEADER_NAME:-X-Mock-Role}"
+      S3_ENDPOINT: "http://minio:9000"
+      S3_ACCESS_KEY: "${S3_ACCESS_KEY}"
+      S3_SECRET_KEY: "${S3_SECRET_KEY}"
+      S3_BUCKET: "${S3_BUCKET:-knowledgeapp-documents}"
+      MAX_UPLOAD_SIZE_MB: "${MAX_UPLOAD_SIZE_MB:-20}"
+      TEST_FACULTY_ID: "${TEST_FACULTY_ID:-1}"
+      TEST_DEPARTMENT_ID: "${TEST_DEPARTMENT_ID:-4}"
+      TEST_USER_ID: "${TEST_USER_ID:-}"
     restart: always
     networks:
       - app-network
 volumes:
   db_data:
+  minio_data:
 networks:
   app-network:
-    name: app-network
+    name: ${NETWORK_NAME:-app-network-prod}
     external: true

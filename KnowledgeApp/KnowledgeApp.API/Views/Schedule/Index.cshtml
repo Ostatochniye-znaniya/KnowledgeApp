@@ -327,10 +327,11 @@
                                 <th>Группа</th>
                                 <th>Профиль подготовки</th>
                                 <th>Дисциплина</th>
+                                <th>Институт / школа</th>
                                 <th>Кафедра</th>
                                 <th>Преподаватель</th>
-                                <th>Дата проведения</th>
-                                <th>Время проведения</th>
+                                <th>Дата и время</th>
+                                <th>Аудитория</th>
                             </tr>
                         </thead>
                         <tbody id="scheduleBody">
@@ -548,7 +549,7 @@
                         const facultyRow = scheduleBody.insertRow();
                         facultyRow.className = 'faculty-header';
                         const cell = facultyRow.insertCell(0);
-                        cell.colSpan = 8;
+                        cell.colSpan = 9;
                         cell.innerHTML = `🏛️ ${rows[i].facultyName}`;
                         cell.style.fontWeight = 'bold';
                         cell.style.fontSize = '16px';
@@ -605,8 +606,9 @@
                         }
 
                         row.insertCell(k > 0 ? 3 : 3).textContent = item.disciplineName || '-';
-                        row.insertCell(k > 0 ? 4 : 4).textContent = item.departmentName || '-';
-                        row.insertCell(k > 0 ? 5 : 5).textContent = item.teacherName || '-';
+                        row.insertCell(4).textContent = item.facultyName || '-';
+                        row.insertCell(5).textContent = item.departmentName || '-';
+                        row.insertCell(6).textContent = item.teacherName || '-';
 
                         const date = new Date(item.date);
                         const formattedDate = date.toLocaleDateString('ru-RU', {
@@ -614,8 +616,24 @@
                             month: '2-digit',
                             year: 'numeric'
                         });
-                        row.insertCell(k > 0 ? 6 : 6).textContent = formattedDate;
-                        row.insertCell(k > 0 ? 7 : 7).textContent = item.time || '-';
+                        row.insertCell(7).textContent = `${formattedDate} ${item.time || ''}`.trim();
+
+                        const locationCell = row.insertCell(8);
+                        if (item.room && item.room.trim()) {
+                            locationCell.textContent = item.room;
+                        } else {
+                            const lmsLink = getSafeHttpUrl(item.lmsUrl);
+                            if (lmsLink) {
+                                const link = document.createElement('a');
+                                link.href = lmsLink;
+                                link.textContent = 'LMS';
+                                link.target = '_blank';
+                                link.rel = 'noopener noreferrer';
+                                locationCell.appendChild(link);
+                            } else {
+                                locationCell.textContent = 'LMS';
+                            }
+                        }
 
                         // Скрываем лишние ячейки, если они были добавлены
                         if (k > 0) {
@@ -647,13 +665,23 @@
                 tableContainer.style.display = 'block';
             }
 
+        function getSafeHttpUrl(value) {
+            if (!value) return null;
+            try {
+                const url = new URL(value);
+                return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+            } catch {
+                return null;
+            }
+        }
+
         function showEmptyState() {
             const loading = document.getElementById('loading');
             const tableContainer = document.getElementById('tableContainer');
             const statsContainer = document.getElementById('statsContainer');
             const scheduleBody = document.getElementById('scheduleBody');
             
-            scheduleBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">📭 Нет запланированных тестирований</td></tr>';
+            scheduleBody.innerHTML = '<tr><td colspan="9" style="text-align: center;">📭 Нет запланированных тестирований</td></tr>';
             statsContainer.innerHTML = '';
             loading.style.display = 'none';
             tableContainer.style.display = 'block';

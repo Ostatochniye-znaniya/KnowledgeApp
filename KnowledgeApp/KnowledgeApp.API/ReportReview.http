@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:5134/csh/api
+@reportId = 1
+
+### List reports assigned to the current faculty
+GET {{baseUrl}}/DeanDocuments/GetReports
+
+### Get report filters
+GET {{baseUrl}}/DeanDocuments/GetReportFilters
+
+### Download the electronic report PDF
+GET {{baseUrl}}/DeanDocuments/DownloadReport/{{reportId}}
+
+### Approve an electronic report
+POST {{baseUrl}}/DeanDocuments/ApproveReport/{{reportId}}/approve
+
+### Return an electronic report for revision
+POST {{baseUrl}}/DeanDocuments/RejectReport/{{reportId}}/reject
+Content-Type: application/json
+
+{
+  "comment": "Проверьте заполнение итоговой таблицы."
+}
+
+### Mark the signed paper report as received
+PUT {{baseUrl}}/DeanDocuments/SetPaperDelivery/{{reportId}}/paper-delivery
+Content-Type: application/json
+
+{
+  "submitted": true
+}

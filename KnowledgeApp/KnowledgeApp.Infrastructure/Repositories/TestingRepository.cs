@@ -36,6 +36,9 @@ public class TestingRepository
             DisciplineId = model.DisciplineId,
             ScheduledDate = model.ScheduledDate,
             ScheduledTime = model.ScheduledTime,
+            Room = model.Room,
+            LmsUrl = model.LmsUrl,
+            IsInPerson = model.IsInPerson,
             Status = model.Status,
             ResultOfTesting = model.ResultOfTesting,
             ReportId = model.ReportId,
@@ -55,10 +58,40 @@ public class TestingRepository
 
         ValidateModel(model);
 
+        var scheduleChanged = entity.ScheduledDate != model.ScheduledDate ||
+                              entity.ScheduledTime != model.ScheduledTime;
+        if (scheduleChanged)
+        {
+            var approvals = await _context.TestingTeacherApprovals
+                .Where(a => a.TestingId == model.Id)
+                .ToListAsync();
+            foreach (var approval in approvals)
+            {
+                approval.Status = "pending";
+                approval.Comment = null;
+                approval.RespondedAt = null;
+                _context.WorkflowNotifications.Add(new WorkflowNotification
+                {
+                    RecipientUserId = approval.TeacherId,
+                    TestingId = model.Id,
+                    Type = "testing_time_updated",
+                    Title = "Изменилось время проверки",
+                    Message = model.ScheduledDate.HasValue && model.ScheduledTime.HasValue
+                        ? $"Предложено время: {model.ScheduledDate.Value:dd.MM.yyyy} в {model.ScheduledTime.Value:hh\\:mm}. Подтвердите/отклоните или выберите удобную пару в заданном периоде."
+                        : "Время проверки изменено. Выберите удобную пару в заданном периоде.",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            entity.ScheduledPair = null;
+        }
+
         entity.GroupId = model.GroupId;
         entity.DisciplineId = model.DisciplineId;
         entity.ScheduledDate = model.ScheduledDate;
         entity.ScheduledTime = model.ScheduledTime;
+        entity.Room = model.Room;
+        entity.LmsUrl = model.LmsUrl;
+        entity.IsInPerson = model.IsInPerson;
         entity.Status = model.Status;
         entity.ResultOfTesting = model.ResultOfTesting;
         entity.ReportId = model.ReportId;
@@ -66,6 +99,24 @@ public class TestingRepository
 
         await _context.SaveChangesAsync();
 
+        return ToModel(entity);
+    }
+
+    public async Task<TestingModel?> UpdateDelivery(
+        int id,
+        bool isInPerson,
+        string? room,
+        string? lmsUrl,
+        CancellationToken cancellationToken)
+    {
+        var entity = await _context.Testings.FindAsync([id], cancellationToken);
+        if (entity == null)
+            return null;
+
+        entity.IsInPerson = isInPerson;
+        entity.Room = room;
+        entity.LmsUrl = lmsUrl;
+        await _context.SaveChangesAsync(cancellationToken);
         return ToModel(entity);
     }
 
@@ -149,7 +200,10 @@ public class TestingRepository
             entity.Status,
             entity.ResultOfTesting,
             entity.ReportId,
-            entity.SemesterId
+            entity.SemesterId,
+            entity.Room,
+            entity.LmsUrl,
+            entity.IsInPerson ?? !string.IsNullOrWhiteSpace(entity.Room)
         );
     }
 }

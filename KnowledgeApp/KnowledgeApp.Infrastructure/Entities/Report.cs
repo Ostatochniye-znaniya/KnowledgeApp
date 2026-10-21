@@ -1,4 +1,6 @@
-﻿namespace KnowledgeApp.Infrastructure.Entities;
+﻿using KnowledgeApp.Domain.Enums;
+
+namespace KnowledgeApp.Infrastructure.Entities;
 
 public partial class Report
 {
@@ -19,6 +21,18 @@ public partial class Report
     public bool? DoneInElectronicForm { get; set; }
 
     public bool? AllDone { get; set; }
+
+    public string? FileName { get; set; }
+
+    public DateTime? UploadedAt { get; set; }
+
+    public DocumentStatus? Status { get; set; }
+
+    public string? ReviewComment { get; set; }
+
+    public DateTime? ReviewedAt { get; set; }
+
+    public int? ReviewedByUserId { get; set; }
 
     public virtual Discipline? Discipline { get; set; }
 
