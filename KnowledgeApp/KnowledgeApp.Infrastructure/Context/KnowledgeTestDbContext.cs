@@ -1,4 +1,4 @@
-﻿using KnowledgeApp.Infrastructure.Entities;
+using KnowledgeApp.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeApp.Infrastructure.Context;
@@ -612,6 +612,9 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.HasIndex(e => e.StatusId, "status_id");
 
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.ExternalId)
+                .HasMaxLength(255)
+                .HasColumnName("external_id");
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
