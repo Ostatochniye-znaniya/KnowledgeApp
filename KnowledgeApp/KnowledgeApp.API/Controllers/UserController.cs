@@ -8,16 +8,38 @@ namespace KnowledgeApp.API.Controllers;
 public class UserController : BaseController
 {
     private readonly UserService _userService;
+    private readonly KnowledgeApp.Application.Services.MockAuth.IMockAuthService _mockAuthService;
 
-    public UserController(UserService userService)
+    public UserController(UserService userService, KnowledgeApp.Application.Services.MockAuth.IMockAuthService mockAuthService)
     {
         _userService = userService;
+        _mockAuthService = mockAuthService;
     }
 
     //TestAuth
     [HttpGet("current")]
-    public IActionResult GetCurrentUserDataTest()
+    public IActionResult GetCurrentUserDataTest([FromQuery] string? role = null)
     {
+        if (_mockAuthService.IsEnabled)
+        {
+            var headerRole = Request.Headers[_mockAuthService.HeaderName].ToString();
+            var targetRole = !string.IsNullOrWhiteSpace(role) ? role : (!string.IsNullOrWhiteSpace(headerRole) ? headerRole : null);
+            var mockUser = _mockAuthService.GetMockUser(targetRole) ?? _mockAuthService.GetMockUser(_mockAuthService.DefaultRole);
+            if (mockUser != null)
+            {
+                return Ok(new
+                {
+                    UserName = mockUser.FullName,
+                    Role = mockUser.SystemRoleName,
+                    RoleRu = mockUser.Role,
+                    RoleSlug = mockUser.RoleSlug,
+                    DepartmentId = mockUser.DepartmentId,
+                    FacultyId = mockUser.FacultyId,
+                    Email = mockUser.Email
+                });
+            }
+        }
+
         return Ok(new
         {
             UserName = "TestUser",

@@ -2,6 +2,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using KnowledgeApp.Application.DTOs.MockAuth;
+using KnowledgeApp.Application.Services.MockAuth;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Entities;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +19,7 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
     private readonly KnowledgeTestDbContext _context;
+    private readonly IMockAuthService _mockAuthService;
 
     private readonly string _adminApiBase;
 
@@ -24,12 +27,14 @@ public class AuthController : ControllerBase
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         ILogger<AuthController> logger,
-        KnowledgeTestDbContext context)
+        KnowledgeTestDbContext context,
+        IMockAuthService mockAuthService)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
         _context = context;
+        _mockAuthService = mockAuthService;
 
         _adminApiBase = Environment.GetEnvironmentVariable("ADMIN_API_BASE_URL")
                         ?? _configuration["Auth:AdminApiBaseUrl"]
@@ -39,6 +44,18 @@ public class AuthController : ControllerBase
     [HttpPost("callback")]
     public async Task<IActionResult> Callback([FromBody] AuthCallbackRequest request)
     {
+        // 1. Поддержка MOCK режима
+        if (_mockAuthService.IsEnabled)
+        {
+            var mockUser = ResolveCurrentMockUser();
+            if (mockUser != null)
+            {
+                SetAuthCookies(mockUser);
+                return Ok(new { ok = true, user_id = mockUser.Id.ToString() });
+            }
+        }
+
+        // 2. Реальная авторизация через Admin API
         if (string.IsNullOrWhiteSpace(request.Access) || string.IsNullOrWhiteSpace(request.Refresh))
         {
             return BadRequest(new { detail = "Missing tokens" });
@@ -107,8 +124,48 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
-    public async Task<IActionResult> Me()
+
+    public async Task<IActionResult> Me([FromQuery] string? role = null)
     {
+        // 1. Поддержка MOCK режима
+        if (_mockAuthService.IsEnabled)
+        {
+            var mockUser = ResolveCurrentMockUser(role);
+            if (mockUser == null)
+            {
+                return Unauthorized(new { detail = "MOCK пользователь не найден" });
+            }
+
+            // Синхронизируем cookie для веб-интерфейса
+            SetAuthCookies(mockUser);
+
+            return Ok(new
+            {
+                id = mockUser.Id.ToString(),
+                external_id = mockUser.ExternalId,
+                name = mockUser.FirstName,
+                full_name = mockUser.FullName,
+                first_name = mockUser.FirstName,
+                last_name = mockUser.LastName,
+                surname = mockUser.Surname,
+                patronymic = mockUser.Patronymic,
+                email = mockUser.Email,
+                mail_box = mockUser.Email,
+                role = mockUser.Role,
+                roleSlug = mockUser.RoleSlug,
+                roles = mockUser.Roles,
+                status_id = mockUser.StatusId,
+                status = mockUser.Status,
+                faculty_id = mockUser.FacultyId,
+                faculty = mockUser.Faculty,
+                department_code = mockUser.DepartmentCode,
+                study_group = mockUser.StudyGroup,
+                access_token = $"mock-access-token-{mockUser.RoleSlug}",
+                refresh_token = $"mock-refresh-token-{mockUser.RoleSlug}"
+            });
+        }
+
+        // 2. Реальная авторизация
         var access = GetTokenFromRequest();
 
         if (string.IsNullOrWhiteSpace(access))
@@ -118,7 +175,7 @@ public class AuthController : ControllerBase
 
         var (userId, _) = DecodeJwt(access);
 
-        // 1. Ищем пользователя в нашей БД по external_id
+        // Ищем пользователя в нашей БД по external_id
         var dbUser = await _context.Users
             .Include(u => u.Status)
             .Include(u => u.Faculty)
@@ -127,12 +184,11 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(u =>
                 !string.IsNullOrEmpty(userId) && userId != "unknown" && u.ExternalId == userId);
 
-        // 2. Если в БД пользователь еще не привязан к external_id, верифицируем токен и синхронизируем
+        // Если в БД пользователь еще не привязан к external_id, верифицируем токен и синхронизируем
         if (dbUser == null)
         {
             var profile = await FetchAdminUserProfile(access);
 
-            // Если внешний API отклонил токен, пробуем сделать refresh
             if (profile == null)
             {
                 _logger.LogInformation("Profile fetch failed with current token, attempting refresh");
@@ -174,7 +230,6 @@ public class AuthController : ControllerBase
                 userId = profile.Id;
             }
 
-            // Ищем пользователя в нашей БД по email
             if (!string.IsNullOrEmpty(profile.Email))
             {
                 dbUser = await _context.Users
@@ -185,7 +240,6 @@ public class AuthController : ControllerBase
                     .FirstOrDefaultAsync(u => u.Email == profile.Email || (!string.IsNullOrEmpty(u.ExternalId) && u.ExternalId == userId));
             }
 
-            // Если пользователя еще нет в нашей БД — создаем
             if (dbUser == null && !string.IsNullOrEmpty(profile.Email))
             {
                 var fullName = $"{profile.Surname} {profile.Name} {profile.Patronymic}".Trim();
@@ -203,7 +257,6 @@ public class AuthController : ControllerBase
             }
             else if (dbUser != null)
             {
-                // Привязываем external_id к существующему пользователю
                 if (string.IsNullOrEmpty(dbUser.ExternalId) && !string.IsNullOrEmpty(userId) && userId != "unknown")
                 {
                     dbUser.ExternalId = userId;
@@ -218,7 +271,6 @@ public class AuthController : ControllerBase
             return Unauthorized(new { detail = "User not found in local database" });
         }
 
-        // Получение ролей из нашей БД
         var roles = dbUser.UserRoles
             .Where(ur => ur.Role != null && !string.IsNullOrEmpty(ur.Role.RoleName))
             .Select(ur => ur.Role!.RoleName)
@@ -229,13 +281,11 @@ public class AuthController : ControllerBase
             roles.Add("Гость");
         }
 
-        // Разбор ФИО из нашей БД
         var nameParts = (dbUser.Name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
         string lastName = nameParts.Length > 0 ? nameParts[0] : "";
         string firstName = nameParts.Length > 1 ? nameParts[1] : "";
         string patronymic = nameParts.Length > 2 ? nameParts[2] : "";
 
-        // Возвращаем данные о пользователе и токены из НАШЕЙ базы данных
         return Ok(new
         {
             id = dbUser.Id,
@@ -261,6 +311,19 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] AuthRefreshRequest? request)
     {
+        // 1. Поддержка MOCK режима
+        if (_mockAuthService.IsEnabled)
+        {
+            var mockUser = ResolveCurrentMockUser();
+            var roleSlug = mockUser?.RoleSlug ?? "admin";
+            return Ok(new
+            {
+                access_token = $"mock-access-token-{roleSlug}",
+                refresh_token = $"mock-refresh-token-{roleSlug}"
+            });
+        }
+
+        // 2. Реальный refresh
         var access = request?.AccessToken ?? GetTokenFromRequest();
         var refresh = request?.RefreshToken ?? GetRefreshTokenFromRequest();
         var userId = request?.UserId;
@@ -304,14 +367,172 @@ public class AuthController : ControllerBase
         ClearCookie("device_id");
         ClearCookie("is_authenticated");
         ClearCookie("user_data");
+        ClearCookie("mock_role");
 
-        // Очищаем все куки, которые браузер передал в текущем запросе
         foreach (var cookieKey in Request.Cookies.Keys)
         {
             ClearCookie(cookieKey);
         }
 
-        return Ok(new { ok = true });
+        return Ok(new { ok = true, message = "Успешный выход из системы" });
+    }
+
+    /// <summary>
+    /// Список всех доступных MOCK ролей в системе.
+    /// </summary>
+    [HttpGet("mock/roles")]
+    public IActionResult GetMockRoles()
+    {
+        var users = _mockAuthService.GetAllMockUsers();
+        var dtos = users.Select(u => new
+        {
+            id = u.Id,
+            role = u.Role,
+            role_slug = u.RoleSlug,
+            system_role_name = u.SystemRoleName,
+            name = u.FullName,
+            email = u.Email,
+            description = u.Description
+        }).ToList();
+
+        return Ok(dtos);
+    }
+
+    /// <summary>
+    /// Статус MOCK-авторизации: включена ли она, дефолтная роль, текущая активная роль.
+    /// </summary>
+    [HttpGet("mock/status")]
+    public IActionResult GetMockStatus()
+    {
+        var currentUser = ResolveCurrentMockUser();
+        var users = _mockAuthService.GetAllMockUsers();
+
+        return Ok(new
+        {
+            enabled = _mockAuthService.IsEnabled,
+            default_role = _mockAuthService.DefaultRole,
+            header_name = _mockAuthService.HeaderName,
+            current_active_role = currentUser?.RoleSlug,
+            available_roles = users.Select(u => new
+            {
+                id = u.Id,
+                role = u.Role,
+                role_slug = u.RoleSlug,
+                system_role_name = u.SystemRoleName,
+                name = u.FullName,
+                email = u.Email,
+                description = u.Description
+            }).ToList()
+        });
+    }
+
+    /// <summary>
+    /// Быстрое переключение MOCK роли через GET (?role=teacher) или POST.
+    /// </summary>
+    [HttpGet("mock/switch")]
+    [HttpPost("mock/switch")]
+    public IActionResult SwitchRole([FromQuery] string? role = null)
+    {
+        if (!_mockAuthService.IsEnabled)
+        {
+            return BadRequest(new { detail = "MOCK авторизация отключена в конфигурации .env" });
+        }
+
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return BadRequest(new { detail = "Укажите роль для переключения, например ?role=teacher" });
+        }
+
+        var mockUser = _mockAuthService.GetMockUser(role);
+        if (mockUser == null)
+        {
+            return NotFound(new { detail = $"Роль '{role}' не найдена среди доступных MOCK ролей" });
+        }
+
+        SetAuthCookies(mockUser);
+
+        return Ok(new
+        {
+            success = true,
+            message = $"Успешно переключено на роль: {mockUser.Role} ({mockUser.RoleSlug})",
+            active_role = mockUser.RoleSlug,
+            user = mockUser
+        });
+    }
+
+    private MockUserProfile? ResolveCurrentMockUser(string? explicitRole = null)
+    {
+        if (!_mockAuthService.IsEnabled) return null;
+
+        if (!string.IsNullOrWhiteSpace(explicitRole))
+        {
+            var user = _mockAuthService.GetMockUser(explicitRole);
+            if (user != null) return user;
+        }
+
+        if (Request.Headers.TryGetValue(_mockAuthService.HeaderName, out var headerRole) && !string.IsNullOrWhiteSpace(headerRole))
+        {
+            var user = _mockAuthService.GetMockUser(headerRole);
+            if (user != null) return user;
+        }
+
+        if (Request.Headers.TryGetValue("X-Role", out var xRole) && !string.IsNullOrWhiteSpace(xRole))
+        {
+            var user = _mockAuthService.GetMockUser(xRole);
+            if (user != null) return user;
+        }
+
+        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            var token = authHeader["Bearer ".Length..].Trim();
+            var user = _mockAuthService.GetMockUser(token);
+            if (user != null) return user;
+        }
+
+        if (Request.Cookies.TryGetValue("mock_role", out var cookieRole) && !string.IsNullOrWhiteSpace(cookieRole))
+        {
+            var user = _mockAuthService.GetMockUser(cookieRole);
+            if (user != null) return user;
+        }
+
+        return _mockAuthService.GetMockUser(_mockAuthService.DefaultRole);
+    }
+
+    private void SetAuthCookies(MockUserProfile user)
+    {
+        var cookieData = new
+        {
+            id = user.Id.ToString(),
+            external_id = user.ExternalId,
+            name = user.Name,
+            full_name = user.FullName,
+            first_name = user.FirstName,
+            last_name = user.LastName,
+            surname = user.Surname,
+            patronymic = user.Patronymic,
+            email = user.Email,
+            role = user.Role,
+            roleSlug = user.RoleSlug,
+            roles = user.Roles,
+            status_id = user.StatusId,
+            status = user.Status,
+            faculty_id = user.FacultyId,
+            faculty = user.Faculty
+        };
+
+        var json = JsonSerializer.Serialize(cookieData);
+        var cookieOptions = new CookieOptions
+        {
+            Path = "/",
+            HttpOnly = false,
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTimeOffset.UtcNow.AddDays(7)
+        };
+
+        Response.Cookies.Append("user_data", Uri.EscapeDataString(json), cookieOptions);
+        Response.Cookies.Append("is_authenticated", "true", cookieOptions);
+        Response.Cookies.Append("mock_role", user.RoleSlug, cookieOptions);
     }
 
     private string? GetTokenFromRequest()
@@ -354,7 +575,6 @@ public class AuthController : ControllerBase
 
     private void ClearCookie(string key)
     {
-        // 1. Удаление с флагом HttpOnly (для токенов бэкенда)
         Response.Cookies.Delete(key, new CookieOptions
         {
             HttpOnly = true,
@@ -363,7 +583,6 @@ public class AuthController : ControllerBase
             Path = "/"
         });
 
-        // 2. Удаление без флага HttpOnly (для клиентских кук)
         Response.Cookies.Delete(key, new CookieOptions
         {
             HttpOnly = false,
