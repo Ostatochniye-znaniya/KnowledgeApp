@@ -125,12 +125,12 @@ public class AuthController : ControllerBase
 
     [HttpGet("me")]
 
-    public async Task<IActionResult> Me([FromQuery] string? role = null)
+    public async Task<IActionResult> Me()
     {
         // 1. Поддержка MOCK режима
         if (_mockAuthService.IsEnabled)
         {
-            var mockUser = ResolveCurrentMockUser(role);
+            var mockUser = ResolveCurrentMockUser(null);
             if (mockUser == null)
             {
                 return Unauthorized(new { detail = "MOCK пользователь не найден" });
@@ -430,7 +430,7 @@ public class AuthController : ControllerBase
     /// Быстрое переключение MOCK роли через GET (?role=teacher) или POST.
     /// </summary>
     [HttpGet("mock/switch")]
-    [HttpPost("mock/switch")]
+
     public IActionResult SwitchRole([FromQuery] string? role = null)
     {
         if (!_mockAuthService.IsEnabled)

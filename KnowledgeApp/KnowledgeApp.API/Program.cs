@@ -105,51 +105,6 @@ services.AddEndpointsApiExplorer();
 services.AddSwaggerGen(c =>
 {
     c.AddServer(new OpenApiServer { Url = "/csh/api" });
-
-    // Определение безопасности для Swagger UI (передача роли через заголовок)
-    c.AddSecurityDefinition("MockRole", new OpenApiSecurityScheme
-    {
-        Name = mockHeaderName,
-        Type = SecuritySchemeType.ApiKey,
-        In = ParameterLocation.Header,
-        Description = $"MOCK авторизация: укажите роль (например: Admin, Teacher, Student, Hod, Lpr, Rod, DepartmentResponsible, Guest). Включено через .env: {isMockAuthEnabled}"
-    });
-
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Введите JWT токен или mock-токен (например: Bearer mock-admin)"
-    });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "MockRole"
-                }
-            },
-            Array.Empty<string>()
-        },
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
 });
 
 // Добавление поддержки MVC Views
