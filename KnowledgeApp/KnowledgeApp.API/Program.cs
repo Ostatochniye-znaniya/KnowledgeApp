@@ -166,7 +166,7 @@ services.AddScoped<ICurrentUserProvider, TestCurrentUserProvider>();
 services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 
 var app = builder.Build();
-
+try{
 var skipDatabaseMigrationsValue = Environment.GetEnvironmentVariable("SKIP_DATABASE_MIGRATIONS");
 if (!string.IsNullOrWhiteSpace(skipDatabaseMigrationsValue) &&
     !bool.TryParse(skipDatabaseMigrationsValue, out _))
@@ -183,7 +183,7 @@ else
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<KnowledgeTestDbContext>();
     dbContext.Database.Migrate();
-}
+}}
 catch (Exception ex)
 {
     app.Logger.LogWarning(ex, "Не удалось применить миграции базы данных при запуске приложения.");

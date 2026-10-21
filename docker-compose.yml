@@ -52,10 +52,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - .env
       minio:
         condition: service_started
+    env_file:
+      - .env
+
+
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: "http://+:8080"
