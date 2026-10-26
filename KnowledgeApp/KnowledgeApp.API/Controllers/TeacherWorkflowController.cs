@@ -21,6 +21,13 @@ public sealed class TeacherWorkflowController : DocumentControllerBase
     public Task<IResult> GetTestings(CancellationToken cancellationToken) =>
         Execute(async () => Results.Json(await _teacherWorkflowService.GetTestings(cancellationToken)));
 
+    /// <summary>Возвращает сроки этапов последнего приказа для текущего преподавателя.</summary>
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IResult> GetStageDeadlines(CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(
+            await _teacherWorkflowService.GetStageDeadlines(cancellationToken)));
+
     /// <summary>Сохраняет формат проведения, аудиторию и ссылку LMS тестирования.</summary>
     [HttpPut("{id:int}/delivery")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -66,6 +73,19 @@ public sealed class TeacherWorkflowController : DocumentControllerBase
         [FromBody] ChooseTestingTimeRequest request,
         CancellationToken cancellationToken) =>
         Execute(async () => Results.Json(await _teacherWorkflowService.ChooseTestingTime(
+            id, request.Date, request.PairNumber, cancellationToken)));
+
+    /// <summary>Изменяет выбранные дату и пару тестирования в периоде, заданном заведующим кафедрой.</summary>
+    [HttpPut("{id:int}/change-time")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public Task<IResult> UpdateTestingTime(
+        int id,
+        [FromBody] ChooseTestingTimeRequest request,
+        CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _teacherWorkflowService.UpdateTestingTime(
             id, request.Date, request.PairNumber, cancellationToken)));
 
     /// <summary>Возвращает уведомления текущего преподавателя.</summary>

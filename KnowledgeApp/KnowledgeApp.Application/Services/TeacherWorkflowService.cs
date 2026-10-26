@@ -81,6 +81,32 @@ public sealed class TeacherWorkflowService
             .ToList();
     }
 
+    public async Task<TeacherStageDeadlinesDto?> GetStageDeadlines(
+        CancellationToken cancellationToken)
+    {
+        RequireTeacher();
+        return await _context.Orders
+            .AsNoTracking()
+            .OrderByDescending(order => order.OrderDate)
+            .ThenByDescending(order => order.Id)
+            .Select(order => new TeacherStageDeadlinesDto(
+                order.Id,
+                order.Number,
+                order.OrderDate,
+                order.PreparationStartDate,
+                order.PreparationEndDate,
+                order.TestingStartDate,
+                order.TestingEndDate,
+                order.SurveyStartDate,
+                order.SurveyEndDate,
+                order.ResultsProcessingStartDate,
+                order.InspectionSummaryDeadline,
+                order.SurveySummaryDeadline,
+                order.PaperReportDeadline,
+                order.ElectronicReportDeadline))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<TeacherTestingApprovalDto> UpdateTestingDelivery(
         int testingId,
         bool isInPerson,
@@ -113,10 +139,43 @@ public sealed class TeacherWorkflowService
         if (testing is null)
             throw new DocumentNotFoundException("Тестирование не найдено");
 
-        testing.IsInPerson = isInPerson;
-        testing.Room = normalizedRoom;
-        testing.LmsUrl = normalizedLmsUrl;
-        await _context.SaveChangesAsync(cancellationToken);
+        var deliveryChanged = testing.IsInPerson != isInPerson ||
+                              !string.Equals(testing.Room, normalizedRoom, StringComparison.Ordinal) ||
+                              !string.Equals(testing.LmsUrl, normalizedLmsUrl, StringComparison.Ordinal);
+        await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            if (testing.ScheduledDate.HasValue && testing.ScheduledTime.HasValue)
+            {
+                await EnsureLocationIsAvailable(
+                    testing,
+                    DateOnly.FromDateTime(testing.ScheduledDate.Value),
+                    TimeOnly.FromTimeSpan(testing.ScheduledTime.Value),
+                    isInPerson,
+                    normalizedRoom,
+                    normalizedLmsUrl,
+                    cancellationToken);
+            }
+
+            testing.IsInPerson = isInPerson;
+            testing.Room = normalizedRoom;
+            testing.LmsUrl = normalizedLmsUrl;
+
+            if (deliveryChanged &&
+                await _context.TestingTeacherApprovals.AnyAsync(
+                    a => a.TestingId == testingId && a.Status != PendingApproval,
+                    cancellationToken))
+            {
+                await ResetApprovalsAndNotify(
+                    testing,
+                    teacherId,
+                    "testing_delivery_changed",
+                    "Изменилось место проведения проверки",
+                    $"Изменён формат проведения тестирования №{testingId}. Проверьте аудиторию или ссылку и согласуйте назначение.",
+                    cancellationToken);
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
 
         return (await GetTestings(cancellationToken))
             .Single(t => t.TestingId == testingId);
@@ -165,13 +224,6 @@ public sealed class TeacherWorkflowService
             throw new DocumentConflictException("Ответ по этому тестированию уже отправлен.");
         if (!testing.SelectionPeriodStart.HasValue || !testing.SelectionPeriodEnd.HasValue)
             throw new DocumentValidationException("Для тестирования не задан период выбора времени.");
-        if ((testing.ScheduledDate.HasValue || testing.ScheduledTime.HasValue) &&
-            await _context.TestingTeacherApprovals.AnyAsync(
-                a => a.TestingId == testingId && a.Status == "approved",
-                cancellationToken))
-        {
-            throw new DocumentConflictException("Время уже выбрал преподаватель. Подтвердите его или отклоните.");
-        }
         if (selectedDate < DateOnly.FromDateTime(testing.SelectionPeriodStart.Value) ||
             selectedDate > DateOnly.FromDateTime(testing.SelectionPeriodEnd.Value))
         {
@@ -182,6 +234,9 @@ public sealed class TeacherWorkflowService
         var scheduledTime = pair.StartsAt.ToTimeSpan();
         var currentScheduledDate = testing.ScheduledDate;
         var currentScheduledTime = testing.ScheduledTime;
+        var scheduleChanged = currentScheduledDate != scheduledDate ||
+                              currentScheduledTime != scheduledTime ||
+                              testing.ScheduledPair != pairNumber;
         await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
         {
             await EnsureSlotIsAvailable(testing, selectedDate, pair.StartsAt, cancellationToken);
@@ -190,8 +245,10 @@ public sealed class TeacherWorkflowService
                 .Where(t => t.Id == testingId &&
                             t.ScheduledDate == currentScheduledDate &&
                             t.ScheduledTime == currentScheduledTime &&
-                            !_context.TestingTeacherApprovals.Any(a =>
-                                a.TestingId == t.Id && a.Status == "approved") &&
+                            _context.TestingTeacherApprovals.Any(a =>
+                                a.TestingId == t.Id &&
+                                a.TeacherId == teacherId &&
+                                a.Status == PendingApproval) &&
                             t.SelectionPeriodStart <= scheduledDate &&
                             t.SelectionPeriodEnd >= scheduledDate)
                 .ExecuteUpdateAsync(update => update
@@ -201,51 +258,97 @@ public sealed class TeacherWorkflowService
             if (changed == 0)
                 throw new DocumentConflictException("Время уже выбрал другой преподаватель.");
 
-            var respondedAt = DateTime.UtcNow;
-            var approvalUpdated = await _context.TestingTeacherApprovals
-                .Where(a => a.TestingId == testingId &&
-                            a.TeacherId == teacherId &&
-                            a.Status == PendingApproval)
-                .ExecuteUpdateAsync(update => update
-                    .SetProperty(a => a.Status, "approved")
-                    .SetProperty(a => a.Comment, (string?)null)
-                    .SetProperty(a => a.RespondedAt, respondedAt), cancellationToken);
-            if (approvalUpdated == 0)
-                throw new DocumentConflictException("Ответ по этому тестированию уже отправлен.");
+            if (scheduleChanged)
+            {
+                await ResetApprovalsAndNotify(
+                    testing,
+                    teacherId,
+                    "testing_time_selected",
+                    "Преподаватель выбрал время проверки",
+                    $"Выбрана {pairNumber}-я пара ({pair.StartsAt:HH:mm}–{pair.EndsAt:HH:mm}) на {selectedDate:dd.MM.yyyy}. Согласуйте назначение.",
+                    cancellationToken);
+            }
+            await _context.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
 
-            var otherTeacherIds = await _context.TestingTeacherApprovals
-                .Where(a => a.TestingId == testingId &&
-                            a.TeacherId != teacherId &&
-                            a.Status == PendingApproval)
-                .Select(a => a.TeacherId)
-                .ToListAsync(cancellationToken);
-            foreach (var otherTeacherId in otherTeacherIds)
-            {
-                _context.WorkflowNotifications.Add(new WorkflowNotification
-                {
-                    RecipientUserId = otherTeacherId,
-                    TestingId = testingId,
-                    Type = "testing_time_proposed",
-                    Title = "Преподаватель выбрал время проверки",
-                    Message = $"Выбрана {pairNumber}-я пара ({pair.StartsAt:HH:mm}–{pair.EndsAt:HH:mm}) на {selectedDate:dd.MM.yyyy}. Подтвердите или отклоните время.",
-                    CreatedAt = respondedAt
-                });
-            }
-            // уведомляем кафедру, которая назначала проверку (своя или кафедра дисциплины по заявке)
-            var departmentId = (await TestingManagingDepartment.LoadAsync(_context, testing.Id, cancellationToken))
-                ?.ManagingDepartmentId;
-            if (departmentId.HasValue)
-            {
-                _context.WorkflowNotifications.Add(new WorkflowNotification
-                {
-                    RecipientDepartmentId = departmentId.Value,
-                    TestingId = testingId,
-                    Type = "testing_time_selected",
-                    Title = "Выбрано время проверки",
-                    Message = $"Для тестирования №{testingId} выбрана {pairNumber}-я пара ({pair.StartsAt:HH:mm}–{pair.EndsAt:HH:mm}) на {selectedDate:dd.MM.yyyy}.",
-                    CreatedAt = respondedAt
-                });
-            }
+        return (await GetTestings(cancellationToken))
+            .Single(t => t.TestingId == testingId);
+    }
+
+    public async Task<TeacherTestingApprovalDto> UpdateTestingTime(
+        int testingId,
+        DateOnly selectedDate,
+        int pairNumber,
+        CancellationToken cancellationToken)
+    {
+        var pair = TestingPairSchedule.All.SingleOrDefault(slot => slot.PairNumber == pairNumber);
+        if (pair is null)
+            throw new DocumentValidationException("Указан несуществующий номер пары.");
+
+        var teacherId = RequireTeacher();
+        var testing = await _context.Testings
+            .SingleOrDefaultAsync(t => t.Id == testingId &&
+                _context.TestingTeacherApprovals.Any(a =>
+                    a.TestingId == t.Id && a.TeacherId == teacherId),
+                cancellationToken);
+        if (testing is null)
+            throw new DocumentNotFoundException("Назначенное тестирование не найдено");
+
+        var approval = await _context.TestingTeacherApprovals
+            .AsNoTracking()
+            .SingleAsync(a => a.TestingId == testingId && a.TeacherId == teacherId, cancellationToken);
+        if (!string.Equals(approval.Status, "approved", StringComparison.Ordinal))
+            throw new DocumentConflictException("Изменить время может только согласовавший назначение преподаватель.");
+        if (!testing.SelectionPeriodStart.HasValue || !testing.SelectionPeriodEnd.HasValue)
+            throw new DocumentValidationException("Для тестирования не задан период выбора времени.");
+        if (!testing.ScheduledDate.HasValue || !testing.ScheduledTime.HasValue)
+            throw new DocumentConflictException("Для тестирования ещё не выбрано время.");
+        if (selectedDate < DateOnly.FromDateTime(testing.SelectionPeriodStart.Value) ||
+            selectedDate > DateOnly.FromDateTime(testing.SelectionPeriodEnd.Value))
+        {
+            throw new DocumentValidationException("Выбранная дата должна входить в заданный период.");
+        }
+
+        var scheduledDate = selectedDate.ToDateTime(TimeOnly.MinValue);
+        var scheduledTime = pair.StartsAt.ToTimeSpan();
+        if (testing.ScheduledDate == scheduledDate &&
+            testing.ScheduledTime == scheduledTime &&
+            testing.ScheduledPair == pairNumber)
+        {
+            return (await GetTestings(cancellationToken))
+                .Single(t => t.TestingId == testingId);
+        }
+
+        var currentScheduledDate = testing.ScheduledDate;
+        var currentScheduledTime = testing.ScheduledTime;
+        await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            await EnsureSlotIsAvailable(testing, selectedDate, pair.StartsAt, cancellationToken);
+
+            var changed = await _context.Testings
+                .Where(t => t.Id == testingId &&
+                            t.ScheduledDate == currentScheduledDate &&
+                            t.ScheduledTime == currentScheduledTime &&
+                            t.SelectionPeriodStart <= scheduledDate &&
+                            t.SelectionPeriodEnd >= scheduledDate &&
+                            _context.TestingTeacherApprovals.Any(a =>
+                                a.TestingId == testingId &&
+                                a.TeacherId == teacherId &&
+                                a.Status == "approved"))
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(t => t.ScheduledDate, scheduledDate)
+                    .SetProperty(t => t.ScheduledTime, scheduledTime)
+                    .SetProperty(t => t.ScheduledPair, pairNumber), cancellationToken);
+            if (changed == 0)
+                throw new DocumentConflictException("Время уже изменилось. Обновите страницу и повторите действие.");
+
+            await ResetApprovalsAndNotify(
+                testing,
+                teacherId,
+                "testing_time_changed",
+                "Изменилось время проверки",
+                $"Выбрана {pairNumber}-я пара ({pair.StartsAt:HH:mm}–{pair.EndsAt:HH:mm}) на {selectedDate:dd.MM.yyyy}. Согласуйте назначение.",
+                cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }, cancellationToken);
 
@@ -305,6 +408,15 @@ public sealed class TeacherWorkflowService
         if (assignedTeacherIds.Count == 0)
             throw new DocumentAccessException("На тестирование не назначены преподаватели.");
 
+        await EnsureLocationIsAvailable(
+            currentTesting,
+            selectedDate,
+            selectedStart,
+            currentTesting.IsInPerson,
+            currentTesting.Room,
+            currentTesting.LmsUrl,
+            cancellationToken);
+
         var dayStart = selectedDate.ToDateTime(TimeOnly.MinValue);
         var dayEnd = dayStart.AddDays(1);
         var otherTestings = await _context.Testings
@@ -341,6 +453,100 @@ public sealed class TeacherWorkflowService
                            assignedTeacherIds.Contains(a.TeacherId), cancellationToken);
         if (hasTeacherConflict)
             throw new DocumentConflictException("У одного из назначенных преподавателей уже есть проверка в это время.");
+    }
+
+    private async Task EnsureLocationIsAvailable(
+        Testing currentTesting,
+        DateOnly selectedDate,
+        TimeOnly selectedStart,
+        bool? isInPerson,
+        string? room,
+        string? lmsUrl,
+        CancellationToken cancellationToken)
+    {
+        if (isInPerson is null)
+            return;
+
+        var dayStart = selectedDate.ToDateTime(TimeOnly.MinValue);
+        var dayEnd = dayStart.AddDays(1);
+        var otherTestings = await _context.Testings
+            .Where(t => t.Id != currentTesting.Id &&
+                        t.ScheduledDate >= dayStart &&
+                        t.ScheduledDate < dayEnd &&
+                        t.ScheduledTime.HasValue)
+            .Select(t => new { t.ScheduledTime, t.IsInPerson, t.Room, t.LmsUrl })
+            .ToListAsync(cancellationToken);
+
+        foreach (var other in otherTestings)
+        {
+            var otherStart = TimeOnly.FromTimeSpan(other.ScheduledTime!.Value);
+            if (!TestingPairSchedule.Overlaps(selectedStart, otherStart))
+                continue;
+
+            if (isInPerson.Value && other.IsInPerson == true &&
+                !string.IsNullOrWhiteSpace(room) &&
+                string.Equals(room.Trim(), other.Room?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                throw new DocumentConflictException(
+                    $"Аудитория «{room.Trim()}» уже занята в это время.");
+            }
+
+            if (!isInPerson.Value && other.IsInPerson == false &&
+                !string.IsNullOrWhiteSpace(lmsUrl) &&
+                string.Equals(lmsUrl.Trim(), other.LmsUrl?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                throw new DocumentConflictException("Эта ссылка LMS уже используется в это время.");
+            }
+        }
+    }
+
+    private async Task ResetApprovalsAndNotify(
+        Testing testing,
+        int initiatingTeacherId,
+        string notificationType,
+        string notificationTitle,
+        string notificationMessage,
+        CancellationToken cancellationToken)
+    {
+        var teacherIds = await _context.TestingTeacherApprovals
+            .Where(a => a.TestingId == testing.Id)
+            .Select(a => a.TeacherId)
+            .ToListAsync(cancellationToken);
+        await _context.TestingTeacherApprovals
+            .Where(a => a.TestingId == testing.Id)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(a => a.Status, PendingApproval)
+                .SetProperty(a => a.Comment, (string?)null)
+                .SetProperty(a => a.RespondedAt, (DateTime?)null), cancellationToken);
+
+        var createdAt = DateTime.UtcNow;
+        foreach (var teacherId in teacherIds.Where(id => id != initiatingTeacherId))
+        {
+            _context.WorkflowNotifications.Add(new WorkflowNotification
+            {
+                RecipientUserId = teacherId,
+                TestingId = testing.Id,
+                Type = notificationType,
+                Title = notificationTitle,
+                Message = notificationMessage,
+                CreatedAt = createdAt
+            });
+        }
+
+        var departmentId = (await TestingManagingDepartment.LoadAsync(_context, testing.Id, cancellationToken))
+            ?.ManagingDepartmentId;
+        if (departmentId.HasValue)
+        {
+            _context.WorkflowNotifications.Add(new WorkflowNotification
+            {
+                RecipientDepartmentId = departmentId.Value,
+                TestingId = testing.Id,
+                Type = notificationType,
+                Title = notificationTitle,
+                Message = notificationMessage,
+                CreatedAt = createdAt
+            });
+        }
     }
 
     public async Task<IReadOnlyList<TeacherReportTaskDto>> GetReports(CancellationToken cancellationToken)
@@ -402,6 +608,12 @@ public sealed class TeacherWorkflowService
                     task.UploadedAt.HasValue
                         ? new DateTimeOffset(DateTime.SpecifyKind(task.UploadedAt.Value, DateTimeKind.Utc))
                         : null,
+                    DocumentStatusInfo.PaperCode(
+                        hasUploadedFile ? task.Status ?? DocumentStatus.Pending : null,
+                        task.DoneInPaperForm),
+                    DocumentStatusInfo.PaperLabel(
+                        hasUploadedFile ? task.Status ?? DocumentStatus.Pending : null,
+                        task.DoneInPaperForm),
                     task.DoneInPaperForm,
                     task.DoneInElectronicForm,
                     task.AllDone);
@@ -469,14 +681,28 @@ public sealed class TeacherWorkflowService
             throw new DocumentNotFoundException("Назначенное тестирование не найдено");
         if (status == "approved" && (!testing.ScheduledDate.HasValue || !testing.ScheduledTime.HasValue))
             throw new DocumentValidationException("Сначала выберите дату и время тестирования.");
+        if (status == "approved" &&
+            (testing.IsInPerson is null ||
+             (testing.IsInPerson.Value && string.IsNullOrWhiteSpace(testing.Room)) ||
+             (!testing.IsInPerson.Value && string.IsNullOrWhiteSpace(testing.LmsUrl))))
+        {
+            throw new DocumentValidationException("Сначала сохраните аудиторию или ссылку LMS для тестирования.");
+        }
         if (!string.Equals(assigned.Status, PendingApproval, StringComparison.Ordinal))
         {
             throw new DocumentConflictException("Ответ по этому тестированию уже отправлен.");
         }
 
         var respondedAt = DateTime.UtcNow;
-        await _context.InTransactionAsync(async () =>
+        await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
         {
+            if (status == "approved")
+            {
+                var selectedDate = DateOnly.FromDateTime(testing.ScheduledDate!.Value);
+                var selectedStart = TimeOnly.FromTimeSpan(testing.ScheduledTime!.Value);
+                await EnsureSlotIsAvailable(testing, selectedDate, selectedStart, cancellationToken);
+            }
+
             var updated = await _context.TestingTeacherApprovals
                 .Where(a => a.TestingId == testingId &&
                             a.TeacherId == teacherId &&

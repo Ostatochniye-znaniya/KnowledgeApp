@@ -101,7 +101,65 @@ public sealed class DocxGeneratorService : IDocxGeneratorService
         if (!File.Exists(templatePath))
             throw new FileNotFoundException("Не найден шаблон отчёта DOCX.", templatePath);
 
-        return File.ReadAllBytes(templatePath);
+        using var stream = new MemoryStream(File.ReadAllBytes(templatePath));
+        using (var document = WordprocessingDocument.Open(stream, true))
+        {
+            var body = document.MainDocumentPart?.Document.Body
+                ?? throw new InvalidDataException("В шаблоне отчёта отсутствует основное содержимое DOCX.");
+            var reportTable = body.Elements<Table>().FirstOrDefault()
+                ?? throw new InvalidDataException("В шаблоне отчёта отсутствует таблица данных.");
+            NormalizeHeaderLayout(reportTable);
+            document.MainDocumentPart!.Document.Save();
+        }
+
+        return stream.ToArray();
+    }
+
+    private static void NormalizeHeaderLayout(Table reportTable)
+    {
+        var rows = reportTable.Elements<TableRow>().Take(7).ToList();
+        if (rows.Count < 7)
+            throw new InvalidDataException("В шаблоне отчёта отсутствуют строки заголовка.");
+
+        for (var index = 0; index < 5; index++)
+        {
+            var cells = rows[index].Elements<TableCell>().ToList();
+            if (cells.Count != 2)
+                throw new InvalidDataException("Строка заголовка отчёта не соответствует шаблону.");
+
+            cells[0].Remove();
+            var fullWidthCell = rows[index].Elements<TableCell>().Single();
+            var properties = fullWidthCell.GetFirstChild<TableCellProperties>()
+                ?? fullWidthCell.PrependChild(new TableCellProperties());
+            var gridSpan = properties.GetFirstChild<GridSpan>();
+            if (gridSpan is null)
+                properties.Append(new GridSpan { Val = 4 });
+            else
+                gridSpan.Val = 4;
+        }
+
+        var numberCell = rows[5].Elements<TableCell>().FirstOrDefault()
+            ?? throw new InvalidDataException("В шаблоне отчёта отсутствует ячейка номера.");
+        var numberProperties = numberCell.GetFirstChild<TableCellProperties>()
+            ?? numberCell.PrependChild(new TableCellProperties());
+        numberProperties.GetFirstChild<VerticalMerge>()?.Remove();
+        var verticalAlignment = numberProperties.GetFirstChild<TableCellVerticalAlignment>();
+        if (verticalAlignment is null)
+            numberProperties.Append(new TableCellVerticalAlignment { Val = TableVerticalAlignmentValues.Bottom });
+        else
+            verticalAlignment.Val = TableVerticalAlignmentValues.Bottom;
+
+        foreach (var runProperties in numberCell.Descendants<RunProperties>())
+        {
+            runProperties.GetFirstChild<FontSize>()?.Remove();
+            runProperties.GetFirstChild<FontSizeComplexScript>()?.Remove();
+            runProperties.Append(new FontSize { Val = "16" });
+            runProperties.Append(new FontSizeComplexScript { Val = "16" });
+        }
+
+        var tableHeaderNumberCell = rows[6].Elements<TableCell>().FirstOrDefault();
+        tableHeaderNumberCell?.GetFirstChild<TableCellProperties>()?
+            .GetFirstChild<VerticalMerge>()?.Remove();
     }
 
     private static void SetCellText(TableCell cell, string text, bool italic = false)

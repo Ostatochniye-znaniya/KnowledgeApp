@@ -43,6 +43,15 @@ Content-Type: application/json
   "pairNumber": 1
 }
 
+### Change the selected date and pair within the assigned testing period
+PUT {{baseUrl}}/TeacherWorkflow/UpdateTestingTime/1/change-time
+Content-Type: application/json
+
+{
+  "date": "2026-11-03",
+  "pairNumber": 2
+}
+
 ### Get unread teacher workflow notifications
 GET {{baseUrl}}/TeacherWorkflow/GetNotifications?unreadOnly=true
 

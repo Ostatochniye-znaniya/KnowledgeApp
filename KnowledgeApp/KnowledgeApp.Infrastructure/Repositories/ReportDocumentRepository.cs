@@ -74,12 +74,8 @@ public class ReportDocumentRepository
                 .SetProperty(r => r.ReviewedAt, (DateTime?)null)
                 .SetProperty(r => r.ReviewedByUserId, (int?)null)
                 .SetProperty(r => r.DoneInElectronicForm, (bool?)true)
-                .SetProperty(r => r.AllDone,
-                    r => r.DoneInPaperForm == false
-                        ? false
-                        : r.DoneInPaperForm == true
-                            ? true
-                            : (bool?)null));
+                .SetProperty(r => r.DoneInPaperForm, (bool?)null)
+                .SetProperty(r => r.AllDone, (bool?)false));
 
         return affected > 0 ? (true, previousKey) : (false, null);
     }
@@ -102,7 +98,7 @@ public class ReportDocumentRepository
     public async Task<bool> SetPaperDelivery(int reportId, bool submitted, CancellationToken cancellationToken)
     {
         var affected = await _context.Reports
-            .Where(r => r.Id == reportId)
+            .Where(r => r.Id == reportId && r.Status == DocumentStatus.Signed)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(r => r.DoneInPaperForm, (bool?)submitted)
                 .SetProperty(r => r.AllDone,

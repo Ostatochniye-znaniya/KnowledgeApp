@@ -8,6 +8,22 @@ public static class DocumentStatusInfo
 {
     public static string Code(DocumentStatus status) => status.ToString().ToLowerInvariant();
 
+    public static string PaperCode(DocumentStatus? electronicStatus, bool? submitted) =>
+        electronicStatus != DocumentStatus.Signed
+            ? "not_required"
+            : submitted == true
+                ? "submitted"
+                : "pending";
+
+    public static string PaperLabel(DocumentStatus? electronicStatus, bool? submitted) =>
+        PaperCode(electronicStatus, submitted) switch
+        {
+            "not_required" => "Пока не требуется",
+            "pending" => "Ожидает сдачи",
+            "submitted" => "Сдан",
+            _ => throw new InvalidOperationException("Неизвестный статус бумажного отчёта.")
+        };
+
     public static string Label(DocumentStatus status, bool reportWorkflow = false)
     {
         if (reportWorkflow)

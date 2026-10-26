@@ -22,6 +22,8 @@ public class ReportDocumentDto
     public DateTime? UploadedAt { get; set; }
     public string? ReviewComment { get; set; }
     public DateTime? ReviewedAt { get; set; }
+    public string PaperStatus { get; set; } = string.Empty;
+    public string PaperStatusLabel { get; set; } = string.Empty;
     public bool? DoneInPaperForm { get; set; }
     public bool? DoneInElectronicForm { get; set; }
     public bool? AllDone { get; set; }
