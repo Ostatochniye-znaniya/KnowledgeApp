@@ -167,9 +167,13 @@ public class ReportDocumentService
         bool submitted,
         CancellationToken cancellationToken)
     {
-        await GetDeanReport(reportId);
+        var report = await GetDeanReport(reportId);
+        if (report.Status != DocumentStatus.Signed)
+            throw new DocumentConflictException(
+                "Статус бумажного отчёта можно менять только после принятия электронного отчёта.");
         if (!await _repository.SetPaperDelivery(reportId, submitted, cancellationToken))
-            throw new DocumentNotFoundException("Отчёт не найден");
+            throw new DocumentConflictException(
+                "Электронный отчёт изменился. Обновите страницу и повторите действие.");
 
         var updated = await _repository.GetById(reportId)
             ?? throw new DocumentNotFoundException("Отчёт не найден");
@@ -281,6 +285,8 @@ public class ReportDocumentService
             UploadedAt = DocumentStatusInfo.AsUtc(report.UploadedAt),
             ReviewComment = report.ReviewComment,
             ReviewedAt = DocumentStatusInfo.AsUtc(report.ReviewedAt),
+            PaperStatus = DocumentStatusInfo.PaperCode(status, report.DoneInPaperForm),
+            PaperStatusLabel = DocumentStatusInfo.PaperLabel(status, report.DoneInPaperForm),
             DoneInPaperForm = report.DoneInPaperForm,
             DoneInElectronicForm = report.DoneInElectronicForm,
             AllDone = report.AllDone

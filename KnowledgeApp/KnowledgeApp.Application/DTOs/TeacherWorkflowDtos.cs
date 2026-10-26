@@ -31,6 +31,25 @@ public sealed record TeacherReportTaskDto(
     string StatusLabel,
     string? ReviewComment,
     DateTimeOffset? UploadedAt,
+    string PaperStatus,
+    string PaperStatusLabel,
     bool? DoneInPaperForm,
     bool? DoneInElectronicForm,
     bool? AllDone);
+
+/// <summary>Deadlines for the latest testing order.</summary>
+public sealed record TeacherStageDeadlinesDto(
+    int OrderId,
+    string OrderNumber,
+    DateOnly OrderDate,
+    DateOnly PreparationStartDate,
+    DateOnly PreparationEndDate,
+    DateOnly TestingStartDate,
+    DateOnly TestingEndDate,
+    DateOnly SurveyStartDate,
+    DateOnly SurveyEndDate,
+    DateOnly ResultsProcessingStartDate,
+    DateOnly InspectionSummaryDeadline,
+    DateOnly SurveySummaryDeadline,
+    DateOnly PaperReportDeadline,
+    DateOnly ElectronicReportDeadline);

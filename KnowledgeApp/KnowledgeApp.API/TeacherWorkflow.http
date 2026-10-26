@@ -23,6 +23,18 @@ Content-Type: application/json
   "lmsUrl": "https://lms.mospolytech.ru/course/123"
 }
 
+### Check time and delivery availability before saving
+POST {{baseUrl}}/TeacherWorkflow/ValidateTestingSchedule/1/availability
+Content-Type: application/json
+
+{
+  "date": "2026-11-02",
+  "pairNumber": 1,
+  "isInPerson": true,
+  "room": "Аудитория 401",
+  "lmsUrl": null
+}
+
 ### Approve testing 1
 POST {{baseUrl}}/TeacherWorkflow/ApproveTesting/1/approve
 
@@ -41,6 +53,15 @@ Content-Type: application/json
 {
   "date": "2026-11-02",
   "pairNumber": 1
+}
+
+### Change the selected date and pair within the assigned testing period
+PUT {{baseUrl}}/TeacherWorkflow/UpdateTestingTime/1/change-time
+Content-Type: application/json
+
+{
+  "date": "2026-11-03",
+  "pairNumber": 2
 }
 
 ### Get unread teacher workflow notifications
