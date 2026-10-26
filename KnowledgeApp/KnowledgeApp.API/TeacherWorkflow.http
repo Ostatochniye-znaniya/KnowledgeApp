@@ -23,6 +23,18 @@ Content-Type: application/json
   "lmsUrl": "https://lms.mospolytech.ru/course/123"
 }
 
+### Check time and delivery availability before saving
+POST {{baseUrl}}/TeacherWorkflow/ValidateTestingSchedule/1/availability
+Content-Type: application/json
+
+{
+  "date": "2026-11-02",
+  "pairNumber": 1,
+  "isInPerson": true,
+  "room": "Аудитория 401",
+  "lmsUrl": null
+}
+
 ### Approve testing 1
 POST {{baseUrl}}/TeacherWorkflow/ApproveTesting/1/approve
 

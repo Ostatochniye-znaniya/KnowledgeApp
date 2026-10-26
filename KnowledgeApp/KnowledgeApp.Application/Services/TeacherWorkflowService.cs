@@ -115,19 +115,7 @@ public sealed class TeacherWorkflowService
         CancellationToken cancellationToken)
     {
         var teacherId = RequireTeacher();
-        var normalizedRoom = string.IsNullOrWhiteSpace(room) ? null : room.Trim();
-        var normalizedLmsUrl = string.IsNullOrWhiteSpace(lmsUrl) ? null : lmsUrl.Trim();
-
-        if (normalizedRoom?.Length > 255)
-            throw new DocumentValidationException("Аудитория длиннее 255 символов.");
-        if (normalizedLmsUrl?.Length > 2048)
-            throw new DocumentValidationException("Ссылка LMS длиннее 2048 символов.");
-        if (normalizedLmsUrl is not null &&
-            (!Uri.TryCreate(normalizedLmsUrl, UriKind.Absolute, out var uri) ||
-             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
-        {
-            throw new DocumentValidationException("Укажите корректную ссылку LMS с протоколом http или https.");
-        }
+        var (normalizedRoom, normalizedLmsUrl) = NormalizeDelivery(room, lmsUrl);
 
         var testing = await _context.Testings
             .SingleOrDefaultAsync(t => t.Id == testingId &&
@@ -183,6 +171,48 @@ public sealed class TeacherWorkflowService
 
     public async Task<TeacherTestingApprovalDto> ApproveTesting(int testingId, CancellationToken cancellationToken) =>
         await ReviewTesting(testingId, "approved", null, cancellationToken);
+
+    public async Task ValidateTestingSchedule(
+        int testingId,
+        DateOnly selectedDate,
+        int pairNumber,
+        bool isInPerson,
+        string? room,
+        string? lmsUrl,
+        CancellationToken cancellationToken)
+    {
+        var pair = TestingPairSchedule.All.SingleOrDefault(slot => slot.PairNumber == pairNumber);
+        if (pair is null)
+            throw new DocumentValidationException("Указан несуществующий номер пары.");
+
+        var teacherId = RequireTeacher();
+        var testing = await _context.Testings
+            .AsNoTracking()
+            .SingleOrDefaultAsync(t => t.Id == testingId &&
+                _context.TestingTeacherApprovals.Any(a =>
+                    a.TestingId == t.Id && a.TeacherId == teacherId),
+                cancellationToken);
+        if (testing is null)
+            throw new DocumentNotFoundException("Назначенное тестирование не найдено");
+        if (!testing.SelectionPeriodStart.HasValue || !testing.SelectionPeriodEnd.HasValue)
+            throw new DocumentValidationException("Для тестирования не задан период выбора времени.");
+        if (selectedDate < DateOnly.FromDateTime(testing.SelectionPeriodStart.Value) ||
+            selectedDate > DateOnly.FromDateTime(testing.SelectionPeriodEnd.Value))
+        {
+            throw new DocumentValidationException("Выбранная дата должна входить в заданный период.");
+        }
+
+        var (normalizedRoom, normalizedLmsUrl) = NormalizeDelivery(room, lmsUrl);
+        var candidate = new Testing
+        {
+            Id = testing.Id,
+            GroupId = testing.GroupId,
+            IsInPerson = isInPerson,
+            Room = normalizedRoom,
+            LmsUrl = normalizedLmsUrl
+        };
+        await EnsureSlotIsAvailable(candidate, selectedDate, pair.StartsAt, cancellationToken);
+    }
 
     public async Task<TeacherTestingApprovalDto> RejectTesting(
         int testingId,
@@ -547,6 +577,25 @@ public sealed class TeacherWorkflowService
                 CreatedAt = createdAt
             });
         }
+    }
+
+    private static (string? Room, string? LmsUrl) NormalizeDelivery(string? room, string? lmsUrl)
+    {
+        var normalizedRoom = string.IsNullOrWhiteSpace(room) ? null : room.Trim();
+        var normalizedLmsUrl = string.IsNullOrWhiteSpace(lmsUrl) ? null : lmsUrl.Trim();
+
+        if (normalizedRoom?.Length > 255)
+            throw new DocumentValidationException("Аудитория длиннее 255 символов.");
+        if (normalizedLmsUrl?.Length > 2048)
+            throw new DocumentValidationException("Ссылка LMS длиннее 2048 символов.");
+        if (normalizedLmsUrl is not null &&
+            (!Uri.TryCreate(normalizedLmsUrl, UriKind.Absolute, out var uri) ||
+             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
+        {
+            throw new DocumentValidationException("Укажите корректную ссылку LMS с протоколом http или https.");
+        }
+
+        return (normalizedRoom, normalizedLmsUrl);
     }
 
     public async Task<IReadOnlyList<TeacherReportTaskDto>> GetReports(CancellationToken cancellationToken)

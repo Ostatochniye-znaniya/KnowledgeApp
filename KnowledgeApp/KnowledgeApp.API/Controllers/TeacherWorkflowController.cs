@@ -40,6 +40,29 @@ public sealed class TeacherWorkflowController : DocumentControllerBase
         Execute(async () => Results.Json(await _teacherWorkflowService.UpdateTestingDelivery(
             id, request.IsInPerson, request.Room, request.LmsUrl, cancellationToken)));
 
+    /// <summary>Проверяет дату, время и место проведения до сохранения назначения.</summary>
+    [HttpPost("{id:int}/availability")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public Task<IResult> ValidateTestingSchedule(
+        int id,
+        [FromBody] ValidateTestingScheduleRequest request,
+        CancellationToken cancellationToken) =>
+        Execute(async () =>
+        {
+            await _teacherWorkflowService.ValidateTestingSchedule(
+                id,
+                request.Date,
+                request.PairNumber,
+                request.IsInPerson,
+                request.Room,
+                request.LmsUrl,
+                cancellationToken);
+            return Results.NoContent();
+        });
+
     /// <summary>Подтверждает назначенное тестирование.</summary>
     [HttpPost("{id:int}/approve")]
     [ProducesResponseType(StatusCodes.Status200OK)]
