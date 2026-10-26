@@ -12,7 +12,7 @@ public partial class KnowledgeTestDbContext : DbContext
     public KnowledgeTestDbContext(DbContextOptions<KnowledgeTestDbContext> options)
         : base(options)
     {
-        Database.EnsureCreated();
+        // Схему ведут миграции. EnsureCreated обходит их и ломает запуск на пустой БД.
     }
 
     public virtual DbSet<Department> Departments { get; set; }
@@ -32,6 +32,7 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<ScheduleDocument> ScheduleDocuments { get; set; }
 
     public virtual DbSet<Order> Orders { get; set; }
+    public virtual DbSet<OrderNumberSequence> OrderNumberSequences { get; set; }
 
     public virtual DbSet<Status> Statuses { get; set; }
 
@@ -58,7 +59,11 @@ public partial class KnowledgeTestDbContext : DbContext
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection") 
                             ?? "server=localhost;database=knowledge_test_db;user=root;password=admin";
 
-        optionsBuilder.UseMySql(connectionString, 
+        var mysqlConnection = new MySqlConnector.MySqlConnectionStringBuilder(connectionString)
+        {
+            AllowUserVariables = true // SQL-переходы со служебными переменными MySQL.
+        };
+        optionsBuilder.UseMySql(mysqlConnection.ConnectionString,
             new MySqlServerVersion(new Version(9, 1, 0)),
             mysqlOptions => mysqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,                 // количество попыток
@@ -68,6 +73,7 @@ public partial class KnowledgeTestDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        ConfigureTestingPlanning(modelBuilder);
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
@@ -338,20 +344,35 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasConstraintName("schedule_documents_reviewed_by_fk");
         });
 
+        modelBuilder.Entity<OrderNumberSequence>(entity =>
+        {
+            entity.ToTable("order_number_sequence");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(e => e.LastNumber).HasColumnName("last_number");
+            entity.HasData(new OrderNumberSequence { Id = 1, LastNumber = 0 });
+        });
+
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
-            entity.ToTable("orders");
+            entity.ToTable("orders", table => table.HasCheckConstraint(
+                "CK_orders_status", "`status` IN ('draft', 'issued')"));
 
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.Number)
                 .HasMaxLength(50)
                 .HasColumnName("number");
+            entity.HasIndex(e => e.Number).IsUnique();
+            entity.Property(e => e.CreationToken).HasColumnName("creation_token").HasMaxLength(32);
+            entity.HasIndex(e => e.CreationToken).IsUnique();
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
             entity.Property(e => e.OrderDate).HasColumnName("order_date");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(16)
+                .HasDefaultValue("issued").IsRequired();
             entity.Property(e => e.SemesterId).HasColumnName("semester_id");
             entity.Property(e => e.GroupId).HasColumnName("group_id");
             entity.Property(e => e.EducationControlDepartmentHead)
@@ -363,6 +384,7 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.InspectionSummaryDeadline).HasColumnName("inspection_summary_deadline");
             entity.Property(e => e.SurveySummaryDeadline).HasColumnName("survey_summary_deadline");
             entity.Property(e => e.PaperReportDeadline).HasColumnName("paper_report_deadline");
+            entity.Property(e => e.RequiresPaperReports).HasColumnName("requires_paper_reports").HasDefaultValue(true);
             entity.Property(e => e.ElectronicReportDeadline).HasColumnName("electronic_report_deadline");
             entity.Property(e => e.TestingStartDate).HasColumnName("testing_start_date");
             entity.Property(e => e.TestingEndDate).HasColumnName("testing_end_date");
@@ -371,6 +393,9 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.PreparationStartDate).HasColumnName("preparation_start_date");
             entity.Property(e => e.PreparationEndDate).HasColumnName("preparation_end_date");
             entity.Property(e => e.ResultsProcessingStartDate).HasColumnName("results_processing_start_date");
+            entity.Property(e => e.TestingStageStartDate).HasColumnName("testing_stage_start_date");
+            entity.Property(e => e.TestingStageEndDate).HasColumnName("testing_stage_end_date");
+            entity.Property(e => e.OnlineSeminarDate).HasColumnName("online_seminar_date");
             entity.Property(e => e.FileKey)
                 .HasMaxLength(255)
                 .HasColumnName("file_key");
@@ -547,7 +572,7 @@ public partial class KnowledgeTestDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_3");
             
-            entity.HasOne(d => d.Report).WithMany(p => p.Testings)
+            entity.HasOne<Semester>().WithMany()
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("testing_ibfk_4");

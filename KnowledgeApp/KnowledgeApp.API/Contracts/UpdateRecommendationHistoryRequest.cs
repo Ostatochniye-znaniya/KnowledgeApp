@@ -4,6 +4,9 @@ namespace KnowledgeApp.API.Contracts;
 
 public class UpdateRecommendationHistoryRequest
 {
+    [RegularExpression("^(automatic|manual)$")]
+    public string Author { get; set; } = "manual";
+    public int? RecommendedById { get; set; }
     [Required]
     public DateTime RecommendedAt { get; set; }
 

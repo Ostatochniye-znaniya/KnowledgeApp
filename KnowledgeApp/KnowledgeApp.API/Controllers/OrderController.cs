@@ -25,8 +25,16 @@ public class OrderController : DocumentControllerBase
         });
 
     [HttpGet("/getOrdersEssentials")]
-    public Task<IResult> GetOrdersEssentials() =>
-        Execute(async () => Results.Json(await _orderService.GetEssentials()));
+    public Task<IResult> GetOrdersEssentials([FromQuery] string? status) =>
+        Execute(async () => Results.Json(await _orderService.GetEssentials(status)));
+
+    [HttpGet("/getOrderDetails/{id:int}")]
+    public Task<IResult> GetOrderDetails(int id, CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _orderService.GetDetails(id, cancellationToken)));
+
+    [HttpPost("/signOrder/{id:int}")]
+    public Task<IResult> SignOrder(int id, CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _orderService.Sign(id, cancellationToken)));
 
     [HttpGet("/getOrder/{id}")]
     public Task<IResult> GetOrder(int id, CancellationToken cancellationToken) =>

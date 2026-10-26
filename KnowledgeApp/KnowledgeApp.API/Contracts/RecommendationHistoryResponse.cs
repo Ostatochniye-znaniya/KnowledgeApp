@@ -2,6 +2,8 @@
 
 public class RecommendationHistoryResponse
 {
+    public string Author { get; set; } = "manual";
+    public int? RecommendedById { get; set; }
     public int Id { get; set; }
     public DateTime RecommendedAt { get; set; }
     public string? RecommendedBy { get; set; } = string.Empty;
