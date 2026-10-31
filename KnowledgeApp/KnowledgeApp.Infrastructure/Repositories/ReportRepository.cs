@@ -24,13 +24,13 @@ public class ReportRepository
             DoneInPaperForm = reportModel.DoneInPaperForm,
             DoneInElectronicForm = reportModel.DoneInElectronicForm,
             ResultOfAttestation = reportModel.ResultOfAttestation,
-            AllDone = reportModel.AllDone
+            AllDone = ReportCompletion.Calculate(reportModel.DoneInPaperForm, reportModel.DoneInElectronicForm)
         };
 
         await _context.Reports.AddAsync(reportEntity);
         await _context.SaveChangesAsync();
 
-        ReportModel createdReport = new ReportModel(reportEntity.DisciplineId, reportEntity.TeacherId, reportEntity.FilePath, reportEntity.IsCorrect, reportEntity.ResultOfAttestation, reportEntity.DoneInPaperForm, reportEntity.DoneInElectronicForm, reportEntity.AllDone);
+        ReportModel createdReport = new ReportModel(reportEntity.Id, reportEntity.DisciplineId, reportEntity.TeacherId, reportEntity.FilePath, reportEntity.IsCorrect, reportEntity.ResultOfAttestation, reportEntity.DoneInPaperForm, reportEntity.DoneInElectronicForm, reportEntity.AllDone);
         return createdReport;
     }
     public async Task<List<ReportModel>> GetAllReports()
@@ -90,13 +90,15 @@ public class ReportRepository
         //if (teacher == null) throw new Exception("Преподавателя с таким id не существует");
 
         reportEntity.DisciplineId = reportModel.DisciplineId.GetValueOrDefault();
-        reportEntity.TeacherId = reportEntity.TeacherId;
+        reportEntity.TeacherId = reportModel.TeacherId;
         // file_path теперь пишет только ReportFile/Upload
         reportEntity.IsCorrect = reportModel.IsCorrect;
         reportEntity.ResultOfAttestation = reportModel.ResultOfAttestation;
         reportEntity.DoneInPaperForm = reportModel.DoneInPaperForm;
         reportEntity.DoneInElectronicForm = reportModel.DoneInElectronicForm;
-        reportEntity.AllDone = reportModel.AllDone;
+        reportEntity.AllDone = ReportCompletion.Calculate(
+            reportEntity.DoneInPaperForm,
+            reportEntity.DoneInElectronicForm);
 
         await _context.SaveChangesAsync();
         var report = new ReportModel(

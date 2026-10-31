@@ -3,6 +3,7 @@
 public class RecommendationHistoryModel
 {
     public int Id { get; set; }
+    public string Author { get; set; } = "manual";
     public DateTime RecommendedAt { get; set; }
     public string? RecommendedBy { get; set; }
     public int? RecommendedById { get; set; }

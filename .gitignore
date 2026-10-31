@@ -79,3 +79,5 @@ nunit-*.xml
 .vscode/
 *.swp
 *.swo.env
+Deploy/.env
+.env

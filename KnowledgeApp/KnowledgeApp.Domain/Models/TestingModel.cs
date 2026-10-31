@@ -9,6 +9,7 @@ public class TestingModel
     public TimeSpan? ScheduledTime { get; set; }
     public string? Room { get; set; }
     public string? LmsUrl { get; set; }
+    public bool? IsInPerson { get; set; }
     public string? Status { get; set; }
     public string? ResultOfTesting { get; set; }
     public int? ReportId { get; set; }
@@ -24,7 +25,8 @@ public class TestingModel
         int? reportId,
         int? semesterId,
         string? room = null,
-        string? lmsUrl = null)
+        string? lmsUrl = null,
+        bool? isInPerson = null)
     {
         GroupId = groupId;
         DisciplineId = disciplineId;
@@ -32,6 +34,7 @@ public class TestingModel
         ScheduledTime = scheduledTime;
         Room = room;
         LmsUrl = lmsUrl;
+        IsInPerson = isInPerson;
         Status = status;
         ResultOfTesting = resultOfTesting;
         ReportId = reportId;
@@ -49,7 +52,8 @@ public class TestingModel
         int? reportId,
         int? semesterId,
         string? room = null,
-        string? lmsUrl = null)
+        string? lmsUrl = null,
+        bool? isInPerson = null)
     {
         Id = id;
         GroupId = groupId;
@@ -58,6 +62,7 @@ public class TestingModel
         ScheduledTime = scheduledTime;
         Room = room;
         LmsUrl = lmsUrl;
+        IsInPerson = isInPerson;
         Status = status;
         ResultOfTesting = resultOfTesting;
         ReportId = reportId;

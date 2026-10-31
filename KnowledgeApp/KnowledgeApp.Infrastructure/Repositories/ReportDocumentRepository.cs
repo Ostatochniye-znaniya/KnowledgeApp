@@ -18,7 +18,7 @@ public class ReportDocumentRepository
     public async Task<List<ReportDocumentModel>> GetSubmittedByFaculty(int facultyId, int? departmentId, DocumentStatus? status)
     {
         var query = _context.Reports.AsNoTracking()
-            .Where(r => r.Status != null && r.FilePath != null)
+            .Where(r => r.FilePath != null)
             .Where(r => r.Discipline != null && r.Discipline.Department != null
                         && r.Discipline.Department.FacultyId == facultyId);
 
@@ -26,7 +26,11 @@ public class ReportDocumentRepository
             query = query.Where(r => r.Discipline!.DepartmentId == departmentId.Value);
 
         if (status.HasValue)
-            query = query.Where(r => r.Status == status.Value);
+        {
+            query = status.Value == DocumentStatus.Pending
+                ? query.Where(r => r.Status == DocumentStatus.Pending || r.Status == null)
+                : query.Where(r => r.Status == status.Value);
+        }
 
         return await LoadModels(query);
     }
@@ -36,6 +40,15 @@ public class ReportDocumentRepository
         var models = await LoadModels(_context.Reports.AsNoTracking().Where(r => r.Id == reportId));
         return models.FirstOrDefault();
     }
+
+    public Task<bool> IsAssignedToTeacher(int reportId, int teacherId, CancellationToken cancellationToken) =>
+        _context.Testings.AnyAsync(t =>
+            t.ReportId == reportId &&
+            t.DisciplineId != null &&
+            _context.DisciplineTeachers.Any(dt =>
+                dt.DisciplineId == t.DisciplineId &&
+                dt.ResponsibleTeacherId == teacherId),
+            cancellationToken);
 
     public async Task<(bool Replaced, string? PreviousKey)> AttachFile(int reportId, string fileKey, string fileName, DateTime uploadedAt)
     {
@@ -59,7 +72,14 @@ public class ReportDocumentRepository
                 .SetProperty(r => r.Status, DocumentStatus.Pending)
                 .SetProperty(r => r.ReviewComment, (string?)null)
                 .SetProperty(r => r.ReviewedAt, (DateTime?)null)
-                .SetProperty(r => r.ReviewedByUserId, (int?)null));
+                .SetProperty(r => r.ReviewedByUserId, (int?)null)
+                .SetProperty(r => r.DoneInElectronicForm, (bool?)true)
+                .SetProperty(r => r.AllDone,
+                    r => r.DoneInPaperForm == false
+                        ? false
+                        : r.DoneInPaperForm == true
+                            ? true
+                            : (bool?)null));
 
         return affected > 0 ? (true, previousKey) : (false, null);
     }
@@ -67,12 +87,31 @@ public class ReportDocumentRepository
     public async Task<bool> Review(int reportId, DocumentStatus newStatus, string? comment, DateTime reviewedAt, int? reviewerId)
     {
         var affected = await _context.Reports
-            .Where(r => r.Id == reportId && r.Status == DocumentStatus.Pending)
+            .Where(r => r.Id == reportId &&
+                        r.FilePath != null &&
+                        (r.Status == DocumentStatus.Pending || r.Status == null))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(r => r.Status, newStatus)
                 .SetProperty(r => r.ReviewComment, comment)
                 .SetProperty(r => r.ReviewedAt, reviewedAt)
                 .SetProperty(r => r.ReviewedByUserId, reviewerId));
+
+        return affected > 0;
+    }
+
+    public async Task<bool> SetPaperDelivery(int reportId, bool submitted, CancellationToken cancellationToken)
+    {
+        var affected = await _context.Reports
+            .Where(r => r.Id == reportId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(r => r.DoneInPaperForm, (bool?)submitted)
+                .SetProperty(r => r.AllDone,
+                    r => !submitted || r.DoneInElectronicForm == false
+                        ? false
+                        : r.DoneInElectronicForm == true
+                            ? true
+                            : (bool?)null),
+                cancellationToken);
 
         return affected > 0;
     }
@@ -98,7 +137,10 @@ public class ReportDocumentRepository
                 UploadedAt = r.UploadedAt,
                 Status = r.Status,
                 ReviewComment = r.ReviewComment,
-                ReviewedAt = r.ReviewedAt
+                ReviewedAt = r.ReviewedAt,
+                DoneInPaperForm = r.DoneInPaperForm,
+                DoneInElectronicForm = r.DoneInElectronicForm,
+                AllDone = r.AllDone
             })
             .ToListAsync();
 

@@ -41,5 +41,5 @@ public class ScheduleDocumentController : DocumentControllerBase
 
     [HttpGet("{id}")]
     public Task<IResult> Download(int id, CancellationToken cancellationToken) =>
-        Execute(async () => PdfFile(await _scheduleDocumentService.OpenFile(id, cancellationToken)));
+        Execute(async () => DocumentFile(await _scheduleDocumentService.OpenFile(id, cancellationToken)));
 }

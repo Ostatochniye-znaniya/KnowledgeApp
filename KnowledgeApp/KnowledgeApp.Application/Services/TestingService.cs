@@ -3,6 +3,7 @@ using KnowledgeApp.Infrastructure.Entities;
 using KnowledgeApp.Infrastructure.Repositories;
 using KnowledgeApp.Domain.Entities;
 using KnowledgeApp.Application.DTOs;
+using KnowledgeApp.Application.Exceptions;
 using KnowledgeApp.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,17 +34,135 @@ public class TestingService
 
     public async Task<TestingModel> Create(TestingModel testingModel)
     {
-        return await _testingRepository.Create(testingModel);
+        return await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            _context.ChangeTracker.Clear();
+            var state = await _context.LockTestingPlan();
+            await EnsureScheduleAvailable(testingModel);
+            state.Version++;
+            return await _testingRepository.Create(testingModel);
+        });
     }
 
     public async Task<TestingModel> Update(TestingModel testingModel)
     {
-        return await _testingRepository.Update(testingModel);
+        return await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            _context.ChangeTracker.Clear();
+            var state = await _context.LockTestingPlan();
+            await EnsureScheduleAvailable(testingModel);
+            state.Version++;
+            return await _testingRepository.Update(testingModel);
+        });
+    }
+
+    private async Task EnsureScheduleAvailable(TestingModel testing)
+    {
+        if (!testing.ScheduledDate.HasValue || !testing.ScheduledTime.HasValue)
+            return;
+        if (testing.ScheduledTime.Value < TimeSpan.Zero ||
+            testing.ScheduledTime.Value >= TimeSpan.FromDays(1))
+        {
+            throw new DocumentValidationException("Время тестирования должно быть в пределах суток.");
+        }
+
+        var selectedDate = testing.ScheduledDate.Value.Date;
+        var nextDate = selectedDate.AddDays(1);
+        var selectedTime = TimeOnly.FromTimeSpan(testing.ScheduledTime.Value);
+        if (testing.Id > 0)
+        {
+            var period = await _context.Testings
+                .AsNoTracking()
+                .Where(t => t.Id == testing.Id)
+                .Select(t => new { t.SelectionPeriodStart, t.SelectionPeriodEnd })
+                .SingleOrDefaultAsync();
+            if (period?.SelectionPeriodStart is not null &&
+                period.SelectionPeriodEnd is not null &&
+                (selectedDate < period.SelectionPeriodStart.Value.Date ||
+                 selectedDate > period.SelectionPeriodEnd.Value.Date))
+            {
+                throw new DocumentValidationException("Дата проверки должна входить в заданный период.");
+            }
+        }
+
+        var currentTeacherIds = testing.Id > 0
+            ? await _context.TestingTeacherApprovals
+                .Where(a => a.TestingId == testing.Id)
+                .Select(a => a.TeacherId)
+                .ToListAsync()
+            : new List<int>();
+
+        var sameDayTestings = await _context.Testings
+            .Where(t => t.Id != testing.Id &&
+                        t.ScheduledDate >= selectedDate &&
+                        t.ScheduledDate < nextDate &&
+                        t.ScheduledTime.HasValue)
+            .Select(t => new { t.Id, t.GroupId, t.ScheduledTime })
+            .ToListAsync();
+        var overlapping = sameDayTestings
+            .Where(t => TestingPairSchedule.Overlaps(
+                selectedTime, TimeOnly.FromTimeSpan(t.ScheduledTime!.Value)))
+            .ToList();
+
+        if (overlapping.Any(t => t.GroupId == testing.GroupId))
+            throw new DocumentConflictException("У группы уже есть проверка в это время.");
+
+        if (currentTeacherIds.Count > 0)
+        {
+            var overlappingIds = overlapping.Select(t => t.Id).ToList();
+            var teacherConflict = await _context.TestingTeacherApprovals
+                .AnyAsync(a => overlappingIds.Contains(a.TestingId) &&
+                               currentTeacherIds.Contains(a.TeacherId));
+            if (teacherConflict)
+                throw new DocumentConflictException(
+                    "У одного из назначенных преподавателей уже есть проверка в это время.");
+        }
+    }
+
+    public async Task<TestingModel?> UpdateDelivery(
+        int testingId,
+        bool isInPerson,
+        string? room,
+        string? lmsUrl,
+        CancellationToken cancellationToken)
+    {
+        room = string.IsNullOrWhiteSpace(room) ? null : room.Trim();
+        lmsUrl = string.IsNullOrWhiteSpace(lmsUrl) ? null : lmsUrl.Trim();
+
+        if (isInPerson)
+        {
+            if (room == null)
+                throw new ArgumentException("Для очного тестирования укажите аудиторию.");
+            if (room.Length > 255)
+                throw new ArgumentException("Название аудитории не должно превышать 255 символов.");
+
+            lmsUrl = null;
+        }
+        else
+        {
+            room = null;
+            if (lmsUrl != null &&
+                (!Uri.TryCreate(lmsUrl, UriKind.Absolute, out var uri) ||
+                 (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
+            {
+                throw new ArgumentException("Ссылка LMS должна быть абсолютным URL с протоколом HTTP или HTTPS.");
+            }
+            if (lmsUrl?.Length > 2048)
+                throw new ArgumentException("Ссылка LMS не должна превышать 2048 символов.");
+        }
+
+        return await _testingRepository.UpdateDelivery(testingId, isInPerson, room, lmsUrl, cancellationToken);
     }
 
     public async Task<bool> Delete(int id)
     {
-        return await _testingRepository.Delete(id);
+        return await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            _context.ChangeTracker.Clear();
+            var state = await _context.LockTestingPlan();
+            state.Version++;
+            return await _testingRepository.Delete(id);
+        });
     }
 
     public async Task<List<TestingModel>> GetByGroupId(int groupId)
@@ -74,6 +193,7 @@ public class TestingService
                     select new TestingScheduleDto
                     {
                         Id = t.Id,  // ДОБАВЛЕНО
+                        ReportId = t.ReportId,
                         FacultyId = f != null ? f.Id : 0,
                         SemesterId = t.SemesterId ?? 0,
                         GroupName = sg.GroupNumber,
@@ -85,7 +205,8 @@ public class TestingService
                         Date = t.ScheduledDate ?? DateTime.MinValue,
                         Time = t.ScheduledTime ?? TimeSpan.Zero,
                         Room = t.Room,
-                        LmsUrl = t.LmsUrl
+                        LmsUrl = t.LmsUrl,
+                        IsInPerson = t.IsInPerson ?? !string.IsNullOrWhiteSpace(t.Room)
                     };
 
         var rows = await query.ToListAsync();
@@ -126,6 +247,7 @@ public class TestingService
                     select new TestingScheduleWithFacultyDto
                     {
                         Id = t.Id,  // ДОБАВЛЕНО
+                        ReportId = t.ReportId,
                         FacultyId = f.Id,
                         GroupName = sg.GroupNumber,
                         ProgramName = sp.Name,
@@ -137,6 +259,7 @@ public class TestingService
                         Time = t.ScheduledTime ?? TimeSpan.Zero,
                         Room = t.Room,
                         LmsUrl = t.LmsUrl,
+                        IsInPerson = t.IsInPerson ?? !string.IsNullOrWhiteSpace(t.Room),
                         SemesterId = t.SemesterId ?? 0
                     };
 

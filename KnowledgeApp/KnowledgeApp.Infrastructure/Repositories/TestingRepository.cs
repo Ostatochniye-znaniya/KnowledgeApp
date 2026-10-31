@@ -38,10 +38,12 @@ public class TestingRepository
             ScheduledTime = model.ScheduledTime,
             Room = model.Room,
             LmsUrl = model.LmsUrl,
+            IsInPerson = model.IsInPerson,
             Status = model.Status,
             ResultOfTesting = model.ResultOfTesting,
             ReportId = model.ReportId,
-            SemesterId = model.SemesterId
+            SemesterId = model.SemesterId,
+            RecommendationHistory = await ResolveRecommendation(model)
         };
 
         await _context.Testings.AddAsync(entity);
@@ -57,19 +59,67 @@ public class TestingRepository
 
         ValidateModel(model);
 
+        var scheduleChanged = entity.ScheduledDate != model.ScheduledDate ||
+                              entity.ScheduledTime != model.ScheduledTime;
+        if (scheduleChanged)
+        {
+            var approvals = await _context.TestingTeacherApprovals
+                .Where(a => a.TestingId == model.Id)
+                .ToListAsync();
+            foreach (var approval in approvals)
+            {
+                approval.Status = "pending";
+                approval.Comment = null;
+                approval.RespondedAt = null;
+                _context.WorkflowNotifications.Add(new WorkflowNotification
+                {
+                    RecipientUserId = approval.TeacherId,
+                    TestingId = model.Id,
+                    Type = "testing_time_updated",
+                    Title = "Изменилось время проверки",
+                    Message = model.ScheduledDate.HasValue && model.ScheduledTime.HasValue
+                        ? $"Предложено время: {model.ScheduledDate.Value:dd.MM.yyyy} в {model.ScheduledTime.Value:hh\\:mm}. Подтвердите/отклоните или выберите удобную пару в заданном периоде."
+                        : "Время проверки изменено. Выберите удобную пару в заданном периоде.",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            entity.ScheduledPair = null;
+        }
+
         entity.GroupId = model.GroupId;
         entity.DisciplineId = model.DisciplineId;
         entity.ScheduledDate = model.ScheduledDate;
         entity.ScheduledTime = model.ScheduledTime;
         entity.Room = model.Room;
         entity.LmsUrl = model.LmsUrl;
+        entity.IsInPerson = model.IsInPerson;
         entity.Status = model.Status;
         entity.ResultOfTesting = model.ResultOfTesting;
         entity.ReportId = model.ReportId;
         entity.SemesterId = model.SemesterId;
+        entity.RecommendationHistory = await ResolveRecommendation(model);
+        if (entity.RecommendationHistory is null) entity.RecommendationHistoryId = null;
 
         await _context.SaveChangesAsync();
 
+        return ToModel(entity);
+    }
+
+    public async Task<TestingModel?> UpdateDelivery(
+        int id,
+        bool isInPerson,
+        string? room,
+        string? lmsUrl,
+        CancellationToken cancellationToken)
+    {
+        var entity = await _context.Testings.FindAsync([id], cancellationToken);
+        if (entity == null)
+            return null;
+
+        entity.IsInPerson = isInPerson;
+        entity.Room = room;
+        entity.LmsUrl = lmsUrl;
+        await _context.SaveChangesAsync(cancellationToken);
         return ToModel(entity);
     }
 
@@ -127,6 +177,20 @@ public class TestingRepository
 
     // 👉 МЕТОД GetTestingScheduleAsync УДАЛЕН - он теперь в TestingService
 
+    private async Task<RecommendationHistory?> ResolveRecommendation(TestingModel model)
+    {
+        if (!model.SemesterId.HasValue) return null;
+        var recommendation = await _context.RecommendationHistory.SingleOrDefaultAsync(r =>
+            r.StudyGroupId == model.GroupId && r.SemesterId == model.SemesterId.Value);
+        if (recommendation is not null) return recommendation;
+        return new RecommendationHistory
+        {
+            StudyGroupId = model.GroupId, SemesterId = model.SemesterId.Value,
+            // Создатель Testing может быть преподавателем, поэтому не выдаём его ID за ответственного ЛПР.
+            Author = "manual", UserId = null, RecommendedAt = DateTime.UtcNow
+        };
+    }
+
     private void ValidateModel(TestingModel model)
     {
         if (!_context.StudyGroups.Any(g => g.Id == model.GroupId))
@@ -155,7 +219,8 @@ public class TestingRepository
             entity.ReportId,
             entity.SemesterId,
             entity.Room,
-            entity.LmsUrl
+            entity.LmsUrl,
+            entity.IsInPerson ?? !string.IsNullOrWhiteSpace(entity.Room)
         );
     }
 }

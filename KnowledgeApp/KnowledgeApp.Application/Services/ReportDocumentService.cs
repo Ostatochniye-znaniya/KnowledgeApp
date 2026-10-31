@@ -32,19 +32,53 @@ public class ReportDocumentService
     {
         PdfUpload.EnsureDeclaredSize(declaredSize);
 
-        var report = await GetTeacherReport(reportId);
+        var report = await GetTeacherReport(reportId, cancellationToken);
         if (report.Status == DocumentStatus.Signed)
             throw new DocumentConflictException("Отчёт уже подписан деканом, заменить файл нельзя");
 
         using var upload = await PdfUpload.ReadAsync(content, fileName, declaredSize, cancellationToken);
+        return await StoreUpload(
+            reportId, upload.Content, upload.FileName, ".pdf", "application/pdf", cancellationToken);
+    }
 
-        var key = $"reports/{reportId}/{Guid.NewGuid():N}.pdf";
-        await _storage.SaveAsync(key, upload.Content, "application/pdf", cancellationToken);
+    public async Task<ReportDocumentDto> UploadDocx(
+        int reportId,
+        Stream content,
+        string? fileName,
+        long? declaredSize,
+        CancellationToken cancellationToken)
+    {
+        DocxUpload.EnsureDeclaredSize(declaredSize);
+
+        var report = await GetTeacherReport(reportId, cancellationToken);
+        if (report.Status == DocumentStatus.Signed)
+            throw new DocumentConflictException("Отчёт уже подписан деканом, заменить файл нельзя");
+
+        using var upload = await DocxUpload.ReadAsync(content, fileName, declaredSize, cancellationToken);
+        return await StoreUpload(
+            reportId,
+            upload.Content,
+            upload.FileName,
+            ".docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            cancellationToken);
+    }
+
+    private async Task<ReportDocumentDto> StoreUpload(
+        int reportId,
+        Stream content,
+        string fileName,
+        string extension,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        var key = $"reports/{reportId}/{Guid.NewGuid():N}{extension}";
+        await _storage.SaveAsync(key, content, contentType, cancellationToken);
 
         (bool Replaced, string? PreviousKey) result;
         try
         {
-            result = await _repository.AttachFile(reportId, key, upload.FileName, DateTime.UtcNow);
+            result = await _repository.AttachFile(reportId, key, fileName, DateTime.UtcNow);
         }
         catch
         {
@@ -68,7 +102,7 @@ public class ReportDocumentService
 
     public async Task<DocumentFileDto> OpenFile(int reportId, CancellationToken cancellationToken)
     {
-        var report = await GetTeacherReport(reportId);
+        var report = await GetTeacherReport(reportId, cancellationToken);
         return await Open(report, cancellationToken);
     }
 
@@ -112,7 +146,7 @@ public class ReportDocumentService
         {
             Departments = departments,
             AcademicYears = years,
-            Statuses = DocumentStatusInfo.Options()
+            Statuses = DocumentStatusInfo.Options(reportWorkflow: true)
         };
     }
 
@@ -128,6 +162,20 @@ public class ReportDocumentService
     public Task<ReportDocumentDto> Reject(int reportId, string? comment) =>
         Review(reportId, DocumentStatus.Rejected, NormalizeComment(comment));
 
+    public async Task<ReportDocumentDto> SetPaperDelivery(
+        int reportId,
+        bool submitted,
+        CancellationToken cancellationToken)
+    {
+        await GetDeanReport(reportId);
+        if (!await _repository.SetPaperDelivery(reportId, submitted, cancellationToken))
+            throw new DocumentNotFoundException("Отчёт не найден");
+
+        var updated = await _repository.GetById(reportId)
+            ?? throw new DocumentNotFoundException("Отчёт не найден");
+        return ToDto(updated);
+    }
+
     private async Task<ReportDocumentDto> Review(int reportId, DocumentStatus newStatus, string? comment)
     {
         await GetDeanReport(reportId);
@@ -141,7 +189,7 @@ public class ReportDocumentService
         return ToDto(updated);
     }
 
-    private async Task<ReportDocumentModel> GetTeacherReport(int reportId)
+    private async Task<ReportDocumentModel> GetTeacherReport(int reportId, CancellationToken cancellationToken)
     {
         var facultyId = RequireFaculty();
         var report = await _repository.GetById(reportId);
@@ -149,7 +197,9 @@ public class ReportDocumentService
         if (report == null || report.FacultyId != facultyId)
             throw new DocumentNotFoundException("Отчёт не найден");
 
-        if (_currentUser.UserId.HasValue && report.TeacherId != _currentUser.UserId)
+        if (_currentUser.UserId is int teacherId &&
+            report.TeacherId != teacherId &&
+            !await _repository.IsAssignedToTeacher(reportId, teacherId, cancellationToken))
             throw new DocumentNotFoundException("Отчёт не найден");
 
         return report;
@@ -160,7 +210,7 @@ public class ReportDocumentService
         var facultyId = RequireFaculty();
         var report = await _repository.GetById(reportId);
 
-        if (report == null || report.Status == null || report.FacultyId != facultyId)
+        if (report == null || report.FileKey == null || report.FacultyId != facultyId)
             throw new DocumentNotFoundException("Отчёт не найден");
 
         return report;
@@ -177,7 +227,13 @@ public class ReportDocumentService
         return new DocumentFileDto
         {
             Content = stream,
-            FileName = report.FileName ?? $"Отчёт_{report.ReportId}.pdf"
+            FileName = report.FileName ?? $"Отчёт_{report.ReportId}{Path.GetExtension(report.FileKey)}",
+            ContentType = Path.GetExtension(report.FileName ?? report.FileKey).ToLowerInvariant() switch
+            {
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".pdf" => "application/pdf",
+                _ => "application/octet-stream"
+            }
         };
     }
 
@@ -220,11 +276,14 @@ public class ReportDocumentService
             DepartmentId = report.DepartmentId,
             DepartmentName = report.DepartmentName,
             Status = DocumentStatusInfo.Code(status),
-            StatusLabel = DocumentStatusInfo.Label(status),
+            StatusLabel = DocumentStatusInfo.Label(status, reportWorkflow: true),
             FileName = report.FileName,
             UploadedAt = DocumentStatusInfo.AsUtc(report.UploadedAt),
             ReviewComment = report.ReviewComment,
-            ReviewedAt = DocumentStatusInfo.AsUtc(report.ReviewedAt)
+            ReviewedAt = DocumentStatusInfo.AsUtc(report.ReviewedAt),
+            DoneInPaperForm = report.DoneInPaperForm,
+            DoneInElectronicForm = report.DoneInElectronicForm,
+            AllDone = report.AllDone
         };
     }
 }

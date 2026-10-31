@@ -24,3 +24,8 @@ public class StoredFileMissingException : Exception
 {
     public StoredFileMissingException(string message) : base(message) { }
 }
+
+public class DocumentGenerationException : Exception
+{
+    public DocumentGenerationException(string message, Exception inner) : base(message, inner) { }
+}

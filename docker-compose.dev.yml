@@ -50,7 +50,7 @@ services:
       context: ./
       dockerfile: Deploy/Dockerfile
     ports:
-      - "8001:8080"
+      - "8000:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -68,6 +68,7 @@ services:
       MAX_UPLOAD_SIZE_MB: "${MAX_UPLOAD_SIZE_MB:-20}"
       TEST_FACULTY_ID: "${TEST_FACULTY_ID:-1}"
       TEST_DEPARTMENT_ID: "${TEST_DEPARTMENT_ID:-4}"
+      TEST_USER_ID: "${TEST_USER_ID:-}"
     restart: always
     networks:
       - app-network

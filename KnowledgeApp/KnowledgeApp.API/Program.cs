@@ -1,7 +1,11 @@
 using KnowledgeApp.Application.Services;
 using KnowledgeApp.Application.Interfaces;
+using KnowledgeApp.Application.DTOs.MockAuth;
+using KnowledgeApp.Application.Services.MockAuth;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Repositories;
+using KnowledgeApp.API.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using KnowledgeApp.Infrastructure.Storage;
 using KnowledgeApp.API.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +20,7 @@ Env.Load();
 var envCandidates = new[]
 {
     Path.Combine(builder.Environment.ContentRootPath, ".env"),
+    Path.Combine(builder.Environment.ContentRootPath, "..", ".env"),
     Path.Combine(builder.Environment.ContentRootPath, "..", "..", ".env"),
     Path.Combine(Directory.GetCurrentDirectory(), ".env"),
 };
@@ -30,18 +35,74 @@ foreach (var path in envCandidates)
 }
 
 var allowedOrigins = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS")
-    ?.Split(',') ?? Array.Empty<string>();
+    ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>();
 
 services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigin",
-        policy => policy.WithOrigins(allowedOrigins)
-                        .AllowAnyHeader()
-                        .AllowAnyMethod());
+    options.AddPolicy("AllowSpecificOrigin", policy =>
+    {
+        if (allowedOrigins.Length > 0 && allowedOrigins[0] != "*")
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+    });
 });
 
+// Конфигурация MOCK авторизации из .env
+var mockAuthEnvVal = Environment.GetEnvironmentVariable("MOCK_AUTH_ENABLED") 
+    ?? Environment.GetEnvironmentVariable("ENABLE_MOCK_AUTH") 
+    ?? builder.Configuration["MockAuth:Enabled"];
+
+var isMockAuthEnabled = (mockAuthEnvVal ?? "false")
+    .Equals("true", StringComparison.OrdinalIgnoreCase);
+
+var defaultMockRole = Environment.GetEnvironmentVariable("MOCK_AUTH_DEFAULT_ROLE")
+    ?? builder.Configuration["MockAuth:DefaultRole"]
+    ?? "Admin";
+
+var mockHeaderName = Environment.GetEnvironmentVariable("MOCK_AUTH_HEADER_NAME")
+    ?? "X-Mock-Role";
+
+var mockAuthOptions = new MockAuthOptions
+{
+    Enabled = isMockAuthEnabled,
+    DefaultRole = defaultMockRole,
+    HeaderName = mockHeaderName
+};
+
+services.AddSingleton(Microsoft.Extensions.Options.Options.Create(mockAuthOptions));
+services.AddSingleton<IMockAuthService>(new MockAuthService(mockAuthOptions));
+
+// Настройка схемы аутентификации и авторизации
+services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = MockAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = MockAuthenticationDefaults.AuthenticationScheme;
+})
+.AddScheme<AuthenticationSchemeOptions, MockAuthenticationHandler>(
+    MockAuthenticationDefaults.AuthenticationScheme, _ => { });
+
+services.AddAuthorization();
+
 // Добавление контроллеров и Swagger
-services.AddControllers();
+services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+
+services.AddHttpClient(); // Для авторизации надо
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen(c =>
 {
@@ -60,7 +121,14 @@ services.AddScoped<DepartmentRepository>();
 services.AddScoped<UserService>();
 services.AddScoped<UserRepository>();
 services.AddScoped<TestingService>();
+services.AddScoped<TestingAssignmentService>();
+services.AddScoped<TeacherWorkflowService>();
+services.AddScoped<GroupReportService>();
+services.AddScoped<IDocxGeneratorService, DocxGeneratorService>();
 services.AddScoped<TestingRepository>();
+services.AddScoped<GroupsTestingService>();
+services.AddSingleton(TimeProvider.System);
+services.Configure<GroupsTestingOptions>(builder.Configuration.GetSection("GroupsTesting"));
 services.AddScoped<DisciplineRepository>();
 services.AddScoped<DisciplineService>();
 services.AddScoped<FacultyRepository>();
@@ -92,40 +160,52 @@ services.AddScoped<ReportDocumentRepository>();
 services.AddScoped<ReportDocumentService>();
 services.AddScoped<ScheduleDocumentRepository>();
 services.AddScoped<ScheduleDocumentService>();
+services.AddScoped<OrderRepository>();
+services.AddScoped<OrderService>();
+services.AddSingleton<OrderPdfGenerator>();
 services.AddScoped<ICurrentUserProvider, TestCurrentUserProvider>();
 
 // Регистрация PDF сервиса
 services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 
 var app = builder.Build();
-
-// Миграции базы данных
-using (var scope = app.Services.CreateScope())
+try{
+var skipDatabaseMigrationsValue = Environment.GetEnvironmentVariable("SKIP_DATABASE_MIGRATIONS");
+if (!string.IsNullOrWhiteSpace(skipDatabaseMigrationsValue) &&
+    !bool.TryParse(skipDatabaseMigrationsValue, out _))
 {
+    throw new InvalidOperationException("SKIP_DATABASE_MIGRATIONS must be either 'true' or 'false'.");
+}
+
+if (bool.TryParse(skipDatabaseMigrationsValue, out var skipDatabaseMigrations) && skipDatabaseMigrations)
+{
+    app.Logger.LogWarning("Database migrations were skipped because SKIP_DATABASE_MIGRATIONS is enabled.");
+}
+else
+{
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<KnowledgeTestDbContext>();
     dbContext.Database.Migrate();
+}}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Не удалось применить миграции базы данных при запуске приложения.");
 }
 
 // Настройка конвейера запросов
-//app.UseHttpsRedirection();
-
-app.UseCors("AllowSpecificOrigin");
-//app.UseAuthorization();
-
 app.UsePathBase("/csh/api");
 app.UseRouting();
+
+app.UseCors("AllowSpecificOrigin");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-// app.UseHttpsRedirection(); // закомментировано для использования HTTP
-
-app.UseCors("AllowAll");
-
-// app.UseAuthorization(); // раскомментировать если нужно
 
 app.UseStaticFiles();
 

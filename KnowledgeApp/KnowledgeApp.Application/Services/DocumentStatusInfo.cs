@@ -8,13 +8,27 @@ public static class DocumentStatusInfo
 {
     public static string Code(DocumentStatus status) => status.ToString().ToLowerInvariant();
 
-    public static string Label(DocumentStatus status) => status switch
+    public static string Label(DocumentStatus status, bool reportWorkflow = false)
     {
-        DocumentStatus.Pending => "Ожидает подписи",
-        DocumentStatus.Signed => "Подписан",
-        DocumentStatus.Rejected => "Отклонён",
-        _ => status.ToString()
-    };
+        if (reportWorkflow)
+        {
+            return status switch
+            {
+                DocumentStatus.Pending => "Отправлен на проверку",
+                DocumentStatus.Signed => "Сделан",
+                DocumentStatus.Rejected => "Отправлен на доработку",
+                _ => status.ToString()
+            };
+        }
+
+        return status switch
+        {
+            DocumentStatus.Pending => "Ожидает подписи",
+            DocumentStatus.Signed => "Подписан",
+            DocumentStatus.Rejected => "Отклонён",
+            _ => status.ToString()
+        };
+    }
 
     public static DocumentStatus? Parse(string? value)
     {
@@ -34,8 +48,8 @@ public static class DocumentStatusInfo
 
     public static DateTime? AsUtc(DateTime? value) => value.HasValue ? AsUtc(value.Value) : null;
 
-    public static List<FilterOptionDto> Options() =>
+    public static List<FilterOptionDto> Options(bool reportWorkflow = false) =>
         Enum.GetValues<DocumentStatus>()
-            .Select(s => new FilterOptionDto { Value = Code(s), Label = Label(s) })
+            .Select(s => new FilterOptionDto { Value = Code(s), Label = Label(s, reportWorkflow) })
             .ToList();
 }
