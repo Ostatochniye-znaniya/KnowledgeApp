@@ -647,7 +647,15 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("password");
             entity.Property(e => e.StatusId).HasColumnName("status_id");
             entity.Property(e => e.FacultyId).HasColumnName("faculty_id");
-            
+            entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+            entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+            entity.HasIndex(e => e.DepartmentId, "users_department_id");
+
+            entity.HasOne(d => d.Department).WithMany()
+                .HasForeignKey(d => d.DepartmentId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("users_department_fk");
+
             entity.HasOne(d => d.Faculty).WithMany(p => p.Users)
                 .HasForeignKey(d => d.FacultyId)
                 .HasConstraintName("users_ibfk_2");

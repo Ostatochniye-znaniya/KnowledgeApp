@@ -850,6 +850,9 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("department_id");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
@@ -864,6 +867,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<int?>("FacultyId")
                         .HasColumnType("int")
                         .HasColumnName("faculty_id");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("last_login_at");
 
                     b.Property<string>("Name")
                         .HasMaxLength(255)
@@ -890,6 +897,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasDatabaseName("faculty_id1");
 
                     b.HasIndex(new[] { "StatusId" }, "status_id");
+
+                    b.HasIndex(new[] { "DepartmentId" }, "users_department_id");
 
                     b.ToTable("users", (string)null);
                 });
@@ -1244,6 +1253,12 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.User", b =>
                 {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("users_department_fk");
+
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.Faculty", "Faculty")
                         .WithMany("Users")
                         .HasForeignKey("FacultyId")
@@ -1253,6 +1268,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .WithMany("Users")
                         .HasForeignKey("StatusId")
                         .HasConstraintName("users_ibfk_1");
+
+                    b.Navigation("Department");
 
                     b.Navigation("Faculty");
 
