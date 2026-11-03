@@ -16,6 +16,12 @@ public partial class User
 
     public int? FacultyId { get; set; }
 
+    public int? DepartmentId { get; set; }
+
+    public DateTime? LastLoginAt { get; set; }
+
+    public virtual Department? Department { get; set; }
+
     public virtual ICollection<DisciplineTeacher> DisciplineTeachers { get; set; } = new List<DisciplineTeacher>();
 
     public virtual Faculty? Faculty { get; set; }

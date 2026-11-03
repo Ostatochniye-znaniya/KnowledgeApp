@@ -46,6 +46,14 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<WorkflowNotification> WorkflowNotifications { get; set; }
 
+    public virtual DbSet<TestingChange> TestingChanges { get; set; }
+
+    public virtual DbSet<UserRoleChange> UserRoleChanges { get; set; }
+
+    public virtual DbSet<AuditLogEntry> AuditLogs { get; set; }
+
+    public virtual DbSet<SystemLogEntry> SystemLogs { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -599,6 +607,84 @@ public partial class KnowledgeTestDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<TestingChange>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("testing_changes");
+            entity.HasIndex(e => new { e.TestingId, e.ChangedAt }, "ix_testing_changes_testing_changed");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.TestingId).HasColumnName("testing_id");
+            entity.Property(e => e.Action).HasMaxLength(32).HasColumnName("action");
+            entity.Property(e => e.PreviousValue).HasMaxLength(255).HasColumnName("previous_value");
+            entity.Property(e => e.NewValue).HasMaxLength(255).HasColumnName("new_value");
+            entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
+            entity.Property(e => e.ChangedByUserId).HasColumnName("changed_by_user_id");
+            entity.Property(e => e.ChangedByName).HasMaxLength(255).HasColumnName("changed_by_name");
+            entity.Property(e => e.ChangedAt).HasColumnName("changed_at");
+            entity.HasOne<Testing>().WithMany()
+                .HasForeignKey(e => e.TestingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AuditLogEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("audit_logs");
+            entity.HasIndex(e => e.CreatedAt, "ix_audit_logs_created");
+            entity.HasIndex(e => new { e.ActorUserId, e.CreatedAt }, "ix_audit_logs_actor_created");
+            entity.HasIndex(e => new { e.EntityType, e.EntityId }, "ix_audit_logs_entity");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.ActorUserId).HasColumnName("actor_user_id");
+            entity.Property(e => e.ActorName).HasMaxLength(255).HasColumnName("actor_name");
+            entity.Property(e => e.ActorRole).HasMaxLength(255).HasColumnName("actor_role");
+            entity.Property(e => e.Action).HasMaxLength(64).HasColumnName("action");
+            entity.Property(e => e.EntityType).HasMaxLength(64).HasColumnName("entity_type");
+            entity.Property(e => e.EntityId).HasMaxLength(64).HasColumnName("entity_id");
+            entity.Property(e => e.EntityLabel).HasMaxLength(255).HasColumnName("entity_label");
+            entity.Property(e => e.PreviousState).HasMaxLength(2000).HasColumnName("previous_state");
+            entity.Property(e => e.NewState).HasMaxLength(2000).HasColumnName("new_state");
+            entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
+            entity.Property(e => e.IpAddress).HasMaxLength(64).HasColumnName("ip_address");
+        });
+
+        modelBuilder.Entity<SystemLogEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("system_logs");
+            entity.HasIndex(e => e.CreatedAt, "ix_system_logs_created");
+            entity.HasIndex(e => new { e.Level, e.CreatedAt }, "ix_system_logs_level_created");
+            entity.HasIndex(e => e.TraceId, "ix_system_logs_trace");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.Level).HasMaxLength(16).HasColumnName("level");
+            entity.Property(e => e.Service).HasMaxLength(128).HasColumnName("service");
+            entity.Property(e => e.Category).HasMaxLength(255).HasColumnName("category");
+            entity.Property(e => e.Message).HasMaxLength(2000).HasColumnName("message");
+            entity.Property(e => e.TraceId).HasMaxLength(64).HasColumnName("trace_id");
+            entity.Property(e => e.Details).HasColumnType("text").HasColumnName("details");
+            entity.Property(e => e.RequestMethod).HasMaxLength(16).HasColumnName("request_method");
+            entity.Property(e => e.RequestPath).HasMaxLength(512).HasColumnName("request_path");
+        });
+
+        modelBuilder.Entity<UserRoleChange>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("user_role_changes");
+            entity.HasIndex(e => new { e.UserId, e.ChangedAt }, "ix_user_role_changes_user_changed");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.PreviousRoles).HasMaxLength(500).HasColumnName("previous_roles");
+            entity.Property(e => e.NewRoles).HasMaxLength(500).HasColumnName("new_roles");
+            entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
+            entity.Property(e => e.ChangedByUserId).HasColumnName("changed_by_user_id");
+            entity.Property(e => e.ChangedByName).HasMaxLength(255).HasColumnName("changed_by_name");
+            entity.Property(e => e.ChangedAt).HasColumnName("changed_at");
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -626,7 +712,15 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("password");
             entity.Property(e => e.StatusId).HasColumnName("status_id");
             entity.Property(e => e.FacultyId).HasColumnName("faculty_id");
-            
+            entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+            entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+            entity.HasIndex(e => e.DepartmentId, "users_department_id");
+
+            entity.HasOne(d => d.Department).WithMany()
+                .HasForeignKey(d => d.DepartmentId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("users_department_fk");
+
             entity.HasOne(d => d.Faculty).WithMany(p => p.Users)
                 .HasForeignKey(d => d.FacultyId)
                 .HasConstraintName("users_ibfk_2");
