@@ -24,6 +24,88 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
             MySqlModelBuilderExtensions.HasCharSet(modelBuilder, "utf8mb4");
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.AuditLogEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("actor_name");
+
+                    b.Property<string>("ActorRole")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("actor_role");
+
+                    b.Property<int?>("ActorUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityLabel")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("entity_label");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("NewState")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("new_state");
+
+                    b.Property<string>("PreviousState")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("previous_state");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("reason");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex(new[] { "ActorUserId", "CreatedAt" }, "ix_audit_logs_actor_created");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "ix_audit_logs_created");
+
+                    b.HasIndex(new[] { "EntityType", "EntityId" }, "ix_audit_logs_entity");
+
+                    b.ToTable("audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Department", b =>
                 {
                     b.Property<int>("Id")

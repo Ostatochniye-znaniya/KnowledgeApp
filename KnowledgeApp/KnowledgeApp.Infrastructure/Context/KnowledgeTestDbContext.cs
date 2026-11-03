@@ -50,6 +50,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<UserRoleChange> UserRoleChanges { get; set; }
 
+    public virtual DbSet<AuditLogEntry> AuditLogs { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -620,6 +622,28 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.HasOne<Testing>().WithMany()
                 .HasForeignKey(e => e.TestingId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AuditLogEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("audit_logs");
+            entity.HasIndex(e => e.CreatedAt, "ix_audit_logs_created");
+            entity.HasIndex(e => new { e.ActorUserId, e.CreatedAt }, "ix_audit_logs_actor_created");
+            entity.HasIndex(e => new { e.EntityType, e.EntityId }, "ix_audit_logs_entity");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.ActorUserId).HasColumnName("actor_user_id");
+            entity.Property(e => e.ActorName).HasMaxLength(255).HasColumnName("actor_name");
+            entity.Property(e => e.ActorRole).HasMaxLength(255).HasColumnName("actor_role");
+            entity.Property(e => e.Action).HasMaxLength(64).HasColumnName("action");
+            entity.Property(e => e.EntityType).HasMaxLength(64).HasColumnName("entity_type");
+            entity.Property(e => e.EntityId).HasMaxLength(64).HasColumnName("entity_id");
+            entity.Property(e => e.EntityLabel).HasMaxLength(255).HasColumnName("entity_label");
+            entity.Property(e => e.PreviousState).HasMaxLength(2000).HasColumnName("previous_state");
+            entity.Property(e => e.NewState).HasMaxLength(2000).HasColumnName("new_state");
+            entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
+            entity.Property(e => e.IpAddress).HasMaxLength(64).HasColumnName("ip_address");
         });
 
         modelBuilder.Entity<UserRoleChange>(entity =>
