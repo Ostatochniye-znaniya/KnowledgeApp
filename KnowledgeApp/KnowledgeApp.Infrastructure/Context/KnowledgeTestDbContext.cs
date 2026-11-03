@@ -54,6 +54,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<SystemLogEntry> SystemLogs { get; set; }
 
+    public virtual DbSet<SystemSettings> SystemSettings { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -665,6 +667,21 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.Details).HasColumnType("text").HasColumnName("details");
             entity.Property(e => e.RequestMethod).HasMaxLength(16).HasColumnName("request_method");
             entity.Property(e => e.RequestPath).HasMaxLength(512).HasColumnName("request_path");
+        });
+
+        modelBuilder.Entity<SystemSettings>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("system_settings");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(e => e.SupportEmail).HasMaxLength(255).HasColumnName("support_email");
+            entity.Property(e => e.SupportPhone).HasMaxLength(32).HasColumnName("support_phone");
+            entity.Property(e => e.WelcomeText).HasColumnType("text").HasColumnName("welcome_text");
+            entity.Property(e => e.AccessRequestInstructions).HasColumnType("text").HasColumnName("access_request_instructions");
+            entity.Property(e => e.NotificationTemplate).HasColumnType("text").HasColumnName("notification_template");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            entity.Property(e => e.UpdatedByName).HasMaxLength(255).HasColumnName("updated_by_name");
         });
 
         modelBuilder.Entity<UserRoleChange>(entity =>

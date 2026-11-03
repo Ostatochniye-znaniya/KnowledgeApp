@@ -9,9 +9,11 @@ public static class AuditCatalog
     public const string UserCreate = "user.create";
     public const string UserRoleChange = "user.role_change";
     public const string UserStatusChange = "user.status_change";
+    public const string SettingsUpdate = "settings.update";
 
     public const string EntityProcess = "process";
     public const string EntityUser = "user";
+    public const string EntitySettings = "settings";
 
     private static readonly IReadOnlyList<(string Code, string Label)> Actions =
     [
@@ -19,13 +21,15 @@ public static class AuditCatalog
         (ProcessRollback, "Откат этапа процесса"),
         (UserCreate, "Создание пользователя"),
         (UserRoleChange, "Смена роли"),
-        (UserStatusChange, "Блокировка / активация")
+        (UserStatusChange, "Блокировка / активация"),
+        (SettingsUpdate, "Изменение настроек")
     ];
 
     private static readonly IReadOnlyList<(string Code, string Label)> Entities =
     [
         (EntityProcess, "Процесс тестирования"),
-        (EntityUser, "Пользователь")
+        (EntityUser, "Пользователь"),
+        (EntitySettings, "Настройки системы")
     ];
 
     public static string ActionLabel(string code) =>
