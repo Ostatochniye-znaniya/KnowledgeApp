@@ -46,6 +46,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<WorkflowNotification> WorkflowNotifications { get; set; }
 
+    public virtual DbSet<TestingChange> TestingChanges { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -594,6 +596,25 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.HasOne<Department>().WithMany()
                 .HasForeignKey(e => e.RecipientDepartmentId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Testing>().WithMany()
+                .HasForeignKey(e => e.TestingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TestingChange>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("testing_changes");
+            entity.HasIndex(e => new { e.TestingId, e.ChangedAt }, "ix_testing_changes_testing_changed");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.TestingId).HasColumnName("testing_id");
+            entity.Property(e => e.Action).HasMaxLength(32).HasColumnName("action");
+            entity.Property(e => e.PreviousValue).HasMaxLength(255).HasColumnName("previous_value");
+            entity.Property(e => e.NewValue).HasMaxLength(255).HasColumnName("new_value");
+            entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
+            entity.Property(e => e.ChangedByUserId).HasColumnName("changed_by_user_id");
+            entity.Property(e => e.ChangedByName).HasMaxLength(255).HasColumnName("changed_by_name");
+            entity.Property(e => e.ChangedAt).HasColumnName("changed_at");
             entity.HasOne<Testing>().WithMany()
                 .HasForeignKey(e => e.TestingId)
                 .OnDelete(DeleteBehavior.Cascade);

@@ -134,7 +134,8 @@ public sealed class TeacherWorkflowService
         {
             if (testing.ScheduledDate.HasValue && testing.ScheduledTime.HasValue)
             {
-                await EnsureLocationIsAvailable(
+                await TestingSlotGuard.EnsureLocationIsAvailable(
+                    _context,
                     testing,
                     DateOnly.FromDateTime(testing.ScheduledDate.Value),
                     TimeOnly.FromTimeSpan(testing.ScheduledTime.Value),
@@ -211,7 +212,7 @@ public sealed class TeacherWorkflowService
             Room = normalizedRoom,
             LmsUrl = normalizedLmsUrl
         };
-        await EnsureSlotIsAvailable(candidate, selectedDate, pair.StartsAt, cancellationToken);
+        await TestingSlotGuard.EnsureSlotIsAvailable(_context, candidate, selectedDate, pair.StartsAt, cancellationToken);
     }
 
     public async Task<TeacherTestingApprovalDto> RejectTesting(
@@ -269,7 +270,7 @@ public sealed class TeacherWorkflowService
                               testing.ScheduledPair != pairNumber;
         await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
         {
-            await EnsureSlotIsAvailable(testing, selectedDate, pair.StartsAt, cancellationToken);
+            await TestingSlotGuard.EnsureSlotIsAvailable(_context, testing, selectedDate, pair.StartsAt, cancellationToken);
 
             var changed = await _context.Testings
                 .Where(t => t.Id == testingId &&
@@ -353,7 +354,7 @@ public sealed class TeacherWorkflowService
         var currentScheduledTime = testing.ScheduledTime;
         await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
         {
-            await EnsureSlotIsAvailable(testing, selectedDate, pair.StartsAt, cancellationToken);
+            await TestingSlotGuard.EnsureSlotIsAvailable(_context, testing, selectedDate, pair.StartsAt, cancellationToken);
 
             var changed = await _context.Testings
                 .Where(t => t.Id == testingId &&
@@ -423,111 +424,6 @@ public sealed class TeacherWorkflowService
             throw new DocumentNotFoundException("Уведомление не найдено.");
         notification.ReadAt ??= DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task EnsureSlotIsAvailable(
-        Testing currentTesting,
-        DateOnly selectedDate,
-        TimeOnly selectedStart,
-        CancellationToken cancellationToken)
-    {
-        var assignedTeacherIds = await _context.TestingTeacherApprovals
-            .Where(a => a.TestingId == currentTesting.Id)
-            .Select(a => a.TeacherId)
-            .ToListAsync(cancellationToken);
-        if (assignedTeacherIds.Count == 0)
-            throw new DocumentAccessException("На тестирование не назначены преподаватели.");
-
-        await EnsureLocationIsAvailable(
-            currentTesting,
-            selectedDate,
-            selectedStart,
-            currentTesting.IsInPerson,
-            currentTesting.Room,
-            currentTesting.LmsUrl,
-            cancellationToken);
-
-        var dayStart = selectedDate.ToDateTime(TimeOnly.MinValue);
-        var dayEnd = dayStart.AddDays(1);
-        var otherTestings = await _context.Testings
-            .Where(t => t.Id != currentTesting.Id &&
-                        t.GroupId == currentTesting.GroupId &&
-                        t.ScheduledDate >= dayStart &&
-                        t.ScheduledDate < dayEnd &&
-                        t.ScheduledTime.HasValue)
-            .Select(t => new { t.Id, t.ScheduledTime })
-            .ToListAsync(cancellationToken);
-        if (otherTestings.Any(t =>
-                TestingPairSchedule.Overlaps(selectedStart, TimeOnly.FromTimeSpan(t.ScheduledTime!.Value))))
-        {
-            throw new DocumentConflictException("У группы уже есть проверка в это время.");
-        }
-
-        var scheduledTestingIds = await _context.Testings
-            .Where(t => t.Id != currentTesting.Id &&
-                        t.ScheduledDate >= dayStart &&
-                        t.ScheduledDate < dayEnd &&
-                        t.ScheduledTime.HasValue)
-            .Select(t => new { t.Id, t.ScheduledTime })
-            .ToListAsync(cancellationToken);
-        var overlappingTestingIds = scheduledTestingIds
-            .Where(t => TestingPairSchedule.Overlaps(
-                selectedStart, TimeOnly.FromTimeSpan(t.ScheduledTime!.Value)))
-            .Select(t => t.Id)
-            .ToList();
-        if (overlappingTestingIds.Count == 0)
-            return;
-
-        var hasTeacherConflict = await _context.TestingTeacherApprovals
-            .AnyAsync(a => overlappingTestingIds.Contains(a.TestingId) &&
-                           assignedTeacherIds.Contains(a.TeacherId), cancellationToken);
-        if (hasTeacherConflict)
-            throw new DocumentConflictException("У одного из назначенных преподавателей уже есть проверка в это время.");
-    }
-
-    private async Task EnsureLocationIsAvailable(
-        Testing currentTesting,
-        DateOnly selectedDate,
-        TimeOnly selectedStart,
-        bool? isInPerson,
-        string? room,
-        string? lmsUrl,
-        CancellationToken cancellationToken)
-    {
-        if (isInPerson is null)
-            return;
-
-        var dayStart = selectedDate.ToDateTime(TimeOnly.MinValue);
-        var dayEnd = dayStart.AddDays(1);
-        var otherTestings = await _context.Testings
-            .Where(t => t.Id != currentTesting.Id &&
-                        t.ScheduledDate >= dayStart &&
-                        t.ScheduledDate < dayEnd &&
-                        t.ScheduledTime.HasValue)
-            .Select(t => new { t.ScheduledTime, t.IsInPerson, t.Room, t.LmsUrl })
-            .ToListAsync(cancellationToken);
-
-        foreach (var other in otherTestings)
-        {
-            var otherStart = TimeOnly.FromTimeSpan(other.ScheduledTime!.Value);
-            if (!TestingPairSchedule.Overlaps(selectedStart, otherStart))
-                continue;
-
-            if (isInPerson.Value && other.IsInPerson == true &&
-                !string.IsNullOrWhiteSpace(room) &&
-                string.Equals(room.Trim(), other.Room?.Trim(), StringComparison.OrdinalIgnoreCase))
-            {
-                throw new DocumentConflictException(
-                    $"Аудитория «{room.Trim()}» уже занята в это время.");
-            }
-
-            if (!isInPerson.Value && other.IsInPerson == false &&
-                !string.IsNullOrWhiteSpace(lmsUrl) &&
-                string.Equals(lmsUrl.Trim(), other.LmsUrl?.Trim(), StringComparison.OrdinalIgnoreCase))
-            {
-                throw new DocumentConflictException("Эта ссылка LMS уже используется в это время.");
-            }
-        }
     }
 
     private async Task ResetApprovalsAndNotify(
@@ -749,7 +645,7 @@ public sealed class TeacherWorkflowService
             {
                 var selectedDate = DateOnly.FromDateTime(testing.ScheduledDate!.Value);
                 var selectedStart = TimeOnly.FromTimeSpan(testing.ScheduledTime!.Value);
-                await EnsureSlotIsAvailable(testing, selectedDate, selectedStart, cancellationToken);
+                await TestingSlotGuard.EnsureSlotIsAvailable(_context, testing, selectedDate, selectedStart, cancellationToken);
             }
 
             var updated = await _context.TestingTeacherApprovals
