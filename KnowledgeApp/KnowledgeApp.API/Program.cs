@@ -8,6 +8,7 @@ using KnowledgeApp.API.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using KnowledgeApp.Infrastructure.Storage;
 using KnowledgeApp.API.Auth;
+using KnowledgeApp.API.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
@@ -153,6 +154,11 @@ services.AddScoped<GroupDisciplineService>();
 services.AddScoped<AdminProcessService>();
 services.AddScoped<AdminUserService>();
 services.AddScoped<AuditLogService>();
+services.AddScoped<TechLogService>();
+services.AddHttpContextAccessor();
+services.AddSingleton<DatabaseLoggerProvider>();
+services.AddSingleton<ILoggerProvider>(sp => sp.GetRequiredService<DatabaseLoggerProvider>());
+services.AddHostedService<SystemLogWriter>();
 
 services.AddSingleton(S3StorageOptions.FromEnvironment());
 services.AddSingleton<IFileStorage, S3FileStorage>();
@@ -194,6 +200,7 @@ catch (Exception ex)
 
 // Настройка конвейера запросов
 app.UsePathBase("/csh/api");
+app.UseMiddleware<UnhandledExceptionMiddleware>();
 app.UseRouting();
 
 app.UseCors("AllowSpecificOrigin");
