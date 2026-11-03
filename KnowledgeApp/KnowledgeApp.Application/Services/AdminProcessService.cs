@@ -1,6 +1,7 @@
 using KnowledgeApp.Application.DTOs.Admin;
 using KnowledgeApp.Application.DTOs.Documents;
 using KnowledgeApp.Application.Exceptions;
+using KnowledgeApp.Domain.Enums;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -11,10 +12,12 @@ public sealed class AdminProcessService
 {
     private const int MaxPageSize = 200;
     private const string RescheduleAction = "reschedule";
+    private const string RollbackAction = "rollback";
 
     private static readonly IReadOnlyDictionary<string, string> ActionLabels = new Dictionary<string, string>
     {
-        [RescheduleAction] = "Перенос даты и времени"
+        [RescheduleAction] = "Перенос даты и времени",
+        [RollbackAction] = "Откат этапа"
     };
 
     private readonly KnowledgeTestDbContext _context;
@@ -208,6 +211,94 @@ public sealed class AdminProcessService
         return await GetProcess(testingId, cancellationToken);
     }
 
+    public async Task<AdminProcessDto> RollbackStage(
+        int testingId,
+        string? comment,
+        AdminActor actor,
+        CancellationToken cancellationToken)
+    {
+        var normalizedComment = AdminActors.RequireReason(comment, "Укажите комментарий к откату этапа.");
+        var actorName = await AdminActors.NameOf(_context, actor, cancellationToken);
+
+        await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            var current = await GetProcess(testingId, cancellationToken);
+            var previousStage = AdminProcessState.PreviousStage(current.Stage)
+                ?? throw new DocumentConflictException(
+                    $"Процесс на этапе «{current.StageLabel}», откатывать некуда.");
+            var changedAt = DateTime.UtcNow;
+
+            switch (current.Stage)
+            {
+                case AdminProcessState.StagePaperSubmitted:
+                    await _context.Reports
+                        .Where(r => r.Id == current.ReportId)
+                        .ExecuteUpdateAsync(update => update
+                            .SetProperty(r => r.DoneInPaperForm, (bool?)false)
+                            .SetProperty(r => r.AllDone, (bool?)false), cancellationToken);
+                    break;
+                case AdminProcessState.StageReportSigned:
+                    await _context.Reports
+                        .Where(r => r.Id == current.ReportId)
+                        .ExecuteUpdateAsync(update => update
+                            .SetProperty(r => r.Status, DocumentStatus.Pending)
+                            .SetProperty(r => r.ReviewComment, (string?)null)
+                            .SetProperty(r => r.ReviewedAt, (DateTime?)null)
+                            .SetProperty(r => r.ReviewedByUserId, (int?)null)
+                            .SetProperty(r => r.DoneInPaperForm, (bool?)null)
+                            .SetProperty(r => r.AllDone, (bool?)false), cancellationToken);
+                    break;
+                case AdminProcessState.StageReportReview:
+                    await _context.Reports
+                        .Where(r => r.Id == current.ReportId)
+                        .ExecuteUpdateAsync(update => update
+                            .SetProperty(r => r.Status, DocumentStatus.Rejected)
+                            .SetProperty(r => r.ReviewComment, normalizedComment)
+                            .SetProperty(r => r.ReviewedAt, changedAt)
+                            .SetProperty(r => r.ReviewedByUserId, (int?)null), cancellationToken);
+                    break;
+                case AdminProcessState.StageApproved:
+                    await ResetApprovals(testingId, cancellationToken);
+                    break;
+                case AdminProcessState.StageApproval:
+                    await ResetApprovals(testingId, cancellationToken);
+                    await _context.Testings
+                        .Where(t => t.Id == testingId)
+                        .ExecuteUpdateAsync(update => update
+                            .SetProperty(t => t.ScheduledDate, (DateTime?)null)
+                            .SetProperty(t => t.ScheduledTime, (TimeSpan?)null)
+                            .SetProperty(t => t.ScheduledPair, (int?)null), cancellationToken);
+                    break;
+                default:
+                    throw new DocumentConflictException(
+                        $"Процесс на этапе «{current.StageLabel}», откатывать некуда.");
+            }
+
+            var previousLabel = AdminProcessState.StageLabel(previousStage);
+            _context.TestingChanges.Add(new TestingChange
+            {
+                TestingId = testingId,
+                Action = RollbackAction,
+                PreviousValue = current.StageLabel,
+                NewValue = previousLabel,
+                Reason = normalizedComment,
+                ChangedByUserId = actor.UserId,
+                ChangedByName = actorName,
+                ChangedAt = changedAt
+            });
+            await NotifyParticipants(
+                testingId,
+                "testing_stage_rolled_back",
+                "Администратор вернул процесс на шаг назад",
+                $"Проверка группы {current.GroupName} по дисциплине «{current.DisciplineName}» возвращена с этапа «{current.StageLabel}» на этап «{previousLabel}». Комментарий: {normalizedComment}",
+                changedAt,
+                cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
+
+        return await GetProcess(testingId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AdminProcessChangeDto>> GetHistory(int testingId, CancellationToken cancellationToken)
     {
         if (!await _context.Testings.AnyAsync(t => t.Id == testingId, cancellationToken))
@@ -233,6 +324,14 @@ public sealed class AdminProcessService
                 DocumentStatusInfo.AsUtc(c.ChangedAt)))
             .ToList();
     }
+
+    private Task ResetApprovals(int testingId, CancellationToken cancellationToken) =>
+        _context.TestingTeacherApprovals
+            .Where(a => a.TestingId == testingId)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(a => a.Status, AdminProcessState.Pending)
+                .SetProperty(a => a.Comment, (string?)null)
+                .SetProperty(a => a.RespondedAt, (DateTime?)null), cancellationToken);
 
     private async Task NotifyParticipants(
         int testingId,
