@@ -751,6 +751,63 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("testing", (string)null);
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("changed_at");
+
+                    b.Property<string>("ChangedByName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("changed_by_name");
+
+                    b.Property<int?>("ChangedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("NewValue")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("new_value");
+
+                    b.Property<string>("PreviousValue")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("previous_value");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("TestingId")
+                        .HasColumnType("int")
+                        .HasColumnName("testing_id");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex(new[] { "TestingId", "ChangedAt" }, "ix_testing_changes_testing_changed");
+
+                    b.ToTable("testing_changes", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingTeacherApproval", b =>
                 {
                     b.Property<int>("TestingId")
@@ -1159,6 +1216,15 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingChange", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Testing", null)
+                        .WithMany()
+                        .HasForeignKey("TestingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingTeacherApproval", b =>
