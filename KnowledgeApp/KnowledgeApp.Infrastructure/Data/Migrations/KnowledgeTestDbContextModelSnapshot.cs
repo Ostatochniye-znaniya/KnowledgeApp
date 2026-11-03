@@ -751,6 +751,63 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("testing", (string)null);
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("changed_at");
+
+                    b.Property<string>("ChangedByName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("changed_by_name");
+
+                    b.Property<int?>("ChangedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("NewValue")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("new_value");
+
+                    b.Property<string>("PreviousValue")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("previous_value");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("TestingId")
+                        .HasColumnType("int")
+                        .HasColumnName("testing_id");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex(new[] { "TestingId", "ChangedAt" }, "ix_testing_changes_testing_changed");
+
+                    b.ToTable("testing_changes", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingTeacherApproval", b =>
                 {
                     b.Property<int>("TestingId")
@@ -793,6 +850,9 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("department_id");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
@@ -807,6 +867,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Property<int?>("FacultyId")
                         .HasColumnType("int")
                         .HasColumnName("faculty_id");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("last_login_at");
 
                     b.Property<string>("Name")
                         .HasMaxLength(255)
@@ -833,6 +897,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasDatabaseName("faculty_id1");
 
                     b.HasIndex(new[] { "StatusId" }, "status_id");
+
+                    b.HasIndex(new[] { "DepartmentId" }, "users_department_id");
 
                     b.ToTable("users", (string)null);
                 });
@@ -863,6 +929,57 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasDatabaseName("user_id1");
 
                     b.ToTable("user_role", (string)null);
+                });
+
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.UserRoleChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("changed_at");
+
+                    b.Property<string>("ChangedByName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("changed_by_name");
+
+                    b.Property<int?>("ChangedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("NewRoles")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("new_roles");
+
+                    b.Property<string>("PreviousRoles")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("previous_roles");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex(new[] { "UserId", "ChangedAt" }, "ix_user_role_changes_user_changed");
+
+                    b.ToTable("user_role_changes", (string)null);
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.WorkflowNotification", b =>
@@ -1161,6 +1278,15 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Report");
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingChange", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Testing", null)
+                        .WithMany()
+                        .HasForeignKey("TestingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.TestingTeacherApproval", b =>
                 {
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
@@ -1178,6 +1304,12 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.User", b =>
                 {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("users_department_fk");
+
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.Faculty", "Faculty")
                         .WithMany("Users")
                         .HasForeignKey("FacultyId")
@@ -1187,6 +1319,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .WithMany("Users")
                         .HasForeignKey("StatusId")
                         .HasConstraintName("users_ibfk_1");
+
+                    b.Navigation("Department");
 
                     b.Navigation("Faculty");
 
@@ -1210,6 +1344,15 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.UserRoleChange", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.WorkflowNotification", b =>

@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using KnowledgeApp.Application.DTOs.MockAuth;
+using KnowledgeApp.Application.Services;
 using KnowledgeApp.Application.Services.MockAuth;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Entities;
@@ -82,7 +83,8 @@ public class AuthController : ControllerBase
                     Email = userProfile.Email,
                     Password = string.Empty,
                     StatusId = null,
-                    FacultyId = null
+                    FacultyId = null,
+                    LastLoginAt = DateTime.UtcNow
                 };
 
                 await _context.Users.AddAsync(newUser);
@@ -91,7 +93,11 @@ public class AuthController : ControllerBase
             }
             else
             {
-                bool modified = false;
+                if (await IsBlocked(existingUser.StatusId))
+                    return BlockedResult();
+
+                existingUser.LastLoginAt = DateTime.UtcNow;
+                bool modified = true;
                 if (!string.IsNullOrWhiteSpace(fullName) && existingUser.Name != fullName)
                 {
                     existingUser.Name = fullName;
@@ -269,6 +275,11 @@ public class AuthController : ControllerBase
         if (dbUser == null)
         {
             return Unauthorized(new { detail = "User not found in local database" });
+        }
+
+        if (AdminUserStatus.CodeOf(dbUser.Status?.StatusName) == AdminUserStatus.Blocked)
+        {
+            return BlockedResult();
         }
 
         var roles = dbUser.UserRoles
@@ -591,6 +602,20 @@ public class AuthController : ControllerBase
             Path = "/"
         });
     }
+
+    private async Task<bool> IsBlocked(int? statusId)
+    {
+        if (!statusId.HasValue)
+            return false;
+        var statusName = await _context.Statuses
+            .Where(s => s.Id == statusId)
+            .Select(s => s.StatusName)
+            .FirstOrDefaultAsync();
+        return AdminUserStatus.CodeOf(statusName) == AdminUserStatus.Blocked;
+    }
+
+    private ObjectResult BlockedResult() =>
+        StatusCode(StatusCodes.Status403Forbidden, new { detail = "Учётная запись заблокирована. Обратитесь в техподдержку." });
 
     private async Task<UserProfileDto?> FetchAdminUserProfile(string accessToken)
     {

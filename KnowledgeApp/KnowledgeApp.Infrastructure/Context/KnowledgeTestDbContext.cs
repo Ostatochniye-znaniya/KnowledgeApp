@@ -46,6 +46,10 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<WorkflowNotification> WorkflowNotifications { get; set; }
 
+    public virtual DbSet<TestingChange> TestingChanges { get; set; }
+
+    public virtual DbSet<UserRoleChange> UserRoleChanges { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -599,6 +603,43 @@ public partial class KnowledgeTestDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<TestingChange>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("testing_changes");
+            entity.HasIndex(e => new { e.TestingId, e.ChangedAt }, "ix_testing_changes_testing_changed");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.TestingId).HasColumnName("testing_id");
+            entity.Property(e => e.Action).HasMaxLength(32).HasColumnName("action");
+            entity.Property(e => e.PreviousValue).HasMaxLength(255).HasColumnName("previous_value");
+            entity.Property(e => e.NewValue).HasMaxLength(255).HasColumnName("new_value");
+            entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
+            entity.Property(e => e.ChangedByUserId).HasColumnName("changed_by_user_id");
+            entity.Property(e => e.ChangedByName).HasMaxLength(255).HasColumnName("changed_by_name");
+            entity.Property(e => e.ChangedAt).HasColumnName("changed_at");
+            entity.HasOne<Testing>().WithMany()
+                .HasForeignKey(e => e.TestingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserRoleChange>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("user_role_changes");
+            entity.HasIndex(e => new { e.UserId, e.ChangedAt }, "ix_user_role_changes_user_changed");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.PreviousRoles).HasMaxLength(500).HasColumnName("previous_roles");
+            entity.Property(e => e.NewRoles).HasMaxLength(500).HasColumnName("new_roles");
+            entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
+            entity.Property(e => e.ChangedByUserId).HasColumnName("changed_by_user_id");
+            entity.Property(e => e.ChangedByName).HasMaxLength(255).HasColumnName("changed_by_name");
+            entity.Property(e => e.ChangedAt).HasColumnName("changed_at");
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -626,7 +667,15 @@ public partial class KnowledgeTestDbContext : DbContext
                 .HasColumnName("password");
             entity.Property(e => e.StatusId).HasColumnName("status_id");
             entity.Property(e => e.FacultyId).HasColumnName("faculty_id");
-            
+            entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+            entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+            entity.HasIndex(e => e.DepartmentId, "users_department_id");
+
+            entity.HasOne(d => d.Department).WithMany()
+                .HasForeignKey(d => d.DepartmentId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("users_department_fk");
+
             entity.HasOne(d => d.Faculty).WithMany(p => p.Users)
                 .HasForeignKey(d => d.FacultyId)
                 .HasConstraintName("users_ibfk_2");
