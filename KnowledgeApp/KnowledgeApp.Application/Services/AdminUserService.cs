@@ -117,7 +117,10 @@ public sealed class AdminUserService
         return new AdminUserFiltersDto(roles, departments, faculties, AdminUserStatus.Options());
     }
 
-    public async Task<AdminUserDto> CreateUser(CreateAdminUserCommand command, CancellationToken cancellationToken)
+    public async Task<AdminUserDto> CreateUser(
+        CreateAdminUserCommand command,
+        AdminActor actor,
+        CancellationToken cancellationToken)
     {
         var name = command.Name?.Trim();
         if (string.IsNullOrEmpty(name))
@@ -165,10 +168,31 @@ public sealed class AdminUserService
             _context.Users.Add(user);
             await _context.SaveChangesAsync(cancellationToken);
             if (command.RoleId.HasValue)
-            {
                 _context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = command.RoleId });
-                await _context.SaveChangesAsync(cancellationToken);
-            }
+
+            var created = new List<string> { user.Name!, user.Email! };
+            if (command.RoleId.HasValue)
+                created.Add(await _context.Roles
+                    .Where(r => r.Id == command.RoleId)
+                    .Select(r => r.RoleName)
+                    .SingleAsync(cancellationToken));
+            if (command.DepartmentId.HasValue)
+                created.Add(await _context.Departments
+                    .Where(d => d.Id == command.DepartmentId)
+                    .Select(d => d.Name)
+                    .SingleAsync(cancellationToken));
+            await AuditTrail.Add(
+                _context,
+                actor,
+                AuditCatalog.UserCreate,
+                AuditCatalog.EntityUser,
+                user.Id,
+                user.Name,
+                null,
+                string.Join(", ", created),
+                null,
+                cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
         }, cancellationToken);
 
         return await GetUser(user.Id, cancellationToken);
@@ -193,8 +217,11 @@ public sealed class AdminUserService
 
         await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
         {
-            if (!await _context.Users.AnyAsync(u => u.Id == userId, cancellationToken))
-                throw new DocumentNotFoundException("Пользователь не найден");
+            var userName = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.Name })
+                .SingleOrDefaultAsync(cancellationToken)
+                ?? throw new DocumentNotFoundException("Пользователь не найден");
 
             var currentRoles = await _context.UserRoles
                 .Where(ur => ur.UserId == userId)
@@ -220,12 +247,24 @@ public sealed class AdminUserService
                 .OrderBy(ur => ur.RoleId)
                 .Select(ur => ur.Role!.RoleName)
                 .ToList();
+            var previous = previousRoles.Count > 0 ? string.Join(", ", previousRoles) : GuestRoleName;
             _context.UserRoles.RemoveRange(currentRoles);
             _context.UserRoles.Add(new UserRole { UserId = userId, RoleId = role.Id });
+            await AuditTrail.Add(
+                _context,
+                actor,
+                AuditCatalog.UserRoleChange,
+                AuditCatalog.EntityUser,
+                userId,
+                userName.Name,
+                previous,
+                role.RoleName,
+                normalizedReason,
+                cancellationToken);
             _context.UserRoleChanges.Add(new UserRoleChange
             {
                 UserId = userId,
-                PreviousRoles = previousRoles.Count > 0 ? string.Join(", ", previousRoles) : GuestRoleName,
+                PreviousRoles = previous,
                 NewRoles = role.RoleName,
                 Reason = normalizedReason,
                 ChangedByUserId = actor.UserId,
@@ -241,12 +280,16 @@ public sealed class AdminUserService
     public async Task<AdminUserDto> ChangeStatus(
         int userId,
         string? status,
+        string? reason,
         AdminActor actor,
         CancellationToken cancellationToken)
     {
         var code = status?.Trim().ToLowerInvariant();
         if (code is not (AdminUserStatus.Active or AdminUserStatus.Blocked))
             throw new DocumentValidationException("Статус должен быть active или blocked.");
+        var normalizedReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        if (normalizedReason?.Length > AdminActors.MaxReasonLength)
+            throw new DocumentValidationException($"Причина длиннее {AdminActors.MaxReasonLength} символов.");
         if (code == AdminUserStatus.Blocked && actor.UserId == userId)
             throw new DocumentConflictException("Нельзя заблокировать самого себя.");
 
@@ -278,7 +321,19 @@ public sealed class AdminUserService
                     throw new DocumentConflictException("Нельзя заблокировать последнего активного администратора.");
             }
 
+            var previousStatus = AdminUserStatus.CodeOf(user.Status?.StatusName);
             user.StatusId = await AdminUserStatus.EnsureStatusId(_context, code, cancellationToken);
+            await AuditTrail.Add(
+                _context,
+                actor,
+                AuditCatalog.UserStatusChange,
+                AuditCatalog.EntityUser,
+                userId,
+                user.Name,
+                AdminUserStatus.LabelOf(previousStatus),
+                AdminUserStatus.LabelOf(code),
+                normalizedReason,
+                cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }, cancellationToken);
 

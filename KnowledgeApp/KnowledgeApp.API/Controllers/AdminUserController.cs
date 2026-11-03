@@ -71,6 +71,7 @@ public sealed class AdminUserController : AdminControllerBase
         Execute(async () => Results.Json(await _userService.ChangeStatus(
             id,
             request.Status,
+            request.Reason,
             CurrentActor(),
             cancellationToken)));
 
@@ -96,6 +97,7 @@ public sealed class AdminUserController : AdminControllerBase
                     request.RoleId,
                     request.DepartmentId,
                     request.FacultyId),
+                CurrentActor(),
                 cancellationToken);
             return Results.Json(user, statusCode: StatusCodes.Status201Created);
         });
