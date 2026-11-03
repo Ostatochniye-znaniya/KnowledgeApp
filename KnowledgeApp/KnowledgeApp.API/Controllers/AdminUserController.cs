@@ -43,6 +43,28 @@ public sealed class AdminUserController : AdminControllerBase
     public Task<IResult> GetUser(int id, CancellationToken cancellationToken) =>
         Execute(async () => Results.Json(await _userService.GetUser(id, cancellationToken)));
 
+    [HttpPatch("{id:int}/role")]
+    [ProducesResponseType(typeof(AdminUserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public Task<IResult> ChangeRole(
+        int id,
+        [FromBody] ChangeUserRoleRequest request,
+        CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _userService.ChangeRole(
+            id,
+            request.RoleId,
+            request.Reason,
+            CurrentActor(),
+            cancellationToken)));
+
+    [HttpGet("{id:int}/role-history")]
+    [ProducesResponseType(typeof(IReadOnlyList<AdminUserRoleChangeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public Task<IResult> GetRoleHistory(int id, CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _userService.GetRoleHistory(id, cancellationToken)));
+
     [HttpPost]
     [ProducesResponseType(typeof(AdminUserDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

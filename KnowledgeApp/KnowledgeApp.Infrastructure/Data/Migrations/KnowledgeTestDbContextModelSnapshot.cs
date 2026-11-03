@@ -931,6 +931,57 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("user_role", (string)null);
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.UserRoleChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("changed_at");
+
+                    b.Property<string>("ChangedByName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("changed_by_name");
+
+                    b.Property<int?>("ChangedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("NewRoles")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("new_roles");
+
+                    b.Property<string>("PreviousRoles")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("previous_roles");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex(new[] { "UserId", "ChangedAt" }, "ix_user_role_changes_user_changed");
+
+                    b.ToTable("user_role_changes", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.WorkflowNotification", b =>
                 {
                     b.Property<int>("Id")
@@ -1293,6 +1344,15 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.UserRoleChange", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.WorkflowNotification", b =>
