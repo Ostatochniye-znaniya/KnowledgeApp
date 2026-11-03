@@ -238,6 +238,53 @@ public sealed class AdminUserService
         return await GetUser(userId, cancellationToken);
     }
 
+    public async Task<AdminUserDto> ChangeStatus(
+        int userId,
+        string? status,
+        AdminActor actor,
+        CancellationToken cancellationToken)
+    {
+        var code = status?.Trim().ToLowerInvariant();
+        if (code is not (AdminUserStatus.Active or AdminUserStatus.Blocked))
+            throw new DocumentValidationException("Статус должен быть active или blocked.");
+        if (code == AdminUserStatus.Blocked && actor.UserId == userId)
+            throw new DocumentConflictException("Нельзя заблокировать самого себя.");
+
+        await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            var user = await _context.Users
+                .Include(u => u.Status)
+                .SingleOrDefaultAsync(u => u.Id == userId, cancellationToken)
+                ?? throw new DocumentNotFoundException("Пользователь не найден");
+            if (AdminUserStatus.CodeOf(user.Status?.StatusName) == code)
+                throw new DocumentValidationException(code == AdminUserStatus.Blocked
+                    ? "Пользователь уже заблокирован."
+                    : "Пользователь уже активен.");
+
+            if (code == AdminUserStatus.Blocked &&
+                await _context.UserRoles.AnyAsync(ur => ur.UserId == userId && ur.Role!.RoleName == AdminRoleName,
+                    cancellationToken))
+            {
+                var blockedStatusIds = await _context.Statuses
+                    .Where(s => s.StatusName == AdminUserStatus.LabelOf(AdminUserStatus.Blocked))
+                    .Select(s => (int?)s.Id)
+                    .ToListAsync(cancellationToken);
+                var otherActiveAdmins = await _context.UserRoles.AnyAsync(ur =>
+                        ur.UserId != userId &&
+                        ur.Role!.RoleName == AdminRoleName &&
+                        !blockedStatusIds.Contains(ur.User!.StatusId),
+                    cancellationToken);
+                if (!otherActiveAdmins)
+                    throw new DocumentConflictException("Нельзя заблокировать последнего активного администратора.");
+            }
+
+            user.StatusId = await AdminUserStatus.EnsureStatusId(_context, code, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
+
+        return await GetUser(userId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AdminUserRoleChangeDto>> GetRoleHistory(
         int userId,
         CancellationToken cancellationToken)
