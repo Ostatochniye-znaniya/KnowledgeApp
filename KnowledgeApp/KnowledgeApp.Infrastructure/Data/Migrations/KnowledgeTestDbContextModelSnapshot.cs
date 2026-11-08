@@ -813,6 +813,53 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("system_logs", (string)null);
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.SystemSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccessRequestInstructions")
+                        .HasColumnType("text")
+                        .HasColumnName("access_request_instructions");
+
+                    b.Property<string>("NotificationTemplate")
+                        .HasColumnType("text")
+                        .HasColumnName("notification_template");
+
+                    b.Property<string>("SupportEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("support_email");
+
+                    b.Property<string>("SupportPhone")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("support_phone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("updated_by_name");
+
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<string>("WelcomeText")
+                        .HasColumnType("text")
+                        .HasColumnName("welcome_text");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.ToTable("system_settings", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Testing", b =>
                 {
                     b.Property<int>("Id")
