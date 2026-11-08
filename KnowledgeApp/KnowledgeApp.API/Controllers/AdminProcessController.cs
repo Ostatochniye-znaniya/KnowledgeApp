@@ -80,4 +80,19 @@ public sealed class AdminProcessController : AdminControllerBase
             request.Reason,
             CurrentActor(),
             cancellationToken)));
+
+    [HttpPost("{id:int}/rollback")]
+    [ProducesResponseType(typeof(AdminProcessDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public Task<IResult> RollbackStage(
+        int id,
+        [FromBody] RollbackProcessRequest request,
+        CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _processService.RollbackStage(
+            id,
+            request.Comment,
+            CurrentActor(),
+            cancellationToken)));
 }
