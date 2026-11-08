@@ -198,6 +198,17 @@ public sealed class AdminProcessService
                 ChangedByName = actorName,
                 ChangedAt = changedAt
             });
+            await AuditTrail.Add(
+                _context,
+                actor,
+                AuditCatalog.ProcessReschedule,
+                AuditCatalog.EntityProcess,
+                testingId,
+                ProcessLabel(current),
+                previousValue,
+                newValue,
+                normalizedReason,
+                cancellationToken);
             await NotifyParticipants(
                 testingId,
                 "testing_rescheduled",
@@ -286,6 +297,17 @@ public sealed class AdminProcessService
                 ChangedByName = actorName,
                 ChangedAt = changedAt
             });
+            await AuditTrail.Add(
+                _context,
+                actor,
+                AuditCatalog.ProcessRollback,
+                AuditCatalog.EntityProcess,
+                testingId,
+                ProcessLabel(current),
+                current.StageLabel,
+                previousLabel,
+                normalizedComment,
+                cancellationToken);
             await NotifyParticipants(
                 testingId,
                 "testing_stage_rolled_back",
@@ -373,6 +395,9 @@ public sealed class AdminProcessService
             });
         }
     }
+
+    private static string ProcessLabel(AdminProcessDto process) =>
+        $"{process.GroupName} · {process.DisciplineName}";
 
     private static string? FormatSlot(DateOnly? date, TimeOnly? time) =>
         date.HasValue

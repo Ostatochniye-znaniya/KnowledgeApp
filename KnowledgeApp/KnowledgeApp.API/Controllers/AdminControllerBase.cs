@@ -13,6 +13,15 @@ public abstract class AdminControllerBase : DocumentControllerBase
         return new AdminActor(
             claimUserId ?? currentUser.UserId,
             User.FindFirstValue(ClaimTypes.Name),
-            User.FindFirstValue(ClaimTypes.Role));
+            User.FindFirstValue(ClaimTypes.Role),
+            ClientIp());
+    }
+
+    private string? ClientIp()
+    {
+        var forwarded = Request.Headers["X-Forwarded-For"].ToString();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+            return forwarded.Split(',')[0].Trim();
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
 }
