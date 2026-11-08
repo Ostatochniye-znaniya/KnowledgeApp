@@ -52,6 +52,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<AuditLogEntry> AuditLogs { get; set; }
 
+    public virtual DbSet<SystemLogEntry> SystemLogs { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -644,6 +646,25 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.NewState).HasMaxLength(2000).HasColumnName("new_state");
             entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
             entity.Property(e => e.IpAddress).HasMaxLength(64).HasColumnName("ip_address");
+        });
+
+        modelBuilder.Entity<SystemLogEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("system_logs");
+            entity.HasIndex(e => e.CreatedAt, "ix_system_logs_created");
+            entity.HasIndex(e => new { e.Level, e.CreatedAt }, "ix_system_logs_level_created");
+            entity.HasIndex(e => e.TraceId, "ix_system_logs_trace");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.Level).HasMaxLength(16).HasColumnName("level");
+            entity.Property(e => e.Service).HasMaxLength(128).HasColumnName("service");
+            entity.Property(e => e.Category).HasMaxLength(255).HasColumnName("category");
+            entity.Property(e => e.Message).HasMaxLength(2000).HasColumnName("message");
+            entity.Property(e => e.TraceId).HasMaxLength(64).HasColumnName("trace_id");
+            entity.Property(e => e.Details).HasColumnType("text").HasColumnName("details");
+            entity.Property(e => e.RequestMethod).HasMaxLength(16).HasColumnName("request_method");
+            entity.Property(e => e.RequestPath).HasMaxLength(512).HasColumnName("request_path");
         });
 
         modelBuilder.Entity<UserRoleChange>(entity =>
