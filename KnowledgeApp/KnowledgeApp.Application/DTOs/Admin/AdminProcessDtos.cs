@@ -62,6 +62,17 @@ public sealed record AdminProcessPageDto(
     int PageSize,
     IReadOnlyList<AdminStatusCountDto> ApprovalStatusCounts);
 
+public sealed record AdminProcessChangeDto(
+    int Id,
+    string Action,
+    string ActionLabel,
+    string? PreviousValue,
+    string? NewValue,
+    string Reason,
+    int? ChangedByUserId,
+    string ChangedByName,
+    DateTimeOffset ChangedAt);
+
 public sealed record AdminProcessFiltersDto(
     IReadOnlyList<FilterOptionDto> ApprovalStatuses,
     IReadOnlyList<FilterOptionDto> Stages,

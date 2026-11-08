@@ -2,6 +2,7 @@ using KnowledgeApp.Application.DTOs.Admin;
 using KnowledgeApp.Application.DTOs.Documents;
 using KnowledgeApp.Application.Exceptions;
 using KnowledgeApp.Infrastructure.Context;
+using KnowledgeApp.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeApp.Application.Services;
@@ -9,6 +10,13 @@ namespace KnowledgeApp.Application.Services;
 public sealed class AdminProcessService
 {
     private const int MaxPageSize = 200;
+    private const string RescheduleAction = "reschedule";
+
+    private static readonly IReadOnlyDictionary<string, string> ActionLabels = new Dictionary<string, string>
+    {
+        [RescheduleAction] = "Перенос даты и времени"
+    };
+
     private readonly KnowledgeTestDbContext _context;
 
     public AdminProcessService(KnowledgeTestDbContext context)
@@ -130,6 +138,147 @@ public sealed class AdminProcessService
             faculties,
             departments);
     }
+
+    public async Task<AdminProcessDto> Reschedule(
+        int testingId,
+        DateOnly? date,
+        string? timeText,
+        string? reason,
+        AdminActor actor,
+        CancellationToken cancellationToken)
+    {
+        if (!date.HasValue || string.IsNullOrWhiteSpace(timeText))
+            throw new DocumentValidationException("Укажите новую дату и время.");
+        if (!TimeOnly.TryParseExact(timeText.Trim(), ["HH:mm", "HH:mm:ss"], out var parsedTime))
+            throw new DocumentValidationException("Время указывается в формате ЧЧ:ММ.");
+        TimeOnly? time = parsedTime;
+        var normalizedReason = AdminActors.RequireReason(reason, "Укажите причину переноса.");
+
+        var current = await GetProcess(testingId, cancellationToken);
+        if (current.ApprovalStatus != AdminProcessState.Approved)
+            throw new DocumentConflictException("Вручную переносятся только согласованные процессы.");
+        if (current.ScheduledDate == date && current.ScheduledTime == time)
+            throw new DocumentValidationException("Новые дата и время совпадают с текущими.");
+
+        var testing = await _context.Testings.AsNoTracking().SingleAsync(t => t.Id == testingId, cancellationToken);
+        var scheduledDate = date.Value.ToDateTime(TimeOnly.MinValue);
+        var scheduledTime = time.Value.ToTimeSpan();
+        var pairNumber = TestingPairSchedule.All.FirstOrDefault(slot => slot.StartsAt == time.Value)?.PairNumber;
+        var previousValue = FormatSlot(current.ScheduledDate, current.ScheduledTime);
+        var newValue = FormatSlot(date, time);
+        var actorName = await AdminActors.NameOf(_context, actor, cancellationToken);
+
+        await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            await TestingSlotGuard.EnsureSlotIsAvailable(_context, testing, date.Value, time.Value, cancellationToken);
+
+            var changed = await _context.Testings
+                .Where(t => t.Id == testingId &&
+                            t.ScheduledDate == testing.ScheduledDate &&
+                            t.ScheduledTime == testing.ScheduledTime)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(t => t.ScheduledDate, scheduledDate)
+                    .SetProperty(t => t.ScheduledTime, scheduledTime)
+                    .SetProperty(t => t.ScheduledPair, pairNumber), cancellationToken);
+            if (changed == 0)
+                throw new DocumentConflictException("Дата процесса уже изменилась. Обновите страницу и повторите действие.");
+
+            var changedAt = DateTime.UtcNow;
+            _context.TestingChanges.Add(new TestingChange
+            {
+                TestingId = testingId,
+                Action = RescheduleAction,
+                PreviousValue = previousValue,
+                NewValue = newValue,
+                Reason = normalizedReason,
+                ChangedByUserId = actor.UserId,
+                ChangedByName = actorName,
+                ChangedAt = changedAt
+            });
+            await NotifyParticipants(
+                testingId,
+                "testing_rescheduled",
+                "Администратор перенёс проверку",
+                $"Проверка группы {current.GroupName} по дисциплине «{current.DisciplineName}» перенесена с {previousValue} на {newValue}. Причина: {normalizedReason}",
+                changedAt,
+                cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
+
+        return await GetProcess(testingId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AdminProcessChangeDto>> GetHistory(int testingId, CancellationToken cancellationToken)
+    {
+        if (!await _context.Testings.AnyAsync(t => t.Id == testingId, cancellationToken))
+            throw new DocumentNotFoundException("Процесс тестирования не найден");
+
+        var changes = await _context.TestingChanges
+            .AsNoTracking()
+            .Where(c => c.TestingId == testingId)
+            .OrderByDescending(c => c.ChangedAt)
+            .ThenByDescending(c => c.Id)
+            .ToListAsync(cancellationToken);
+
+        return changes
+            .Select(c => new AdminProcessChangeDto(
+                c.Id,
+                c.Action,
+                ActionLabels.GetValueOrDefault(c.Action, c.Action),
+                c.PreviousValue,
+                c.NewValue,
+                c.Reason,
+                c.ChangedByUserId,
+                c.ChangedByName,
+                DocumentStatusInfo.AsUtc(c.ChangedAt)))
+            .ToList();
+    }
+
+    private async Task NotifyParticipants(
+        int testingId,
+        string type,
+        string title,
+        string message,
+        DateTime createdAt,
+        CancellationToken cancellationToken)
+    {
+        var teacherIds = await _context.TestingTeacherApprovals
+            .Where(a => a.TestingId == testingId)
+            .Select(a => a.TeacherId)
+            .ToListAsync(cancellationToken);
+        foreach (var teacherId in teacherIds)
+        {
+            _context.WorkflowNotifications.Add(new WorkflowNotification
+            {
+                RecipientUserId = teacherId,
+                TestingId = testingId,
+                Type = type,
+                Title = title,
+                Message = message,
+                CreatedAt = createdAt
+            });
+        }
+
+        var departmentId = (await TestingManagingDepartment.LoadAsync(_context, testingId, cancellationToken))
+            ?.ManagingDepartmentId;
+        if (departmentId.HasValue)
+        {
+            _context.WorkflowNotifications.Add(new WorkflowNotification
+            {
+                RecipientDepartmentId = departmentId.Value,
+                TestingId = testingId,
+                Type = type,
+                Title = title,
+                Message = message,
+                CreatedAt = createdAt
+            });
+        }
+    }
+
+    private static string? FormatSlot(DateOnly? date, TimeOnly? time) =>
+        date.HasValue
+            ? time.HasValue ? $"{date:dd.MM.yyyy} {time:HH:mm}" : $"{date:dd.MM.yyyy}"
+            : null;
 
     private async Task<List<AdminProcessDto>> Load(
         IQueryable<Infrastructure.Entities.Testing> testings,

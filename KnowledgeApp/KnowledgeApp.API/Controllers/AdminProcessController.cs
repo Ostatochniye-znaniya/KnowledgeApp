@@ -1,3 +1,4 @@
+using KnowledgeApp.API.Contracts.Admin;
 using KnowledgeApp.Application.DTOs.Admin;
 using KnowledgeApp.Application.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -6,7 +7,7 @@ namespace KnowledgeApp.API.Controllers;
 
 [ApiController]
 [Route("admin/processes")]
-public sealed class AdminProcessController : DocumentControllerBase
+public sealed class AdminProcessController : AdminControllerBase
 {
     private readonly AdminProcessService _processService;
 
@@ -56,4 +57,27 @@ public sealed class AdminProcessController : DocumentControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public Task<IResult> GetProcess(int id, CancellationToken cancellationToken) =>
         Execute(async () => Results.Json(await _processService.GetProcess(id, cancellationToken)));
+
+    [HttpGet("{id:int}/history")]
+    [ProducesResponseType(typeof(IReadOnlyList<AdminProcessChangeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public Task<IResult> GetHistory(int id, CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _processService.GetHistory(id, cancellationToken)));
+
+    [HttpPost("{id:int}/reschedule")]
+    [ProducesResponseType(typeof(AdminProcessDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public Task<IResult> Reschedule(
+        int id,
+        [FromBody] RescheduleProcessRequest request,
+        CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _processService.Reschedule(
+            id,
+            request.Date,
+            request.Time,
+            request.Reason,
+            CurrentActor(),
+            cancellationToken)));
 }
