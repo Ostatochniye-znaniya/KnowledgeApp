@@ -87,16 +87,17 @@ public sealed class TeacherWorkflowService
         RequireTeacher();
         return await _context.Orders
             .AsNoTracking()
+            .Where(order => order.Status == OrderStatuses.Issued)
             .OrderByDescending(order => order.OrderDate)
             .ThenByDescending(order => order.Id)
             .Select(order => new TeacherStageDeadlinesDto(
                 order.Id,
-                order.Number,
+                order.Number!,
                 order.OrderDate,
                 order.PreparationStartDate,
                 order.PreparationEndDate,
-                order.TestingStartDate,
-                order.TestingEndDate,
+                order.TestingStageStartDate ?? order.TestingStartDate,
+                order.TestingStageEndDate ?? order.TestingEndDate,
                 order.SurveyStartDate,
                 order.SurveyEndDate,
                 order.ResultsProcessingStartDate,

@@ -84,7 +84,8 @@ public class OrderPdfGenerator
         requisites.AddCell(RequisiteCell(order.OrderDate.ToString("dd.MM.yyyy"), underlined: true));
         requisites.AddCell(RequisiteCell(string.Empty, underlined: false));
         requisites.AddCell(RequisiteCell("№", underlined: false).SetTextAlignment(TextAlignment.RIGHT));
-        requisites.AddCell(RequisiteCell(order.Number, underlined: true));
+        requisites.AddCell(RequisiteCell(order.Number ?? "без номера", underlined: true));
+        if (order.Status == "draft") document.Add(Centered("ЧЕРНОВИК", 12).SetFont(bold));
         document.Add(requisites);
 
         document.Add(Line("О проведении проверки остаточных знаний обучающихся")
@@ -107,7 +108,7 @@ public class OrderPdfGenerator
             $"{ReportDeadlines(order)} в отдел контроля образовательного процесса (Приложение № 2)."));
         document.Add(Body($"4. Начальнику отдела контроля образовательного процесса {controlHead} " +
             "организовать методическое сопровождение сотрудников факультетов и институтов, ответственных " +
-            "за организацию и проведение проверки остаточных знаний."));
+            $"за организацию и проведение проверки остаточных знаний; провести обучающий онлайн-семинар {ShortDate(order.OnlineSeminarDate)}."));
         document.Add(Body("5. Контроль за исполнением настоящего приказа возложить на начальника центра " +
             $"по учебно-методической работе {methodicalHead}."));
 
@@ -132,7 +133,7 @@ public class OrderPdfGenerator
     {
         document.Add(new AreaBreak(AreaBreakType.NEXT_PAGE));
         document.Add(Line($"Приложение № {number}\nк приказу Московского Политеха\n" +
-                $"от {ShortDate(order.OrderDate)} г. № {order.Number}")
+                $"от {ShortDate(order.OrderDate)} г. № {order.Number ?? "без номера"}")
             .SetMarginLeft(AppendixHeaderOffset)
             .SetMarginBottom(LineHeight * 2));
     }
@@ -150,8 +151,8 @@ public class OrderPdfGenerator
         document.Add(Body("– 1 этап – подготовительный (подготовка тестовых материалов; формирование списков " +
             $"студентов; формирование графиков тестирования) с {LongDate(order.PreparationStartDate)} " +
             $"по {LongDate(order.PreparationEndDate)};"));
-        document.Add(Body($"– 2 этап – этап проведения тестирования с {LongDate(order.TestingStartDate)} " +
-            $"по {LongDate(order.TestingEndDate)};"));
+        document.Add(Body($"– 2 этап – этап проведения тестирования с {LongDate(order.TestingStageStartDate)} " +
+            $"по {LongDate(order.TestingStageEndDate)};"));
         document.Add(Body("– 3 этап – этап обработки и анализа результатов, формирования отчета " +
             $"с {LongDate(order.ResultsProcessingStartDate)} по {LongDate(order.InspectionSummaryDeadline)}"));
         document.Add(Body("2. Проверка остаточных знаний осуществляется в отношении обучающихся учебных групп " +
@@ -175,7 +176,7 @@ public class OrderPdfGenerator
         document.Add(Body("8. Тестирование, обработка и анализ результатов, а также формирование отчетов " +
             "проводятся ответственными лицами, назначенными деканами факультетов/директорами институтов."));
         document.Add(Body("9. Отчет о проверке остаточных знаний представляется в отдел контроля " +
-            "образовательного процесса в бумажном и электронном виде (на электронную почту: " +
+            "образовательного процесса " + (order.RequiresPaperReports ? "в бумажном и электронном виде" : "в электронном виде") + " (на электронную почту: " +
             "e.v.davydova@mospolytech.ru)."));
     }
 
@@ -188,14 +189,16 @@ public class OrderPdfGenerator
     }
 
     private static string ReportDeadlines(OrderModel order) =>
-        order.ElectronicReportDeadline == order.PaperReportDeadline
+        !order.RequiresPaperReports
+            ? $"в электронном виде в срок до {ShortDate(order.ElectronicReportDeadline)}"
+            : order.ElectronicReportDeadline == order.PaperReportDeadline
             ? $"в срок до {ShortDate(order.PaperReportDeadline)}"
             : $"в электронном виде в срок до {ShortDate(order.ElectronicReportDeadline)}, " +
               $"в бумажном виде в срок до {ShortDate(order.PaperReportDeadline)}";
 
-    private static string ShortDate(DateOnly date) => date.ToString("dd.MM.yyyy");
+    private static string ShortDate(DateOnly? date) => date?.ToString("dd.MM.yyyy") ?? "не указано";
 
-    private static string LongDate(DateOnly date) => ShortDate(date);
+    private static string LongDate(DateOnly? date) => ShortDate(date);
 
     private static Paragraph Line(string text) =>
         new Paragraph(text).SetFixedLeading(LineHeight).SetMargin(0);

@@ -3,6 +3,7 @@ using KnowledgeApp.Application.DTOs.Orders;
 using KnowledgeApp.Application.Exceptions;
 using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Domain.Entities;
+using KnowledgeApp.Domain.Enums;
 using KnowledgeApp.Infrastructure.Repositories;
 using KnowledgeApp.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,6 @@ namespace KnowledgeApp.Application.Services;
 
 public class OrderService
 {
-    private const int MaxNumberLength = 50;
     private const int MaxPersonNameLength = 200;
 
     private readonly OrderRepository _repository;
@@ -37,8 +37,9 @@ public class OrderService
 
         var order = new OrderModel
         {
-            Number = RequireText(request.Number, "Номер приказа", MaxNumberLength),
+            Number = null,
             Name = OrderPdfGenerator.OrderName,
+            Status = RequireStatus(request.Status),
             OrderDate = RequireDate(request.OrderDate, "Дата приказа"),
             EducationControlDepartmentHead = RequireText(request.EducationControlDepartmentHead,
                 "ФИО начальника отдела контроля образовательного процесса", MaxPersonNameLength),
@@ -48,7 +49,9 @@ public class OrderService
                 "Срок сводного отчёта по проверке"),
             SurveySummaryDeadline = RequireDate(request.SurveySummaryDeadline,
                 "Срок сводного отчёта по анкетированию"),
-            PaperReportDeadline = RequireDate(request.PaperReportDeadline, "Срок сдачи бумажных отчётов"),
+            RequiresPaperReports = request.RequiresPaperReports,
+            PaperReportDeadline = request.RequiresPaperReports
+                ? RequireDate(request.PaperReportDeadline, "Срок сдачи бумажных отчётов") : null,
             ElectronicReportDeadline = RequireDate(request.ElectronicReportDeadline, "Срок сдачи электронных отчётов"),
             TestingStartDate = RequireDate(request.TestingStartDate, "Начало тестирования"),
             TestingEndDate = RequireDate(request.TestingEndDate, "Конец тестирования"),
@@ -57,24 +60,13 @@ public class OrderService
             PreparationStartDate = RequireDate(request.PreparationStartDate, "Начало подготовительного этапа"),
             PreparationEndDate = RequireDate(request.PreparationEndDate, "Окончание подготовительного этапа"),
             ResultsProcessingStartDate = RequireDate(
-                request.ResultsProcessingStartDate, "Начало этапа обработки результатов")
+                request.ResultsProcessingStartDate, "Начало этапа обработки результатов"),
+            TestingStageStartDate = RequireDate(request.TestingStageStartDate, "Начало второго этапа"),
+            TestingStageEndDate = RequireDate(request.TestingStageEndDate, "Окончание второго этапа"),
+            OnlineSeminarDate = RequireDate(request.OnlineSeminarDate, "Обучающий онлайн-семинар")
         };
 
-        if (order.TestingEndDate < order.TestingStartDate)
-            throw new DocumentValidationException("Конец тестирования раньше его начала");
-        if (order.SurveyEndDate < order.SurveyStartDate)
-            throw new DocumentValidationException("Окончание анкетирования раньше его начала");
-        if (order.SurveySummaryDeadline < order.SurveyEndDate)
-            throw new DocumentValidationException("Сводный отчёт по анкетированию нельзя сдавать до окончания анкетирования");
-        if (order.PreparationEndDate < order.PreparationStartDate)
-            throw new DocumentValidationException("Окончание подготовительного этапа раньше его начала");
-        if (order.PreparationStartDate < order.OrderDate || order.PreparationEndDate > order.TestingStartDate)
-            throw new DocumentValidationException(
-                "Подготовительный этап должен проходить между датой приказа и началом тестирования");
-        if (order.ResultsProcessingStartDate < order.TestingEndDate ||
-            order.InspectionSummaryDeadline < order.ResultsProcessingStartDate)
-            throw new DocumentValidationException(
-                "Этап обработки результатов должен идти после тестирования и завершиться до срока сводного отчёта");
+        OrderDates.Validate(order);
 
         if (request.SemesterId == null)
             throw new DocumentValidationException("Семестр не указан");
@@ -84,41 +76,116 @@ public class OrderService
         order.SemesterId = semester.Id;
         order.SemesterYear = semester.SemesterYear;
         order.SemesterPart = semester.SemesterPart;
-        order.FileKey = $"orders/{Guid.NewGuid():N}.pdf";
 
+        var token = Guid.NewGuid().ToString("N");
+        var uploaded = new HashSet<string>();
+        try
+        {
+            var id = await _repository.Write(async () =>
+            {
+                // Проверка токена также покрывает повтор после неопределённого результата COMMIT.
+                var existing = await _repository.FindCreation(token);
+                if (existing.HasValue) return existing.Value;
+                if (order.Status == OrderStatuses.Issued)
+                {
+                    await _repository.LockNumbers(cancellationToken);
+                    order.Number = await _repository.AllocateNumber(cancellationToken);
+                }
+                await GenerateFile(order, uploaded, cancellationToken);
+                return await _repository.Create(order, DateTime.UtcNow, _currentUser.UserId, token);
+            }, cancellationToken);
+            await CleanupUnreferenced(uploaded);
+            return id;
+        }
+        catch
+        {
+            await CleanupUnreferenced(uploaded);
+            throw;
+        }
+    }
+
+    public async Task<OrderDetailsDto> Sign(int id, CancellationToken ct)
+    {
+        var uploaded = new HashSet<string>();
+        string? oldKey = null;
+        try
+        {
+            await _repository.Write(async () =>
+            {
+                await _repository.LockNumbers(ct);
+                var entity = await _repository.LockOrder(id, ct)
+                    ?? throw new DocumentNotFoundException("Приказ не найден");
+                if (entity.Status == OrderStatuses.Issued) return true; // Повторное подписание не выдаёт новый номер.
+                var model = await _repository.GetDetails(id, ct)
+                    ?? throw new DocumentNotFoundException("Приказ не найден");
+                OrderDates.Validate(model);
+                model.Status = OrderStatuses.Issued;
+                model.Number = await _repository.AllocateNumber(ct);
+                await GenerateFile(model, uploaded, ct);
+                oldKey = entity.FileKey;
+                entity.Status = model.Status;
+                entity.Number = model.Number;
+                entity.FileKey = model.FileKey;
+                entity.FileSize = model.FileSize;
+                await _repository.Save(ct);
+                return true;
+            }, ct);
+            if (oldKey is not null) uploaded.Add(oldKey);
+            await CleanupUnreferenced(uploaded);
+            return await GetDetails(id, ct);
+        }
+        catch
+        {
+            // При неизвестном результате COMMIT не удаляем файл, пока БД не подтвердила, что на него нет ссылки.
+            await CleanupUnreferenced(uploaded);
+            throw;
+        }
+    }
+
+    private async Task GenerateFile(OrderModel order, ISet<string> uploaded, CancellationToken ct)
+    {
+        order.FileKey = $"orders/{Guid.NewGuid():N}.pdf";
         try
         {
             var pdf = _pdfGenerator.Generate(order);
             order.FileSize = pdf.Length;
-
+            uploaded.Add(order.FileKey);
             using var content = new MemoryStream(pdf);
-            await _storage.SaveAsync(order.FileKey, content, "application/pdf", cancellationToken);
+            await _storage.SaveAsync(order.FileKey, content, "application/pdf", ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             throw new DocumentGenerationException("Не удалось сформировать файл приказа", e);
         }
+    }
 
-        try
+    private async Task CleanupUnreferenced(IEnumerable<string> keys)
+    {
+        foreach (var key in keys)
         {
-            return await _repository.Create(order, DateTime.UtcNow, _currentUser.UserId);
-        }
-        catch
-        {
-            await DeleteQuietly(order.FileKey);
-            throw;
+            try
+            {
+                if (!await _repository.IsFileReferenced(key)) await DeleteQuietly(key);
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Не удалось проверить ссылку на файл {Key}; файл сохранён", key);
+            }
         }
     }
 
-    public async Task<List<OrderEssentialsDto>> GetEssentials()
+    public async Task<List<OrderEssentialsDto>> GetEssentials(string? status = null)
     {
-        var orders = await _repository.GetAll();
+        var orders = await _repository.GetAll(status is null ? null : RequireStatus(status));
         return orders.Select(o => new OrderEssentialsDto
         {
             Id = o.Id,
             Number = o.Number,
             Name = o.Name,
+            Status = o.Status,
             OrderDate = o.OrderDate,
+            TestingStartDate = o.TestingStartDate,
+            TestingEndDate = o.TestingEndDate,
             Semester = new OrderSemesterDto
             {
                 Id = o.SemesterId,
@@ -126,6 +193,35 @@ public class OrderService
                 SemesterPart = o.SemesterPart
             }
         }).ToList();
+    }
+
+    public async Task<OrderDetailsDto> GetDetails(int id, CancellationToken cancellationToken)
+    {
+        var order = await _repository.GetDetails(id, cancellationToken)
+            ?? throw new DocumentNotFoundException("Приказ не найден");
+        return new OrderDetailsDto
+        {
+            Id = order.Id, Number = order.Number, Name = order.Name, Status = order.Status,
+            OrderDate = order.OrderDate,
+            Semester = new OrderSemesterDto
+            {
+                Id = order.SemesterId, SemesterYear = order.SemesterYear, SemesterPart = order.SemesterPart
+            },
+            TestingStartDate = order.TestingStartDate, TestingEndDate = order.TestingEndDate,
+            EducationControlDepartmentHead = order.EducationControlDepartmentHead,
+            EducationalMethodicalCenterHead = order.EducationalMethodicalCenterHead,
+            InspectionSummaryDeadline = order.InspectionSummaryDeadline,
+            SurveySummaryDeadline = order.SurveySummaryDeadline,
+            PaperReportDeadline = order.PaperReportDeadline, RequiresPaperReports = order.RequiresPaperReports,
+            PreparationStartDate = order.PreparationStartDate, PreparationEndDate = order.PreparationEndDate,
+            TestingStageStartDate = order.TestingStageStartDate, TestingStageEndDate = order.TestingStageEndDate,
+            ResultsProcessingStartDate = order.ResultsProcessingStartDate,
+            SurveyStartDate = order.SurveyStartDate, SurveyEndDate = order.SurveyEndDate,
+            OnlineSeminarDate = order.OnlineSeminarDate,
+            ElectronicReportDeadline = order.ElectronicReportDeadline,
+            FileSize = order.FileSize, CreatedAt = DateTime.SpecifyKind(order.CreatedAt, DateTimeKind.Utc),
+            CreatedByUserId = order.CreatedByUserId, CreatedByName = order.CreatedByName
+        };
     }
 
     public async Task<DocumentFileDto> OpenFile(int id, CancellationToken cancellationToken)
@@ -147,6 +243,14 @@ public class OrderService
         if (text.Length > maxLength)
             throw new DocumentValidationException($"Поле «{field}» длиннее {maxLength} символов");
         return text;
+    }
+
+    private static string RequireStatus(string? value)
+    {
+        var status = value?.Trim().ToLowerInvariant() ?? OrderStatuses.Issued;
+        if (!OrderStatuses.IsValid(status))
+            throw new DocumentValidationException("Допустимые статусы приказа: draft, issued");
+        return status;
     }
 
     private static DateOnly RequireDate(DateOnly? value, string field) =>

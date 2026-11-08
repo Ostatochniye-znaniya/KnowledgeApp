@@ -42,7 +42,8 @@ public class TestingRepository
             Status = model.Status,
             ResultOfTesting = model.ResultOfTesting,
             ReportId = model.ReportId,
-            SemesterId = model.SemesterId
+            SemesterId = model.SemesterId,
+            RecommendationHistory = await ResolveRecommendation(model)
         };
 
         await _context.Testings.AddAsync(entity);
@@ -96,6 +97,8 @@ public class TestingRepository
         entity.ResultOfTesting = model.ResultOfTesting;
         entity.ReportId = model.ReportId;
         entity.SemesterId = model.SemesterId;
+        entity.RecommendationHistory = await ResolveRecommendation(model);
+        if (entity.RecommendationHistory is null) entity.RecommendationHistoryId = null;
 
         await _context.SaveChangesAsync();
 
@@ -173,6 +176,20 @@ public class TestingRepository
     }
 
     // 👉 МЕТОД GetTestingScheduleAsync УДАЛЕН - он теперь в TestingService
+
+    private async Task<RecommendationHistory?> ResolveRecommendation(TestingModel model)
+    {
+        if (!model.SemesterId.HasValue) return null;
+        var recommendation = await _context.RecommendationHistory.SingleOrDefaultAsync(r =>
+            r.StudyGroupId == model.GroupId && r.SemesterId == model.SemesterId.Value);
+        if (recommendation is not null) return recommendation;
+        return new RecommendationHistory
+        {
+            StudyGroupId = model.GroupId, SemesterId = model.SemesterId.Value,
+            // Создатель Testing может быть преподавателем, поэтому не выдаём его ID за ответственного ЛПР.
+            Author = "manual", UserId = null, RecommendedAt = DateTime.UtcNow
+        };
+    }
 
     private void ValidateModel(TestingModel model)
     {
