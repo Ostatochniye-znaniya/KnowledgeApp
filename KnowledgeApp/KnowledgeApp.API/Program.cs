@@ -151,6 +151,7 @@ services.AddScoped<RecommendationHistoryService>();
 services.AddScoped<GroupDisciplineRepository>();
 services.AddScoped<GroupDisciplineService>();
 services.AddScoped<AdminProcessService>();
+services.AddScoped<AdminUserService>();
 
 services.AddSingleton(S3StorageOptions.FromEnvironment());
 services.AddSingleton<IFileStorage, S3FileStorage>();

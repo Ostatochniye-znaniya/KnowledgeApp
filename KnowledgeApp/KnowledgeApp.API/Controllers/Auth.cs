@@ -82,7 +82,8 @@ public class AuthController : ControllerBase
                     Email = userProfile.Email,
                     Password = string.Empty,
                     StatusId = null,
-                    FacultyId = null
+                    FacultyId = null,
+                    LastLoginAt = DateTime.UtcNow
                 };
 
                 await _context.Users.AddAsync(newUser);
@@ -91,7 +92,8 @@ public class AuthController : ControllerBase
             }
             else
             {
-                bool modified = false;
+                existingUser.LastLoginAt = DateTime.UtcNow;
+                bool modified = true;
                 if (!string.IsNullOrWhiteSpace(fullName) && existingUser.Name != fullName)
                 {
                     existingUser.Name = fullName;
