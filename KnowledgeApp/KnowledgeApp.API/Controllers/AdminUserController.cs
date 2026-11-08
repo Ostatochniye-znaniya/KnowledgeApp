@@ -59,6 +59,21 @@ public sealed class AdminUserController : AdminControllerBase
             CurrentActor(),
             cancellationToken)));
 
+    [HttpPatch("{id:int}/status")]
+    [ProducesResponseType(typeof(AdminUserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public Task<IResult> ChangeStatus(
+        int id,
+        [FromBody] ChangeUserStatusRequest request,
+        CancellationToken cancellationToken) =>
+        Execute(async () => Results.Json(await _userService.ChangeStatus(
+            id,
+            request.Status,
+            CurrentActor(),
+            cancellationToken)));
+
     [HttpGet("{id:int}/role-history")]
     [ProducesResponseType(typeof(IReadOnlyList<AdminUserRoleChangeDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
