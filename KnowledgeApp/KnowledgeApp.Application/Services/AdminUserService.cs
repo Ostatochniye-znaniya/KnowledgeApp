@@ -12,6 +12,7 @@ public sealed class AdminUserService
 {
     private const int MaxPageSize = 200;
     private const string GuestRoleName = "Гость";
+    private const string AdminRoleName = "Администратор";
     private readonly KnowledgeTestDbContext _context;
 
     public AdminUserService(KnowledgeTestDbContext context)
@@ -171,6 +172,96 @@ public sealed class AdminUserService
         }, cancellationToken);
 
         return await GetUser(user.Id, cancellationToken);
+    }
+
+    public async Task<AdminUserDto> ChangeRole(
+        int userId,
+        int? roleId,
+        string? reason,
+        AdminActor actor,
+        CancellationToken cancellationToken)
+    {
+        if (!roleId.HasValue)
+            throw new DocumentValidationException("Укажите роль.");
+        var normalizedReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        if (normalizedReason?.Length > AdminActors.MaxReasonLength)
+            throw new DocumentValidationException($"Причина длиннее {AdminActors.MaxReasonLength} символов.");
+
+        var role = await _context.Roles.AsNoTracking().SingleOrDefaultAsync(r => r.Id == roleId, cancellationToken)
+                   ?? throw new DocumentValidationException("Роль не найдена.");
+        var actorName = await AdminActors.NameOf(_context, actor, cancellationToken);
+
+        await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            if (!await _context.Users.AnyAsync(u => u.Id == userId, cancellationToken))
+                throw new DocumentNotFoundException("Пользователь не найден");
+
+            var currentRoles = await _context.UserRoles
+                .Where(ur => ur.UserId == userId)
+                .Include(ur => ur.Role)
+                .ToListAsync(cancellationToken);
+            if (currentRoles.Count == 1 && currentRoles[0].RoleId == role.Id)
+                throw new DocumentValidationException("Эта роль уже назначена пользователю.");
+
+            var removesAdmin = currentRoles.Any(ur => ur.Role?.RoleName == AdminRoleName) &&
+                               role.RoleName != AdminRoleName;
+            if (removesAdmin && actor.UserId == userId)
+                throw new DocumentConflictException("Нельзя снять роль администратора с самого себя.");
+            if (removesAdmin)
+            {
+                var otherAdmins = await _context.UserRoles
+                    .AnyAsync(ur => ur.UserId != userId && ur.Role!.RoleName == AdminRoleName, cancellationToken);
+                if (!otherAdmins)
+                    throw new DocumentConflictException("Нельзя снять роль с последнего администратора системы.");
+            }
+
+            var previousRoles = currentRoles
+                .Where(ur => ur.Role != null)
+                .OrderBy(ur => ur.RoleId)
+                .Select(ur => ur.Role!.RoleName)
+                .ToList();
+            _context.UserRoles.RemoveRange(currentRoles);
+            _context.UserRoles.Add(new UserRole { UserId = userId, RoleId = role.Id });
+            _context.UserRoleChanges.Add(new UserRoleChange
+            {
+                UserId = userId,
+                PreviousRoles = previousRoles.Count > 0 ? string.Join(", ", previousRoles) : GuestRoleName,
+                NewRoles = role.RoleName,
+                Reason = normalizedReason,
+                ChangedByUserId = actor.UserId,
+                ChangedByName = actorName,
+                ChangedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
+
+        return await GetUser(userId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AdminUserRoleChangeDto>> GetRoleHistory(
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        if (!await _context.Users.AnyAsync(u => u.Id == userId, cancellationToken))
+            throw new DocumentNotFoundException("Пользователь не найден");
+
+        var changes = await _context.UserRoleChanges
+            .AsNoTracking()
+            .Where(c => c.UserId == userId)
+            .OrderByDescending(c => c.ChangedAt)
+            .ThenByDescending(c => c.Id)
+            .ToListAsync(cancellationToken);
+
+        return changes
+            .Select(c => new AdminUserRoleChangeDto(
+                c.Id,
+                c.PreviousRoles,
+                c.NewRoles,
+                c.Reason,
+                c.ChangedByUserId,
+                c.ChangedByName,
+                DocumentStatusInfo.AsUtc(c.ChangedAt)))
+            .ToList();
     }
 
     private async Task<List<AdminUserDto>> Load(

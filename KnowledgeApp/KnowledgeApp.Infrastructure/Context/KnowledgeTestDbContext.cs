@@ -48,6 +48,8 @@ public partial class KnowledgeTestDbContext : DbContext
 
     public virtual DbSet<TestingChange> TestingChanges { get; set; }
 
+    public virtual DbSet<UserRoleChange> UserRoleChanges { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -617,6 +619,24 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.ChangedAt).HasColumnName("changed_at");
             entity.HasOne<Testing>().WithMany()
                 .HasForeignKey(e => e.TestingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserRoleChange>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("user_role_changes");
+            entity.HasIndex(e => new { e.UserId, e.ChangedAt }, "ix_user_role_changes_user_changed");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.PreviousRoles).HasMaxLength(500).HasColumnName("previous_roles");
+            entity.Property(e => e.NewRoles).HasMaxLength(500).HasColumnName("new_roles");
+            entity.Property(e => e.Reason).HasMaxLength(1000).HasColumnName("reason");
+            entity.Property(e => e.ChangedByUserId).HasColumnName("changed_by_user_id");
+            entity.Property(e => e.ChangedByName).HasMaxLength(255).HasColumnName("changed_by_name");
+            entity.Property(e => e.ChangedAt).HasColumnName("changed_at");
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

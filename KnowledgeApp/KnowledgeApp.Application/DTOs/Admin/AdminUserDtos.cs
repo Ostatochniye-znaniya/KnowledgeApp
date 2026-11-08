@@ -40,6 +40,15 @@ public sealed record AdminUserFiltersDto(
     IReadOnlyList<FilterOptionDto> Faculties,
     IReadOnlyList<FilterOptionDto> Statuses);
 
+public sealed record AdminUserRoleChangeDto(
+    int Id,
+    string? PreviousRoles,
+    string NewRoles,
+    string? Reason,
+    int? ChangedByUserId,
+    string ChangedByName,
+    DateTimeOffset ChangedAt);
+
 public sealed record CreateAdminUserCommand(
     string? Name,
     string? Email,
