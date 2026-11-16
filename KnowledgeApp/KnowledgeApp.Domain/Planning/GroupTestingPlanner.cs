@@ -24,12 +24,13 @@ public static class GroupTestingPlanner
         IReadOnlyCollection<int> groupIds,
         IEnumerable<Participation> history,
         IReadOnlyList<PlanningSemester> semesters,
-        IReadOnlyCollection<PlanAssignment> existing)
+        IReadOnlyCollection<PlanAssignment> existing,
+        IReadOnlySet<int>? skippedSemesters = null)
     {
         var groups = groupIds.ToHashSet();
         var cells = new Dictionary<(int, int), PlanCell>();
         var result = new List<PlanAssignment>();
-        if (groups.Count == 0) return new(result, cells);
+        if (groups.Count == 0) return new(existing.Where(a => a.Locked).ToArray(), cells);
         if (semesters.Count == 0) throw new PlanningRuleException("Не задан период планирования");
         var orderedSemesters = semesters.OrderBy(s => s.Position).ToArray();
 
@@ -40,7 +41,7 @@ public static class GroupTestingPlanner
         {
             previous = ids.ToHashSet();
             previousPosition = position;
-            visited.UnionWith(previous);
+            visited.UnionWith(previous.Where(groups.Contains));
             if (visited.Count == groups.Count) visited.Clear();
         }
 
@@ -57,6 +58,13 @@ public static class GroupTestingPlanner
         var waiting = false;
         foreach (var semester in orderedSemesters)
         {
+            if (skippedSemesters?.Contains(semester.Id) == true)
+            {
+                foreach (var id in groups)
+                    cells[(id, semester.Id)] = new(false, null, false, "Участие отменено заведующим кафедрой");
+                waiting = false;
+                continue;
+            }
             fixedChoices.TryGetValue(semester.Id, out var fixedInSemester);
             if (fixedInSemester?.Select(a => a.GroupId).Distinct().Count() > 1)
                 throw new PlanningRuleException($"На семестр {semester.Id} уже назначено несколько групп одного профиля");

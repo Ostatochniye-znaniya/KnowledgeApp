@@ -8,6 +8,8 @@ public partial class Testing
 
     public int? RecommendationHistoryId { get; set; }
     public virtual RecommendationHistory? RecommendationHistory { get; set; }
+    public int? GroupParticipationDecisionId { get; set; }
+    public virtual GroupParticipationDecision? GroupParticipationDecision { get; set; }
 
     public int? DisciplineId { get; set; }
 

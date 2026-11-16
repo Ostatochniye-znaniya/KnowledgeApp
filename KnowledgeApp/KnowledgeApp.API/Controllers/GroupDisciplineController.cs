@@ -12,7 +12,7 @@ namespace KnowledgeApp.API.Controllers;
 ///   GET GroupDiscipline/GetAvailableDisciplines/{groupId}
 ///   PUT GroupDiscipline/SetDisciplines/{groupId}   body: { disciplineIds: [..], semesterId? }
 /// Кафедра берётся из текущего пользователя: группы других кафедр не видны (403 на чужую группу).
-/// semesterId необязателен: по умолчанию берётся самый поздний семестр.
+/// semesterId необязателен: по умолчанию берётся текущий семестр по календарю планирования.
 /// </summary>
 public class GroupDisciplineController : BaseController
 {

@@ -2,15 +2,28 @@ namespace KnowledgeApp.Domain.Planning;
 
 public static class PlanningCalendar
 {
-    public static IReadOnlyList<PlanningSemester> GetWindow(IEnumerable<PlanningSemester> available,
-        DateOnly today, int springStartMonth = 2, int autumnStartMonth = 8)
+    public static PlanningSemester GetCurrent(IEnumerable<PlanningSemester> available, DateOnly today,
+        int springStartMonth = 2, int autumnStartMonth = 8)
     {
-        if (springStartMonth is < 1 or > 12 || autumnStartMonth is < 1 or > 12
-            || springStartMonth >= autumnStartMonth)
+        var position = CurrentPosition(today, springStartMonth, autumnStartMonth);
+        var matches = available.Where(s => s.Part is 1 or 2 && s.Position == position).ToArray();
+        if (matches.Length != 1) throw new PlanningRuleException("В справочнике должен быть ровно один текущий семестр.");
+        return matches[0];
+    }
+
+    private static int CurrentPosition(DateOnly today, int springStartMonth, int autumnStartMonth)
+    {
+        if (springStartMonth is < 1 or > 12 || autumnStartMonth is < 1 or > 12 || springStartMonth >= autumnStartMonth)
             throw new PlanningRuleException("Некорректные границы семестров");
         var part = today.Month >= springStartMonth && today.Month < autumnStartMonth ? 1 : 2;
         var year = today.Month < springStartMonth ? today.Year - 1 : today.Year;
-        var position = year * 2 + part - 1;
+        return year * 2 + part - 1;
+    }
+
+    public static IReadOnlyList<PlanningSemester> GetWindow(IEnumerable<PlanningSemester> available,
+        DateOnly today, int springStartMonth = 2, int autumnStartMonth = 8)
+    {
+        var position = CurrentPosition(today, springStartMonth, autumnStartMonth);
         var lookup = available.Where(s => s.Part is 1 or 2).ToLookup(s => s.Position);
         var result = new List<PlanningSemester>();
         for (var offset = -8; offset <= 2; offset++)

@@ -18,3 +18,8 @@ public class ScheduleFilterOptionsDto
     public List<FilterOptionDto> Semesters { get; set; } = new();
     public List<FilterOptionDto> Statuses { get; set; } = new();
 }
+
+public sealed class LprReportFilterOptionsDto : ReportFilterOptionsDto
+{
+    public List<FilterOptionDto> Faculties { get; set; } = new();
+}

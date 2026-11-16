@@ -2,14 +2,14 @@ using KnowledgeApp.Domain.Entities;
 using KnowledgeApp.Infrastructure.Context;
 using KnowledgeApp.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
+using KnowledgeApp.Domain.Planning;
 
 namespace KnowledgeApp.Infrastructure.Repositories;
 
 /// <summary>
 /// Выбор дисциплин для групп (ТЗ, п. 2.4).
-/// Отдельной таблицы нет: на шаге 2.2 ЛПР выбирает группы, и для каждой создаются
-/// тестирования (testing) с заполненными group_id и semester_id. Заведующий кафедрой
-/// записывает выбранные дисциплины в testing.discipline_id этих тестирований.
+/// После подтверждения участия HOD создаются два места testing с группой и семестром.
+/// Выбранные дисциплины записываются в testing.discipline_id этих мест.
 /// </summary>
 public class GroupDisciplineRepository
 {
@@ -20,16 +20,33 @@ public class GroupDisciplineRepository
         _context = context;
     }
 
-    /// <summary>Самый поздний семестр: по году, затем по части (1 — весна, 2 — осень).</summary>
-    public async Task<int?> GetLatestSemesterIdAsync()
+    public async Task<List<PlanningSemester>> GetCalendarAsync()
     {
         return await _context.Semesters
             .AsNoTracking()
-            .OrderByDescending(s => s.SemesterYear)
-            .ThenByDescending(s => s.SemesterPart)
-            .Select(s => (int?)s.Id)
-            .FirstOrDefaultAsync();
+            .Select(s => new PlanningSemester(s.Id, s.SemesterYear, s.SemesterPart)).ToListAsync();
     }
+
+    public async Task WithPlanLock(Func<Task> action) =>
+        await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            _context.ChangeTracker.Clear();
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            var state = await _context.LockTestingPlan();
+            await action();
+            state.Version++;
+            await _context.SaveChangesAsync();
+            await tx.CommitAsync();
+        });
+
+    private IQueryable<StudyGroup> SelectedGroups(int semesterId) => _context.StudyGroups.Where(g =>
+        _context.GroupParticipationDecisions.Any(d => d.SemesterId == semesterId && d.StudyProgramId == g.StudyProgramId
+            && d.SelectedGroupId == g.Id)
+        || (!_context.GroupParticipationDecisions.Any(d => d.SemesterId == semesterId && d.StudyProgramId == g.StudyProgramId)
+            && g.Testings.Any(t => t.SemesterId == semesterId && (t.DisciplineId != null || t.ReportId != null || t.ScheduledDate != null))));
+
+    public Task<bool> IsSelectedAsync(int groupId, int semesterId) =>
+        SelectedGroups(semesterId).AnyAsync(g => g.Id == groupId);
 
     public Task<bool> SemesterExistsAsync(int semesterId)
     {
@@ -47,12 +64,12 @@ public class GroupDisciplineRepository
     }
 
     /// <summary>
-    /// Группы кафедры, у которых есть тестирования в семестре (то есть выбранные для проверки),
+    /// Группы кафедры, подтверждённые HOD, а также уже начатые старые процессы,
     /// с уже выбранными дисциплинами.
     /// </summary>
     public async Task<List<GroupDisciplinesModel>> GetGroupsAsync(int semesterId, int departmentId)
     {
-        var rows = await _context.StudyGroups
+        var rows = await SelectedGroups(semesterId)
             .AsNoTracking()
             .Where(g => g.Testings.Any(t => t.SemesterId == semesterId))
             .Where(g => g.StudyProgram!.DepartmentId == departmentId)

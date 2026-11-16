@@ -19,6 +19,8 @@ public class ReportDocumentDto
     public string StatusLabel { get; set; } = string.Empty;
 
     public string? FileName { get; set; }
+    // Меняется с каждой загрузкой, чтобы не принять заменённый во время проверки файл.
+    public string FileVersion { get; set; } = string.Empty;
     public DateTime? UploadedAt { get; set; }
     public string? ReviewComment { get; set; }
     public DateTime? ReviewedAt { get; set; }

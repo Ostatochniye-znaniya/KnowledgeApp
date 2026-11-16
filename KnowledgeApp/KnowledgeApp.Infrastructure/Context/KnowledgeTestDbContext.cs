@@ -433,12 +433,17 @@ public partial class KnowledgeTestDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
-            entity.ToTable("semesters");
+            entity.ToTable("semesters", table => table.HasCheckConstraint("CK_semesters_student_list_period",
+                "(`student_list_formation_start_date` IS NULL AND `student_list_formation_end_date` IS NULL) OR "
+                + "(`student_list_formation_start_date` IS NOT NULL AND `student_list_formation_end_date` IS NOT NULL "
+                + "AND `student_list_formation_end_date` >= `student_list_formation_start_date`)"));
 
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.SemesterYear).HasColumnName("semester_year");
             entity.Property(e => e.SemesterPart).HasColumnName("semester_part");
             entity.Property(e => e.YearPart).HasColumnName("year_part");
+            entity.Property(e => e.StudentListFormationStartDate).HasColumnName("student_list_formation_start_date").HasColumnType("date");
+            entity.Property(e => e.StudentListFormationEndDate).HasColumnName("student_list_formation_end_date").HasColumnType("date");
         });
 
         modelBuilder.Entity<Status>(entity =>

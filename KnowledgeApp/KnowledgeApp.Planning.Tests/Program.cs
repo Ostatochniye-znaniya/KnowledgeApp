@@ -423,6 +423,28 @@ Test("PDF выпущенного приказа содержит официал�
     Assert(!text.Contains("ЧЕРНОВИК"));
 });
 
+Test("ЛПР: пустые замечания, неизвестные статусы и некорректные фильтры отклоняются без БД", ReportReviewChecks.Validation);
+Test("Отказ HOD не назначает автоматически группу в пропущенном семестре", () =>
+{
+    var result = GroupTestingPlanner.Calculate([1], [], semesters, [], new HashSet<int> { semesters[0].Id });
+    Assert(result.Assignments.Count == 2 && result.Assignments.All(a => a.SemesterId != semesters[0].Id));
+});
+Test("Архивная группа с фактическим тестированием сохраняет историческое назначение", () =>
+{
+    var result = GroupTestingPlanner.Calculate([], [], semesters, [new(1, semesters[0].Id, "manual", true)]);
+    Assert(result.Assignments.Count == 1);
+});
+if (args.Contains("--hod-integration"))
+    Test("HOD: полный процесс выбора групп на временной БД", () => HodParticipationChecks.Integration(
+        Environment.GetEnvironmentVariable("LPR_REPORT_TEST_SERVER")
+            ?? throw new InvalidOperationException("Укажите LPR_REPORT_TEST_SERVER для временной тестовой БД"))
+        .GetAwaiter().GetResult());
+if (args.Contains("--report-integration"))
+    Test("ЛПР: полный цикл отчёта на отдельной временной БД", () => ReportReviewChecks.Integration(
+        Environment.GetEnvironmentVariable("LPR_REPORT_TEST_SERVER")
+            ?? throw new InvalidOperationException("Укажите LPR_REPORT_TEST_SERVER для временной тестовой БД"))
+        .GetAwaiter().GetResult());
+
 var failed = 0;
 foreach (var (name, run) in tests)
 {

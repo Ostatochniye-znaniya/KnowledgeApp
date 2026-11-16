@@ -2,6 +2,8 @@ using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Domain.Entities;
 using KnowledgeApp.Infrastructure.Entities;
 using KnowledgeApp.Infrastructure.Repositories;
+using KnowledgeApp.Domain.Planning;
+using Microsoft.Extensions.Options;
 
 namespace KnowledgeApp.Application.Services;
 
@@ -19,11 +21,16 @@ public class GroupDisciplineService
 
     private readonly GroupDisciplineRepository _repository;
     private readonly ICurrentUserProvider _currentUser;
+    private readonly GroupsTestingOptions _options;
+    private readonly TimeProvider _clock;
 
-    public GroupDisciplineService(GroupDisciplineRepository repository, ICurrentUserProvider currentUser)
+    public GroupDisciplineService(GroupDisciplineRepository repository, ICurrentUserProvider currentUser,
+        IOptions<GroupsTestingOptions>? options = null, TimeProvider? clock = null)
     {
         _repository = repository;
         _currentUser = currentUser;
+        _options = options?.Value ?? new GroupsTestingOptions();
+        _clock = clock ?? TimeProvider.System;
     }
 
     private int CurrentDepartmentId =>
@@ -38,7 +45,7 @@ public class GroupDisciplineService
         return (departmentId, name);
     }
 
-    /// <summary>Переданный семестр (с проверкой) или самый поздний, если не передан.</summary>
+    /// <summary>Переданный семестр (с проверкой) или текущий по календарю планирования.</summary>
     public async Task<int> ResolveSemesterIdAsync(int? semesterId)
     {
         if (semesterId.HasValue)
@@ -48,8 +55,9 @@ public class GroupDisciplineService
             return semesterId.Value;
         }
 
-        return await _repository.GetLatestSemesterIdAsync()
-            ?? throw new KeyNotFoundException("В базе нет ни одного семестра");
+        var now = TimeZoneInfo.ConvertTime(_clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById(_options.TimeZoneId));
+        return PlanningCalendar.GetCurrent(await _repository.GetCalendarAsync(), DateOnly.FromDateTime(now.Date),
+            _options.SpringStartMonth, _options.AutumnStartMonth).Id;
     }
 
     public async Task<List<GroupDisciplinesModel>> GetGroupsAsync(int? semesterId)
@@ -77,7 +85,10 @@ public class GroupDisciplineService
     /// Тестирования, где дисциплина уже стоит и остаётся выбранной, не трогаются;
     /// новые дисциплины занимают сначала пустые тестирования; у убранных дисциплина обнуляется.
     /// </summary>
-    public async Task SetDisciplinesAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId)
+    public Task SetDisciplinesAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId) =>
+        _repository.WithPlanLock(() => SetDisciplinesCoreAsync(groupId, disciplineIds, semesterId));
+
+    private async Task SetDisciplinesCoreAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId)
     {
         var ids = disciplineIds.Distinct().ToList();
         if (ids.Count != disciplineIds.Count)
@@ -88,6 +99,8 @@ public class GroupDisciplineService
         int resolvedSemesterId = await ResolveSemesterIdAsync(semesterId);
 
         var availableIds = (await GetAvailableDisciplinesAsync(groupId)).Select(d => d.Id).ToHashSet();
+        if (!await _repository.IsSelectedAsync(groupId, resolvedSemesterId))
+            throw new InvalidOperationException("Сначала подтвердите участие группы на странице выбора групп.");
         var foreignIds = ids.Where(id => !availableIds.Contains(id)).ToList();
         if (foreignIds.Count > 0)
             throw new ArgumentException(

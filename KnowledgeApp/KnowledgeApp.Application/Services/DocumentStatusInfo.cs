@@ -18,7 +18,7 @@ public static class DocumentStatusInfo
     public static string PaperLabel(DocumentStatus? electronicStatus, bool? submitted) =>
         PaperCode(electronicStatus, submitted) switch
         {
-            "not_required" => "Пока не требуется",
+            "not_required" => "Не требуется",
             "pending" => "Ожидает сдачи",
             "submitted" => "Сдан",
             _ => throw new InvalidOperationException("Неизвестный статус бумажного отчёта.")
@@ -30,9 +30,9 @@ public static class DocumentStatusInfo
         {
             return status switch
             {
-                DocumentStatus.Pending => "Отправлен на проверку",
-                DocumentStatus.Signed => "Сделан",
-                DocumentStatus.Rejected => "Отправлен на доработку",
+                DocumentStatus.Pending => "На проверке",
+                DocumentStatus.Signed => "Принят",
+                DocumentStatus.Rejected => "На доработке",
                 _ => status.ToString()
             };
         }

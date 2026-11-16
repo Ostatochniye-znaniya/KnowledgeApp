@@ -269,6 +269,60 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("faculties", (string)null);
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.GroupParticipationDecision", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DecidedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("decided_at");
+
+                    b.Property<int?>("DecidedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<int?>("RecommendedGroupId")
+                        .HasColumnType("int")
+                        .HasColumnName("recommended_group_id");
+
+                    b.Property<int?>("SelectedGroupId")
+                        .HasColumnType("int")
+                        .HasColumnName("selected_group_id");
+
+                    b.Property<int>("SemesterId")
+                        .HasColumnType("int")
+                        .HasColumnName("semester_id");
+
+                    b.Property<int>("StudyProgramId")
+                        .HasColumnType("int")
+                        .HasColumnName("study_program_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedByUserId");
+
+                    b.HasIndex("RecommendedGroupId");
+
+                    b.HasIndex("SelectedGroupId");
+
+                    b.HasIndex("SemesterId");
+
+                    b.HasIndex("StudyProgramId", "SemesterId")
+                        .IsUnique();
+
+                    b.ToTable("group_participation_decisions", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -701,6 +755,14 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("semester_year");
 
+                    b.Property<DateOnly?>("StudentListFormationEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("student_list_formation_end_date");
+
+                    b.Property<DateOnly?>("StudentListFormationStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("student_list_formation_start_date");
+
                     b.Property<int>("YearPart")
                         .HasColumnType("int")
                         .HasColumnName("year_part");
@@ -708,7 +770,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("PRIMARY");
 
-                    b.ToTable("semesters", (string)null);
+                    b.ToTable("semesters", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_semesters_student_list_period", "(`student_list_formation_start_date` IS NULL AND `student_list_formation_end_date` IS NULL) OR (`student_list_formation_start_date` IS NOT NULL AND `student_list_formation_end_date` IS NOT NULL AND `student_list_formation_end_date` >= `student_list_formation_start_date`)");
+                        });
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Status", b =>
@@ -773,6 +838,12 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
                         .HasColumnName("group_number");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
 
                     b.Property<int>("StudyProgramId")
                         .HasColumnType("int")
@@ -955,6 +1026,10 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("group_id");
 
+                    b.Property<int?>("GroupParticipationDecisionId")
+                        .HasColumnType("int")
+                        .HasColumnName("group_participation_decision_id");
+
                     b.Property<bool?>("IsInPerson")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("is_in_person");
@@ -1012,6 +1087,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("PRIMARY");
+
+                    b.HasIndex("GroupParticipationDecisionId");
 
                     b.HasIndex("RecommendationHistoryId");
 
@@ -1410,6 +1487,36 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.GroupParticipationDecision", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("DecidedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyGroup", null)
+                        .WithMany()
+                        .HasForeignKey("RecommendedGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyGroup", null)
+                        .WithMany()
+                        .HasForeignKey("SelectedGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Semester", null)
+                        .WithMany()
+                        .HasForeignKey("SemesterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyProgram", null)
+                        .WithMany()
+                        .HasForeignKey("StudyProgramId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Order", b =>
                 {
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.User", null)
@@ -1579,6 +1686,11 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("testing_ibfk_1");
 
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.GroupParticipationDecision", "GroupParticipationDecision")
+                        .WithMany()
+                        .HasForeignKey("GroupParticipationDecisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.RecommendationHistory", "RecommendationHistory")
                         .WithMany("Testings")
                         .HasForeignKey("RecommendationHistoryId")
@@ -1599,6 +1711,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Discipline");
 
                     b.Navigation("Group");
+
+                    b.Navigation("GroupParticipationDecision");
 
                     b.Navigation("RecommendationHistory");
 
