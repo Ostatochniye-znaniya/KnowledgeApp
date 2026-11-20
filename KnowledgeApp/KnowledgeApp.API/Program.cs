@@ -114,7 +114,10 @@ services.AddSwaggerGen(c =>
 services.AddControllersWithViews();
 
 // Регистрация DbContext
-services.AddScoped<KnowledgeTestDbContext>();
+// Строка подключения читается после Env.Load(), чтобы подхватить значение из .env;
+// тесты подменяют регистрацию через WebApplicationFactory.
+services.AddDbContext<KnowledgeTestDbContext>(options =>
+    KnowledgeTestDbContext.ConfigureMySql(options, KnowledgeTestDbContext.ConnectionStringFromEnvironment()));
 
 // Регистрация сервисов и репозиториев
 services.AddScoped<DepartmentService>();
@@ -226,3 +229,6 @@ app.MapControllerRoute(
 app.MapControllers();
 
 app.Run();
+
+// Делает Program доступным для WebApplicationFactory<Program> в интеграционных тестах.
+public partial class Program { }
