@@ -8,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace KnowledgeApp.Tests;
+namespace KnowledgeApp.UnitTests.Auth;
 
 public class MockAuthTests
 {

@@ -16,8 +16,8 @@ env:
   SOLUTION: KnowledgeApp/KnowledgeApp.sln
 
 jobs:
-  test:
-    name: Tests
+  unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -43,5 +43,36 @@ jobs:
     - name: Build
       run: dotnet build $SOLUTION --no-restore -c Release
 
-    - name: Test
-      run: dotnet test $SOLUTION --no-build -c Release
+    - name: Unit tests
+      run: dotnet test KnowledgeApp/KnowledgeApp.UnitTests --no-build -c Release
+
+  # Поднимает MySQL/MinIO через Testcontainers — нужен Docker, он есть на ubuntu-latest
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('KnowledgeApp/**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Restore
+      run: dotnet restore $SOLUTION
+
+    - name: Build
+      run: dotnet build $SOLUTION --no-restore -c Release
+
+    - name: Integration tests
+      run: dotnet test KnowledgeApp/KnowledgeApp.IntegrationTests --no-build -c Release
