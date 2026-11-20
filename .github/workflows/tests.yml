@@ -44,7 +44,20 @@ jobs:
       run: dotnet build $SOLUTION --no-restore -c Release
 
     - name: Unit tests
-      run: dotnet test KnowledgeApp/KnowledgeApp.UnitTests --no-build -c Release
+      run: >
+        dotnet test KnowledgeApp/KnowledgeApp.UnitTests --no-build -c Release
+        --logger "trx;LogFileName=unit-tests.trx"
+        --results-directory TestResults/unit
+        --settings KnowledgeApp/coverlet.runsettings
+        --collect:"XPlat Code Coverage"
+
+    - name: Upload unit test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-test-results
+        path: TestResults/unit
+        if-no-files-found: ignore
 
   # Поднимает MySQL/MinIO через Testcontainers — нужен Docker, он есть на ubuntu-latest
   integration-tests:
@@ -75,7 +88,75 @@ jobs:
       run: dotnet build $SOLUTION --no-restore -c Release
 
     - name: Integration tests
-      run: dotnet test KnowledgeApp/KnowledgeApp.IntegrationTests --no-build -c Release
+      run: >
+        dotnet test KnowledgeApp/KnowledgeApp.IntegrationTests --no-build -c Release
+        --logger "trx;LogFileName=integration-tests.trx"
+        --results-directory TestResults/integration
+        --settings KnowledgeApp/coverlet.runsettings
+        --collect:"XPlat Code Coverage"
+
+    - name: Upload integration test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results
+        path: TestResults/integration
+        if-no-files-found: ignore
+
+  # Общий отчёт о покрытии unit + integration: сводка в Summary запуска, HTML — артефактом
+  coverage-report:
+    name: Coverage report
+    needs: [unit-tests, integration-tests]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Download test results
+      uses: actions/download-artifact@v4
+      with:
+        pattern: '*-test-results'
+        path: TestResults
+
+    - name: Restore tools
+      run: dotnet tool restore
+
+    - name: Generate coverage report
+      run: >
+        dotnet reportgenerator
+        -reports:"TestResults/**/coverage.cobertura.xml"
+        -targetdir:CoverageReport
+        -reporttypes:"Html;MarkdownSummaryGithub"
+        -title:"KnowledgeApp"
+
+    - name: Publish summary
+      run: |
+        {
+          echo "## Тесты"
+          for f in TestResults/*/*.trx; do
+            [ -f "$f" ] || continue
+            total=$(grep -o 'total="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            passed=$(grep -o 'passed="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            failed=$(grep -o 'failed="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            echo "- $(basename "$f" .trx): всего $total, прошло $passed, упало $failed"
+          done
+          echo
+          cat CoverageReport/SummaryGithub.md
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: CoverageReport
 
   # Собирает образ из Deploy/Dockerfile и поднимает dev-compose целиком (MySQL, MinIO, API):
   # проверяет, что образ стартует, миграции применились и API отвечает с данными из БД

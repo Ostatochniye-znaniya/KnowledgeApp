@@ -81,3 +81,7 @@ nunit-*.xml
 *.swo.env
 Deploy/.env
 .env
+
+# Результаты тестов и отчёты покрытия
+TestResults/
+CoverageReport/
