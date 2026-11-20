@@ -1,0 +1,47 @@
+name: Tests
+
+# Запускается на PR и вызывается из deploy.yml перед деплоем (workflow_call),
+# поэтому на push в develop/main отдельно не стартует — иначе тесты шли бы дважды.
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  SOLUTION: KnowledgeApp/KnowledgeApp.sln
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('KnowledgeApp/**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Restore
+      run: dotnet restore $SOLUTION
+
+    - name: Build
+      run: dotnet build $SOLUTION --no-restore -c Release
+
+    - name: Test
+      run: dotnet test $SOLUTION --no-build -c Release
