@@ -1,0 +1,219 @@
+name: Tests
+
+# Запускается на PR и вызывается из deploy.yml перед деплоем (workflow_call),
+# поэтому на push в develop/main отдельно не стартует — иначе тесты шли бы дважды.
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  SOLUTION: KnowledgeApp/KnowledgeApp.sln
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('KnowledgeApp/**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Restore
+      run: dotnet restore $SOLUTION
+
+    - name: Build
+      run: dotnet build $SOLUTION --no-restore -c Release
+
+    - name: Unit tests
+      run: >
+        dotnet test KnowledgeApp/KnowledgeApp.UnitTests --no-build -c Release
+        --logger "trx;LogFileName=unit-tests.trx"
+        --results-directory TestResults/unit
+        --settings KnowledgeApp/coverlet.runsettings
+        --collect:"XPlat Code Coverage"
+
+    - name: Upload unit test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-test-results
+        path: TestResults/unit
+        if-no-files-found: ignore
+
+  # Поднимает MySQL/MinIO через Testcontainers — нужен Docker, он есть на ubuntu-latest
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('KnowledgeApp/**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Restore
+      run: dotnet restore $SOLUTION
+
+    - name: Build
+      run: dotnet build $SOLUTION --no-restore -c Release
+
+    - name: Integration tests
+      run: >
+        dotnet test KnowledgeApp/KnowledgeApp.IntegrationTests --no-build -c Release
+        --logger "trx;LogFileName=integration-tests.trx"
+        --results-directory TestResults/integration
+        --settings KnowledgeApp/coverlet.runsettings
+        --collect:"XPlat Code Coverage"
+
+    - name: Upload integration test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results
+        path: TestResults/integration
+        if-no-files-found: ignore
+
+  # Общий отчёт о покрытии unit + integration: сводка в Summary запуска, HTML — артефактом
+  coverage-report:
+    name: Coverage report
+    needs: [unit-tests, integration-tests]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Download test results
+      uses: actions/download-artifact@v4
+      with:
+        pattern: '*-test-results'
+        path: TestResults
+
+    - name: Restore tools
+      run: dotnet tool restore
+
+    - name: Generate coverage report
+      run: >
+        dotnet reportgenerator
+        -reports:"TestResults/**/coverage.cobertura.xml"
+        -targetdir:CoverageReport
+        -reporttypes:"Html;MarkdownSummaryGithub"
+        -title:"KnowledgeApp"
+
+    - name: Publish summary
+      run: |
+        {
+          echo "## Тесты"
+          for f in TestResults/*/*.trx; do
+            [ -f "$f" ] || continue
+            total=$(grep -o 'total="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            passed=$(grep -o 'passed="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            failed=$(grep -o 'failed="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            echo "- $(basename "$f" .trx): всего $total, прошло $passed, упало $failed"
+          done
+          echo
+          cat CoverageReport/SummaryGithub.md
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: CoverageReport
+
+  # Собирает образ из Deploy/Dockerfile и поднимает dev-compose целиком (MySQL, MinIO, API):
+  # проверяет, что образ стартует, миграции применились и API отвечает с данными из БД
+  docker-smoke:
+    name: Docker smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: docker-compose.dev.yml
+      NETWORK_NAME: app-network-smoke
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Prepare .env and network
+      run: |
+        cat > .env << 'ENVEOF'
+        DB_NAME=knowledge_db
+        DB_USER=smoke
+        DB_PASSWORD=smoke-password
+        S3_ACCESS_KEY=smoke-access
+        S3_SECRET_KEY=smoke-secret-key
+        CORS_ALLOWED_ORIGINS=*
+        NETWORK_NAME=app-network-smoke
+        ENVEOF
+        docker network create "$NETWORK_NAME"
+
+    - name: Build and start containers
+      run: docker compose up -d --build
+
+    - name: Wait for API
+      run: |
+        for i in $(seq 1 60); do
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/csh/api/swagger/index.html || true)
+          if [ "$code" = "200" ]; then
+            echo "API is up after $((i * 5))s"
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "API did not respond in 5 minutes"
+        exit 1
+
+    - name: Check DB-backed endpoint
+      run: |
+        # Role/GetRoles отвечает 500 (Results.Problem), если БД недоступна или миграции не применились
+        body=$(curl -sf http://localhost:8000/csh/api/Role/GetRoles)
+        echo "$body" | head -c 500; echo
+        echo "$body" | jq -e 'type == "array"' > /dev/null
+
+    - name: Container logs
+      if: always()
+      run: docker compose logs --no-color --tail=200
+
+    - name: Stop containers
+      if: always()
+      run: |
+        docker compose down -v
+        docker network rm "$NETWORK_NAME" || true

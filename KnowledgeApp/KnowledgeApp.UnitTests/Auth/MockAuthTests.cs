@@ -8,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace KnowledgeApp.Tests;
+namespace KnowledgeApp.UnitTests.Auth;
 
 public class MockAuthTests
 {
@@ -116,12 +116,13 @@ public class MockAuthTests
         var controller = CreateAuthController(service);
 
         var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers["X-Mock-Role"] = "teacher";
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = httpContext
         };
 
-        var result = await controller.Me("teacher") as OkObjectResult;
+        var result = await controller.Me() as OkObjectResult;
 
         Assert.NotNull(result);
         dynamic response = result.Value!;

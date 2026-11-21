@@ -36,7 +36,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Деплой запускается только если тесты прошли
+  tests:
+    uses: ./.github/workflows/tests.yml
+
   deploy:
+    needs: tests
     runs-on: ubuntu-latest
 
     environment: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod') || (github.event_name != 'workflow_dispatch' && github.ref == 'refs/heads/main')) && 'production' || 'development' }}
