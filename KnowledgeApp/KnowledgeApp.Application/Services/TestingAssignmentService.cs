@@ -371,7 +371,7 @@ public sealed class TestingAssignmentService
     {
         var departmentId = RequireDepartment();
         if (!_currentUser.UserId.HasValue)
-            throw new DocumentAccessException("Не определён текущий пользователь или его кафедра.");
+            throw new DocumentAccessException($"Не определён текущий пользователь или его кафедра. _currentUser.UserId = {_currentUser.UserId}");
 
         var testing = await _context.Testings
             .Include(t => t.Group)
