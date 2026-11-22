@@ -75,7 +75,7 @@ public class GroupDisciplineService
         if (!found)
             throw new KeyNotFoundException($"Учебная группа с id {groupId} не найдена");
         if (groupDepartmentId != departmentId)
-            throw new UnauthorizedAccessException("Группа не относится к вашей кафедре");
+            throw new UnauthorizedAccessException($"Группа не относится к вашей кафедре; departmentId = {departmentId}; CurrentDepartmentId = {CurrentDepartmentId}");
 
         return await _repository.GetStudyProgramDisciplinesAsync(groupId);
     }
