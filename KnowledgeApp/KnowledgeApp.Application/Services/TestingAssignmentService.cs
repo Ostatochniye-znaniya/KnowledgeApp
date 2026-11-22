@@ -189,9 +189,12 @@ public sealed class TestingAssignmentService
     public async Task<IReadOnlyList<DepartmentTestingDto>> GetDepartmentTestings(CancellationToken cancellationToken)
     {
         var departmentId = RequireDepartment();
+
+        int currentAcademicYear = DateTime.Now.Year;
+        int currentPart = (DateTime.Now.Month >= 9 || DateTime.Now.Month == 1) ? 1 : 2;
+
         var semesterId = await _context.Semesters
-            .OrderByDescending(s => s.SemesterYear)
-            .ThenByDescending(s => s.SemesterPart)
+            .Where(s => s.SemesterYear == currentAcademicYear && s.SemesterPart == currentPart)
             .Select(s => (int?)s.Id)
             .FirstOrDefaultAsync(cancellationToken);
         if (semesterId is null)
