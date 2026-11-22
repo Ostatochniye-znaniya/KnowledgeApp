@@ -1,6 +1,8 @@
 ﻿using KnowledgeApp.API.Contracts;
 using KnowledgeApp.Application.Services;
 using KnowledgeApp.Domain.Entities;
+using KnowledgeApp.Domain.Planning;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KnowledgeApp.API.Controllers;
@@ -25,7 +27,7 @@ public class RecommendationHistoryController : BaseController
         var response = recommendations.Select(r => new RecommendationHistoryResponse
         {
             Id = r.Id,
-            RecommendedAt = r.RecommendedAt,
+            RecommendedAt = r.RecommendedAt, Author = r.Author, RecommendedById = r.RecommendedById,
             RecommendedBy = r.RecommendedBy,
             SemesterId = r.SemesterId,
             SemesterName = r.SemesterName,
@@ -46,7 +48,7 @@ public class RecommendationHistoryController : BaseController
             var response = new RecommendationHistoryResponse
             {
                 Id = recommendation.Id,
-                RecommendedAt = recommendation.RecommendedAt,
+                RecommendedAt = recommendation.RecommendedAt, Author = recommendation.Author, RecommendedById = recommendation.RecommendedById,
                 RecommendedBy = recommendation.RecommendedBy,
                 SemesterId = recommendation.SemesterId,
                 SemesterName = recommendation.SemesterName,
@@ -56,7 +58,10 @@ public class RecommendationHistoryController : BaseController
 
             return Ok(response);
         }
-        catch (Exception ex)
+        catch (PlanningRuleException ex) { return Conflict(ex.Message); }
+        catch (DbUpdateException) { return Conflict("Назначение уже существует или связано с другими данными"); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
+        catch (KeyNotFoundException ex)
         {
             return NotFound(ex.Message);
         }
@@ -66,34 +71,37 @@ public class RecommendationHistoryController : BaseController
     public async Task<ActionResult<RecommendationHistoryResponse>> Create(
         [FromBody] CreateRecommendationHistoryRequest request)
     {
-        var model = new RecommendationHistoryModel
+        try
         {
-            RecommendedAt = request.RecommendedAt,
-            RecommendedById = request.RecommendedById,
-            SemesterId = request.SemesterId,
-            StudyGroupId = request.StudyGroupId
-        };
+            var model = new RecommendationHistoryModel
+            {
+                RecommendedAt = request.RecommendedAt, Author = request.Author,
+                RecommendedById = request.RecommendedById,
+                SemesterId = request.SemesterId,
+                StudyGroupId = request.StudyGroupId
+            };
+    
+            await _recommendationHistoryService.AddRecommendationAsync(model);
+    
+            var createdRecommendation = await _recommendationHistoryService.GetByIdAsync(model.Id);
+    
+            var response = new RecommendationHistoryResponse
+            {
+                Id = createdRecommendation.Id,
+                RecommendedAt = createdRecommendation.RecommendedAt, Author = createdRecommendation.Author, RecommendedById = createdRecommendation.RecommendedById,
+                RecommendedBy = createdRecommendation.RecommendedBy,
+                SemesterId = createdRecommendation.SemesterId,
+                SemesterName = createdRecommendation.SemesterName,
+                StudyGroupId = createdRecommendation.StudyGroupId,
+                StudyGroupName = createdRecommendation.StudyGroupName
+            };
+    
+            return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
+        }
+        catch (PlanningRuleException ex) { return Conflict(ex.Message); }
+        catch (DbUpdateException) { return Conflict("Назначение уже существует или связано с другими данными"); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
 
-        await _recommendationHistoryService.AddRecommendationAsync(model);
-
-        // Получаем созданную запись для возврата
-        var recommendations = await _recommendationHistoryService.GetAllAsync();
-        var createdRecommendation = recommendations
-            .OrderByDescending(r => r.Id)
-            .First();
-
-        var response = new RecommendationHistoryResponse
-        {
-            Id = createdRecommendation.Id,
-            RecommendedAt = createdRecommendation.RecommendedAt,
-            RecommendedBy = createdRecommendation.RecommendedBy,
-            SemesterId = createdRecommendation.SemesterId,
-            SemesterName = createdRecommendation.SemesterName,
-            StudyGroupId = createdRecommendation.StudyGroupId,
-            StudyGroupName = createdRecommendation.StudyGroupName
-        };
-
-        return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
     [HttpPut("{id}")]
@@ -106,8 +114,8 @@ public class RecommendationHistoryController : BaseController
             var model = new RecommendationHistoryModel
             {
                 Id = id,
-                RecommendedAt = request.RecommendedAt,
-                RecommendedBy = request.RecommendedBy,
+                RecommendedAt = request.RecommendedAt, Author = request.Author,
+                RecommendedBy = request.RecommendedBy, RecommendedById = request.RecommendedById,
                 SemesterId = request.SemesterId,
                 StudyGroupId = request.StudyGroupId
             };
@@ -115,7 +123,10 @@ public class RecommendationHistoryController : BaseController
             await _recommendationHistoryService.UpdateRecommendationAsync(model);
             return NoContent();
         }
-        catch (Exception ex)
+        catch (PlanningRuleException ex) { return Conflict(ex.Message); }
+        catch (DbUpdateException) { return Conflict("Назначение уже существует или связано с другими данными"); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
+        catch (KeyNotFoundException ex)
         {
             return NotFound(ex.Message);
         }
@@ -129,7 +140,10 @@ public class RecommendationHistoryController : BaseController
             await _recommendationHistoryService.DeleteRecommendationAsync(id);
             return NoContent();
         }
-        catch (Exception ex)
+        catch (PlanningRuleException ex) { return Conflict(ex.Message); }
+        catch (DbUpdateException) { return Conflict("Назначение уже существует или связано с другими данными"); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
+        catch (KeyNotFoundException ex)
         {
             return NotFound(ex.Message);
         }

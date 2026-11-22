@@ -42,7 +42,9 @@ public class TestingRepository
             Status = model.Status,
             ResultOfTesting = model.ResultOfTesting,
             ReportId = model.ReportId,
-            SemesterId = model.SemesterId
+            SemesterId = model.SemesterId,
+            GroupParticipationDecisionId = await ResolveParticipation(model),
+            RecommendationHistory = await ResolveRecommendation(model)
         };
 
         await _context.Testings.AddAsync(entity);
@@ -96,6 +98,9 @@ public class TestingRepository
         entity.ResultOfTesting = model.ResultOfTesting;
         entity.ReportId = model.ReportId;
         entity.SemesterId = model.SemesterId;
+        entity.GroupParticipationDecisionId = await ResolveParticipation(model);
+        entity.RecommendationHistory = await ResolveRecommendation(model);
+        if (entity.RecommendationHistory is null) entity.RecommendationHistoryId = null;
 
         await _context.SaveChangesAsync();
 
@@ -173,6 +178,31 @@ public class TestingRepository
     }
 
     // 👉 МЕТОД GetTestingScheduleAsync УДАЛЕН - он теперь в TestingService
+
+    private async Task<RecommendationHistory?> ResolveRecommendation(TestingModel model)
+    {
+        if (!model.SemesterId.HasValue) return null;
+        // Фактическая замена HOD не превращается в новую рекомендацию ЛПР.
+        var programId = await _context.StudyGroups.Where(g => g.Id == model.GroupId).Select(g => g.StudyProgramId).SingleAsync();
+        var decision = await _context.GroupParticipationDecisions.SingleOrDefaultAsync(d =>
+            d.StudyProgramId == programId && d.SemesterId == model.SemesterId.Value);
+        if (decision is not null && decision.SelectedGroupId != model.GroupId)
+            throw new InvalidOperationException("Группа не выбрана заведующим кафедрой для этого семестра.");
+        var recommendation = await _context.RecommendationHistory.SingleOrDefaultAsync(r =>
+            r.StudyGroupId == model.GroupId && r.SemesterId == model.SemesterId.Value);
+        if (recommendation is not null) return recommendation;
+        if (decision is not null) return null;
+        return new RecommendationHistory
+        {
+            StudyGroupId = model.GroupId, SemesterId = model.SemesterId.Value,
+            // Создатель Testing может быть преподавателем, поэтому не выдаём его ID за ответственного ЛПР.
+            Author = "manual", UserId = null, RecommendedAt = DateTime.UtcNow
+        };
+    }
+
+    private Task<int?> ResolveParticipation(TestingModel model) => _context.GroupParticipationDecisions
+        .Where(d => d.SelectedGroupId == model.GroupId && d.SemesterId == model.SemesterId)
+        .Select(d => (int?)d.Id).SingleOrDefaultAsync();
 
     private void ValidateModel(TestingModel model)
     {

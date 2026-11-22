@@ -46,18 +46,18 @@ public class DocumentStatusInfoTests
     [InlineData(DocumentStatus.Pending, false, "Ожидает подписи")]
     [InlineData(DocumentStatus.Signed, false, "Подписан")]
     [InlineData(DocumentStatus.Rejected, false, "Отклонён")]
-    [InlineData(DocumentStatus.Pending, true, "Отправлен на проверку")]
-    [InlineData(DocumentStatus.Signed, true, "Сделан")]
-    [InlineData(DocumentStatus.Rejected, true, "Отправлен на доработку")]
+    [InlineData(DocumentStatus.Pending, true, "На проверке")]
+    [InlineData(DocumentStatus.Signed, true, "Принят")]
+    [InlineData(DocumentStatus.Rejected, true, "На доработке")]
     public void Label_DependsOnWorkflow(DocumentStatus status, bool reportWorkflow, string expected)
     {
         Assert.Equal(expected, DocumentStatusInfo.Label(status, reportWorkflow));
     }
 
     [Theory]
-    [InlineData(null, null, "not_required", "Пока не требуется")]
-    [InlineData(DocumentStatus.Pending, true, "not_required", "Пока не требуется")]
-    [InlineData(DocumentStatus.Rejected, false, "not_required", "Пока не требуется")]
+    [InlineData(null, null, "not_required", "Не требуется")]
+    [InlineData(DocumentStatus.Pending, true, "not_required", "Не требуется")]
+    [InlineData(DocumentStatus.Rejected, false, "not_required", "Не требуется")]
     [InlineData(DocumentStatus.Signed, null, "pending", "Ожидает сдачи")]
     [InlineData(DocumentStatus.Signed, false, "pending", "Ожидает сдачи")]
     [InlineData(DocumentStatus.Signed, true, "submitted", "Сдан")]
@@ -86,6 +86,6 @@ public class DocumentStatusInfoTests
         var options = DocumentStatusInfo.Options(reportWorkflow: true);
 
         Assert.Equal(new[] { "pending", "signed", "rejected" }, options.Select(o => o.Value));
-        Assert.Equal("Сделан", options.Single(o => o.Value == "signed").Label);
+        Assert.Equal("Принят", options.Single(o => o.Value == "signed").Label);
     }
 }

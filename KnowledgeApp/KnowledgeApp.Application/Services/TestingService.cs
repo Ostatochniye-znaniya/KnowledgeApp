@@ -36,7 +36,10 @@ public class TestingService
     {
         return await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
         {
+            _context.ChangeTracker.Clear();
+            var state = await _context.LockTestingPlan();
             await EnsureScheduleAvailable(testingModel);
+            state.Version++;
             return await _testingRepository.Create(testingModel);
         });
     }
@@ -45,7 +48,10 @@ public class TestingService
     {
         return await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
         {
+            _context.ChangeTracker.Clear();
+            var state = await _context.LockTestingPlan();
             await EnsureScheduleAvailable(testingModel);
+            state.Version++;
             return await _testingRepository.Update(testingModel);
         });
     }
@@ -150,7 +156,13 @@ public class TestingService
 
     public async Task<bool> Delete(int id)
     {
-        return await _testingRepository.Delete(id);
+        return await _context.InTransactionAsync(System.Data.IsolationLevel.Serializable, async () =>
+        {
+            _context.ChangeTracker.Clear();
+            var state = await _context.LockTestingPlan();
+            state.Version++;
+            return await _testingRepository.Delete(id);
+        });
     }
 
     public async Task<List<TestingModel>> GetByGroupId(int groupId)

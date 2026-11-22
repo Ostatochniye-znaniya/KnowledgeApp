@@ -2,6 +2,8 @@ using KnowledgeApp.Application.Interfaces;
 using KnowledgeApp.Domain.Entities;
 using KnowledgeApp.Infrastructure.Entities;
 using KnowledgeApp.Infrastructure.Repositories;
+using KnowledgeApp.Domain.Planning;
+using Microsoft.Extensions.Options;
 
 namespace KnowledgeApp.Application.Services;
 
@@ -19,11 +21,16 @@ public class GroupDisciplineService
 
     private readonly GroupDisciplineRepository _repository;
     private readonly ICurrentUserProvider _currentUser;
+    private readonly GroupsTestingOptions _options;
+    private readonly TimeProvider _clock;
 
-    public GroupDisciplineService(GroupDisciplineRepository repository, ICurrentUserProvider currentUser)
+    public GroupDisciplineService(GroupDisciplineRepository repository, ICurrentUserProvider currentUser,
+        IOptions<GroupsTestingOptions>? options = null, TimeProvider? clock = null)
     {
         _repository = repository;
         _currentUser = currentUser;
+        _options = options?.Value ?? new GroupsTestingOptions();
+        _clock = clock ?? TimeProvider.System;
     }
 
     private int CurrentDepartmentId =>
@@ -38,7 +45,7 @@ public class GroupDisciplineService
         return (departmentId, name);
     }
 
-    /// <summary>Переданный семестр (с проверкой) или самый поздний, если не передан.</summary>
+    /// <summary>Переданный семестр (с проверкой) или текущий по календарю планирования.</summary>
     public async Task<int> ResolveSemesterIdAsync(int? semesterId)
     {
         if (semesterId.HasValue)
@@ -48,8 +55,9 @@ public class GroupDisciplineService
             return semesterId.Value;
         }
 
-        return await _repository.GetLatestSemesterIdAsync()
-            ?? throw new KeyNotFoundException("В базе нет ни одного семестра");
+        var now = TimeZoneInfo.ConvertTime(_clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById(_options.TimeZoneId));
+        return PlanningCalendar.GetCurrent(await _repository.GetCalendarAsync(), DateOnly.FromDateTime(now.Date),
+            _options.SpringStartMonth, _options.AutumnStartMonth).Id;
     }
 
     public async Task<List<GroupDisciplinesModel>> GetGroupsAsync(int? semesterId)
@@ -59,7 +67,7 @@ public class GroupDisciplineService
         return await _repository.GetGroupsAsync(resolvedSemesterId, departmentId);
     }
 
-    /// <summary>Дисциплины кафедры группы; группа должна относиться к кафедре пользователя.</summary>
+    /// <summary>Дисциплины программы группы; группа должна относиться к кафедре пользователя.</summary>
     public async Task<List<DisciplineModel>> GetAvailableDisciplinesAsync(int groupId)
     {
         int departmentId = CurrentDepartmentId;
@@ -69,7 +77,7 @@ public class GroupDisciplineService
         if (groupDepartmentId != departmentId)
             throw new UnauthorizedAccessException("Группа не относится к вашей кафедре");
 
-        return await _repository.GetDepartmentDisciplinesAsync(departmentId);
+        return await _repository.GetStudyProgramDisciplinesAsync(groupId);
     }
 
     /// <summary>
@@ -77,7 +85,10 @@ public class GroupDisciplineService
     /// Тестирования, где дисциплина уже стоит и остаётся выбранной, не трогаются;
     /// новые дисциплины занимают сначала пустые тестирования; у убранных дисциплина обнуляется.
     /// </summary>
-    public async Task SetDisciplinesAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId)
+    public Task SetDisciplinesAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId) =>
+        _repository.WithPlanLock(() => SetDisciplinesCoreAsync(groupId, disciplineIds, semesterId));
+
+    private async Task SetDisciplinesCoreAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId)
     {
         var ids = disciplineIds.Distinct().ToList();
         if (ids.Count != disciplineIds.Count)
@@ -88,12 +99,16 @@ public class GroupDisciplineService
         int resolvedSemesterId = await ResolveSemesterIdAsync(semesterId);
 
         var availableIds = (await GetAvailableDisciplinesAsync(groupId)).Select(d => d.Id).ToHashSet();
-        var foreignIds = ids.Where(id => !availableIds.Contains(id)).ToList();
+        if (!await _repository.IsSelectedAsync(groupId, resolvedSemesterId))
+            throw new InvalidOperationException("Сначала подтвердите участие группы на странице выбора групп.");
+        List<Testing> testings = await _repository.GetGroupTestingsAsync(groupId, resolvedSemesterId);
+        // Старые назначения можно сохранить, даже если перечень программы ещё не перенесён.
+        var existingIds = testings.Where(t => t.DisciplineId.HasValue).Select(t => t.DisciplineId!.Value).ToHashSet();
+        var foreignIds = ids.Where(id => !availableIds.Contains(id) && !existingIds.Contains(id)).ToList();
         if (foreignIds.Count > 0)
             throw new ArgumentException(
-                $"Дисциплины не относятся к кафедре группы: {string.Join(", ", foreignIds)}");
+                $"Дисциплины не входят в учебную программу профиля группы: {string.Join(", ", foreignIds)}");
 
-        List<Testing> testings = await _repository.GetGroupTestingsAsync(groupId, resolvedSemesterId);
         if (testings.Count == 0)
             throw new ArgumentException(
                 "Группа не выбрана для проверки в этом семестре: для неё нет тестирований");
@@ -128,10 +143,11 @@ public class GroupDisciplineService
                 changes.Add((freeSlots[i], newDisciplineId));
         }
 
-        Testing? withReport = changes.Select(c => c.Testing).FirstOrDefault(t => t.ReportId != null);
-        if (withReport != null)
+        var lockedIds = await _repository.GetLockedTestingIdsAsync(resolvedSemesterId, groupId);
+        Testing? locked = changes.Select(c => c.Testing).FirstOrDefault(t => lockedIds.Contains(t.Id));
+        if (locked != null)
             throw new InvalidOperationException(
-                $"Нельзя изменить дисциплину тестирования {withReport.Id}: по нему уже загружен отчёт");
+                $"Нельзя изменить дисциплину тестирования {locked.Id}: уже начата работа с преподавателями, графиком или отчётом");
 
         foreach (var (testing, newDisciplineId) in changes)
             testing.DisciplineId = newDisciplineId;

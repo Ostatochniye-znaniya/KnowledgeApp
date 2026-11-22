@@ -1,0 +1,13 @@
+.git
+.vs
+.idea
+.env
+.env.*
+**/bin
+**/obj
+**/node_modules
+**/*.user
+**/*.suo
+artifacts
+DbBackups
+docs
