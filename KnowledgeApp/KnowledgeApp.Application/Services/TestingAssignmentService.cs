@@ -194,7 +194,7 @@ public sealed class TestingAssignmentService
         int currentPart = (DateTime.Now.Month >= 9 || DateTime.Now.Month == 1) ? 1 : 2;
 
         var semesterId = await _context.Semesters
-            .Where(s => s.SemesterYear == currentAcademicYear && s.SemesterPart == currentPart)
+            .Where(s => s.SemesterYear == currentAcademicYear && s.YearPart == currentPart)
             .Select(s => (int?)s.Id)
             .FirstOrDefaultAsync(cancellationToken);
         if (semesterId is null)
