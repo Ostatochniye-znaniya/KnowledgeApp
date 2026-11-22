@@ -15,12 +15,18 @@ public class ReportDocumentRepository
         _context = context;
     }
 
-    public async Task<List<ReportDocumentModel>> GetSubmittedByFaculty(int facultyId, int? departmentId, DocumentStatus? status)
+    public Task<List<ReportDocumentModel>> GetSubmittedByFaculty(int facultyId, int? departmentId, DocumentStatus? status) =>
+        GetSubmitted(facultyId, departmentId, status);
+
+    public async Task<List<ReportDocumentModel>> GetSubmitted(int? facultyId, int? departmentId,
+        DocumentStatus? status, CancellationToken cancellationToken = default)
     {
         var query = _context.Reports.AsNoTracking()
-            .Where(r => r.FilePath != null)
-            .Where(r => r.Discipline != null && r.Discipline.Department != null
-                        && r.Discipline.Department.FacultyId == facultyId);
+            .Where(r => r.FilePath != null && r.FilePath != "");
+
+        if (facultyId.HasValue)
+            query = query.Where(r => r.Discipline != null && r.Discipline.Department != null
+                && r.Discipline.Department.FacultyId == facultyId);
 
         if (departmentId.HasValue)
             query = query.Where(r => r.Discipline!.DepartmentId == departmentId.Value);
@@ -32,12 +38,12 @@ public class ReportDocumentRepository
                 : query.Where(r => r.Status == status.Value);
         }
 
-        return await LoadModels(query);
+        return await LoadModels(query, cancellationToken);
     }
 
-    public async Task<ReportDocumentModel?> GetById(int reportId)
+    public async Task<ReportDocumentModel?> GetById(int reportId, CancellationToken cancellationToken = default)
     {
-        var models = await LoadModels(_context.Reports.AsNoTracking().Where(r => r.Id == reportId));
+        var models = await LoadModels(_context.Reports.AsNoTracking().Where(r => r.Id == reportId), cancellationToken);
         return models.FirstOrDefault();
     }
 
@@ -73,24 +79,30 @@ public class ReportDocumentRepository
                 .SetProperty(r => r.ReviewComment, (string?)null)
                 .SetProperty(r => r.ReviewedAt, (DateTime?)null)
                 .SetProperty(r => r.ReviewedByUserId, (int?)null)
-                .SetProperty(r => r.DoneInElectronicForm, (bool?)true)
+                // Наличие файла ещё не означает, что электронный отчёт принят ЛПР.
+                .SetProperty(r => r.DoneInElectronicForm, (bool?)false)
                 .SetProperty(r => r.DoneInPaperForm, (bool?)null)
                 .SetProperty(r => r.AllDone, (bool?)false));
 
         return affected > 0 ? (true, previousKey) : (false, null);
     }
 
-    public async Task<bool> Review(int reportId, DocumentStatus newStatus, string? comment, DateTime reviewedAt, int? reviewerId)
+    public async Task<bool> Review(int reportId, DocumentStatus newStatus, string? comment, DateTime reviewedAt,
+        int? reviewerId, string? expectedFileKey = null, CancellationToken cancellationToken = default)
     {
         var affected = await _context.Reports
             .Where(r => r.Id == reportId &&
                         r.FilePath != null &&
+                        (expectedFileKey == null || r.FilePath == expectedFileKey) &&
                         (r.Status == DocumentStatus.Pending || r.Status == null))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(r => r.Status, newStatus)
                 .SetProperty(r => r.ReviewComment, comment)
                 .SetProperty(r => r.ReviewedAt, reviewedAt)
-                .SetProperty(r => r.ReviewedByUserId, reviewerId));
+                .SetProperty(r => r.ReviewedByUserId, reviewerId)
+                .SetProperty(r => r.DoneInElectronicForm, (bool?)(newStatus == DocumentStatus.Signed))
+                .SetProperty(r => r.AllDone,
+                    r => newStatus == DocumentStatus.Signed && r.DoneInPaperForm == true), cancellationToken);
 
         return affected > 0;
     }
@@ -112,7 +124,8 @@ public class ReportDocumentRepository
         return affected > 0;
     }
 
-    private async Task<List<ReportDocumentModel>> LoadModels(IQueryable<Report> reports)
+    private async Task<List<ReportDocumentModel>> LoadModels(IQueryable<Report> reports,
+        CancellationToken cancellationToken = default)
     {
         var rows = await reports
             .Select(r => new ReportDocumentModel
@@ -138,11 +151,11 @@ public class ReportDocumentRepository
                 DoneInElectronicForm = r.DoneInElectronicForm,
                 AllDone = r.AllDone
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         if (rows.Count == 0) return rows;
 
-        // навигация Testing.Report смаплена на semester_id, поэтому join по report_id руками
+        // Связываем именно по report_id; группа и семестр берутся из тестирования.
         var reportIds = rows.Select(r => r.ReportId).ToList();
         var testings = await (
                 from t in _context.Testings.AsNoTracking()
@@ -161,7 +174,7 @@ public class ReportDocumentRepository
                     SemesterPart = s != null ? (int?)s.SemesterPart : null,
                     YearPart = s != null ? (int?)s.YearPart : null
                 })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var firstTestingByReport = testings
             .GroupBy(t => t.ReportId)

@@ -6,6 +6,8 @@ using KnowledgeApp.Domain.Enums;
 using KnowledgeApp.Infrastructure.Repositories;
 using KnowledgeApp.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace KnowledgeApp.Application.Services;
 
@@ -13,15 +15,18 @@ public class ReportDocumentService
 {
     private readonly ReportDocumentRepository _repository;
     private readonly DepartmentRepository _departmentRepository;
+    private readonly FacultyRepository _facultyRepository;
     private readonly IFileStorage _storage;
     private readonly ICurrentUserProvider _currentUser;
     private readonly ILogger<ReportDocumentService> _logger;
 
     public ReportDocumentService(ReportDocumentRepository repository, DepartmentRepository departmentRepository,
-        IFileStorage storage, ICurrentUserProvider currentUser, ILogger<ReportDocumentService> logger)
+        IFileStorage storage, ICurrentUserProvider currentUser, ILogger<ReportDocumentService> logger,
+        FacultyRepository facultyRepository)
     {
         _repository = repository;
         _departmentRepository = departmentRepository;
+        _facultyRepository = facultyRepository;
         _storage = storage;
         _currentUser = currentUser;
         _logger = logger;
@@ -34,7 +39,7 @@ public class ReportDocumentService
 
         var report = await GetTeacherReport(reportId, cancellationToken);
         if (report.Status == DocumentStatus.Signed)
-            throw new DocumentConflictException("Отчёт уже подписан деканом, заменить файл нельзя");
+            throw new DocumentConflictException("Электронный отчёт уже принят, заменить файл нельзя");
 
         using var upload = await PdfUpload.ReadAsync(content, fileName, declaredSize, cancellationToken);
         return await StoreUpload(
@@ -52,7 +57,7 @@ public class ReportDocumentService
 
         var report = await GetTeacherReport(reportId, cancellationToken);
         if (report.Status == DocumentStatus.Signed)
-            throw new DocumentConflictException("Отчёт уже подписан деканом, заменить файл нельзя");
+            throw new DocumentConflictException("Электронный отчёт уже принят, заменить файл нельзя");
 
         using var upload = await DocxUpload.ReadAsync(content, fileName, declaredSize, cancellationToken);
         return await StoreUpload(
@@ -123,6 +128,90 @@ public class ReportDocumentService
             .ThenByDescending(r => r.UploadedAt)
             .ToList();
     }
+
+    public async Task<List<ReportDocumentDto>> GetForLpr(int? facultyId, int? departmentId,
+        string? academicYear, string? status, CancellationToken cancellationToken)
+    {
+        ValidateFilterIds(facultyId, departmentId);
+        var statusFilter = DocumentStatusInfo.Parse(status);
+        var reports = await _repository.GetSubmitted(facultyId, departmentId, statusFilter, cancellationToken);
+        return reports.Select(ToDto)
+            .Where(r => string.IsNullOrWhiteSpace(academicYear) || r.AcademicYear == academicYear.Trim())
+            .OrderBy(r => r.Status == "pending" ? 0 : 1)
+            .ThenByDescending(r => r.UploadedAt).ThenByDescending(r => r.Id).ToList();
+    }
+
+    public async Task<LprReportFilterOptionsDto> GetLprFilterOptions(int? facultyId, CancellationToken cancellationToken)
+    {
+        ValidateFilterIds(facultyId, null);
+        var faculties = await _facultyRepository.GetAllFaculties();
+        var departments = await _departmentRepository.GetAllDepartments();
+        var reports = await _repository.GetSubmitted(facultyId, null, null, cancellationToken);
+        return new LprReportFilterOptionsDto
+        {
+            Faculties = faculties.OrderBy(f => f.FacultyName)
+                .Select(f => new FilterOptionDto { Value = f.Id.ToString(), Label = f.FacultyName }).ToList(),
+            Departments = departments.Where(d => facultyId == null || d.FacultyId == facultyId)
+                .OrderBy(d => d.Name)
+                .Select(d => new FilterOptionDto { Value = d.Id.ToString(), Label = d.Name }).ToList(),
+            AcademicYears = reports.Select(r => AcademicPeriod.FormatAcademicYear(r.SemesterYear, r.SemesterPart, r.YearPart))
+                .Where(y => y != null).Distinct().OrderByDescending(y => y)
+                .Select(y => new FilterOptionDto { Value = y!, Label = y! }).ToList(),
+            Statuses = DocumentStatusInfo.Options(reportWorkflow: true)
+        };
+    }
+
+    public async Task<DocumentFileDto> OpenFileForLpr(int reportId, string? fileVersion, CancellationToken cancellationToken)
+    {
+        var report = await GetLprReport(reportId, fileVersion, cancellationToken);
+        return await Open(report, cancellationToken);
+    }
+
+    public Task<ReportDocumentDto> ApproveForLpr(int reportId, string? fileVersion, CancellationToken cancellationToken) =>
+        ReviewForLpr(reportId, DocumentStatus.Signed, "Нет", fileVersion, cancellationToken);
+
+    public Task<ReportDocumentDto> RejectForLpr(int reportId, string? comment, string? fileVersion,
+        CancellationToken cancellationToken)
+    {
+        var normalized = NormalizeComment(comment);
+        if (normalized is null)
+            throw new DocumentValidationException("Опишите замечания проверки электронного отчёта.");
+        return ReviewForLpr(reportId, DocumentStatus.Rejected, normalized, fileVersion, cancellationToken);
+    }
+
+    private async Task<ReportDocumentDto> ReviewForLpr(int reportId, DocumentStatus status, string comment,
+        string? fileVersion, CancellationToken cancellationToken)
+    {
+        var report = await GetLprReport(reportId, fileVersion, cancellationToken);
+        var changed = await _repository.Review(reportId, status, comment, DateTime.UtcNow,
+            _currentUser.UserId, report.FileKey, cancellationToken);
+        if (!changed)
+            throw new DocumentConflictException("Отчёт уже рассмотрен или преподаватель заменил файл. Обновите список.");
+        var updated = await _repository.GetById(reportId, cancellationToken)
+            ?? throw new DocumentNotFoundException("Отчёт не найден");
+        return ToDto(updated);
+    }
+
+    private async Task<ReportDocumentModel> GetLprReport(int reportId, string? fileVersion, CancellationToken cancellationToken)
+    {
+        if (reportId <= 0 || string.IsNullOrWhiteSpace(fileVersion))
+            throw new DocumentValidationException("Выберите отчёт из актуального списка.");
+        var report = await _repository.GetById(reportId, cancellationToken);
+        if (report is null || string.IsNullOrWhiteSpace(report.FileKey))
+            throw new DocumentNotFoundException("Загруженный отчёт не найден");
+        if (!string.Equals(FileVersion(report.FileKey), fileVersion, StringComparison.Ordinal))
+            throw new DocumentConflictException("Преподаватель заменил файл отчёта. Обновите список перед проверкой.");
+        return report;
+    }
+
+    private static void ValidateFilterIds(int? facultyId, int? departmentId)
+    {
+        if (facultyId is <= 0 || departmentId is <= 0)
+            throw new DocumentValidationException("Некорректный факультет или кафедра.");
+    }
+
+    private static string FileVersion(string? key) => string.IsNullOrEmpty(key)
+        ? string.Empty : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
 
     public async Task<ReportFilterOptionsDto> GetFilterOptions()
     {
@@ -282,6 +371,7 @@ public class ReportDocumentService
             Status = DocumentStatusInfo.Code(status),
             StatusLabel = DocumentStatusInfo.Label(status, reportWorkflow: true),
             FileName = report.FileName,
+            FileVersion = FileVersion(report.FileKey),
             UploadedAt = DocumentStatusInfo.AsUtc(report.UploadedAt),
             ReviewComment = report.ReviewComment,
             ReviewedAt = DocumentStatusInfo.AsUtc(report.ReviewedAt),

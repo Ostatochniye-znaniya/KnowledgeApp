@@ -1,4 +1,5 @@
 ﻿using KnowledgeApp.Domain.Entities;
+using KnowledgeApp.Domain.Planning;
 using KnowledgeApp.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using KnowledgeApp.Infrastructure.Entities;
@@ -14,53 +15,74 @@ public class RecommendationHistoryRepository
         _context = context;
     }
 
-    public async Task AddRecommendationAsync(RecommendationHistoryModel model)
+    public Task AddRecommendationAsync(RecommendationHistoryModel model) => Mutate(async () =>
     {
-        await _context.RecommendationHistory.AddAsync(new RecommendationHistory()
+        ValidateAuthor(model.Author);
+        var entity = new RecommendationHistory
         {
-            RecommendedAt = model.RecommendedAt,
-            UserId = model.RecommendedById,
-            SemesterId = model.SemesterId,
-            StudyGroupId = model.StudyGroupId
-        });
+            RecommendedAt = model.RecommendedAt, Author = model.Author,
+            UserId = model.RecommendedById, SemesterId = model.SemesterId, StudyGroupId = model.StudyGroupId
+        };
+        _context.RecommendationHistory.Add(entity);
         await _context.SaveChangesAsync();
-    }
-    public async Task DeleteRecommendationAsync(int recommendationId)
+        model.Id = entity.Id;
+    });
+
+    public Task DeleteRecommendationAsync(int recommendationId) => Mutate(async () =>
     {
-        var res = await _context.RecommendationHistory.FirstOrDefaultAsync(r => r.Id == recommendationId);
-        if (res == null) throw new Exception("Не найдена запись рекоммендации с таким Id");
-        _context.RecommendationHistory.Remove(res);
+        var entity = await _context.RecommendationHistory.FindAsync(recommendationId)
+            ?? throw new KeyNotFoundException("Рекомендация не найдена");
+        if (await _context.Testings.AnyAsync(t => t.RecommendationHistoryId == recommendationId))
+            throw new PlanningRuleException("Нельзя удалить назначение, связанное с тестированиями");
+        _context.RecommendationHistory.Remove(entity);
         await _context.SaveChangesAsync();
-    }
+    });
+
     public async Task<RecommendationHistoryModel> GetById(int recommendationId)
     {
         var res = await _context.RecommendationHistory.Include(u => u.StudyGroup).Include(u => u.Semester).Include(r=>r.User).FirstOrDefaultAsync(r => r.Id == recommendationId);
-        if (res == null) throw new Exception("Не найдена запись рекоммендации с таким Id");
+        if (res == null) throw new KeyNotFoundException("Рекомендация не найдена");
         return new RecommendationHistoryModel()
         {
             Id = recommendationId,
             RecommendedAt = res.RecommendedAt,
-            RecommendedBy = res.User?.Name,
+            RecommendedBy = res.User?.Name, RecommendedById = res.UserId, Author = res.Author,
             SemesterId = res.SemesterId,
             StudyGroupId = res.StudyGroupId,
             StudyGroupName = res.StudyGroup?.GroupNumber
         };
     }
-    public async Task UpdateRecommendationAsync(RecommendationHistoryModel model)
+    public Task UpdateRecommendationAsync(RecommendationHistoryModel model) => Mutate(async () =>
     {
-        var existing = await _context.RecommendationHistory
-            .FirstOrDefaultAsync(r => r.Id == model.Id);
-
-        if (existing == null)
-            throw new Exception("Не найдена запись рекоммендации с таким Id");
-
+        ValidateAuthor(model.Author);
+        var existing = await _context.RecommendationHistory.FindAsync(model.Id)
+            ?? throw new KeyNotFoundException("Рекомендация не найдена");
+        if ((existing.StudyGroupId != model.StudyGroupId || existing.SemesterId != model.SemesterId)
+            && await _context.Testings.AnyAsync(t => t.RecommendationHistoryId == model.Id))
+            throw new PlanningRuleException("Нельзя менять группу или семестр назначения, связанного с тестированиями");
         existing.RecommendedAt = model.RecommendedAt;
+        existing.Author = model.Author;
+        // Старые клиенты передавали имя вместо ID. Без нового ID ответственного сохраняем.
+        if (model.RecommendedById.HasValue) existing.UserId = model.RecommendedById;
         existing.SemesterId = model.SemesterId;
         existing.StudyGroupId = model.StudyGroupId;
-
         await _context.SaveChangesAsync();
-    }
+    });
 
+    private Task Mutate(Func<Task> action) =>
+        _context.InTransactionAsync(System.Data.IsolationLevel.RepeatableRead, async () =>
+        {
+            _context.ChangeTracker.Clear();
+            var state = await _context.LockTestingPlan();
+            state.Version++;
+            await action();
+        });
+
+    private static void ValidateAuthor(string author)
+    {
+        if (author is not ("manual" or "automatic"))
+            throw new ArgumentException("Источник назначения должен быть manual или automatic");
+    }
 
     public async Task<List<RecommendationHistoryModel>> GetAllAsync(
         int? semesterId = null,
@@ -96,7 +118,7 @@ public class RecommendationHistoryRepository
         {
             Id = res.Id,
             RecommendedAt = res.RecommendedAt,
-            RecommendedBy = res.User?.Name,
+            RecommendedBy = res.User?.Name, RecommendedById = res.UserId, Author = res.Author,
             SemesterId = res.SemesterId,
             StudyGroupId = res.StudyGroupId,
             StudyGroupName = res.StudyGroup?.GroupNumber

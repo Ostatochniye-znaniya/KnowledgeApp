@@ -52,9 +52,9 @@ public class MigrationsTests : IAsyncLifetime
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
     }
 
-    // Down этой миграции намеренно бросает NotSupportedException: заказы без группы
-    // нельзя вернуть к обязательной группе. Откатываемость проверяем для всех миграций после неё.
-    private const string LastIrreversibleMigration = "20261018171428_MakeOrderGroupOptional";
+    // Объединение назначений и нумерации приказов намеренно не откатывает перенесённые данные.
+    // Откатываемость проверяем для всех миграций после последнего необратимого перехода.
+    private const string LastIrreversibleMigration = "20261024211058_ConsolidateLprPlanningAndOrders";
 
     [Fact]
     public async Task MigrationsAfterLastIrreversible_RollBackAndApplyAgain()

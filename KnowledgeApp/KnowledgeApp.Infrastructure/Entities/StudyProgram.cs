@@ -13,4 +13,6 @@ public partial class StudyProgram
     public virtual Department? Department { get; set; }
 
     public virtual ICollection<StudyGroup> StudyGroups { get; set; } = new List<StudyGroup>();
+
+    public virtual ICollection<StudyProgramDiscipline> StudyProgramDisciplines { get; set; } = new List<StudyProgramDiscipline>();
 }

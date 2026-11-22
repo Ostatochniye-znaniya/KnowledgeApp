@@ -6,4 +6,6 @@ public partial class Semester
     public int SemesterYear { get; set; }
     public int SemesterPart { get; set; }
     public int YearPart { get; set; }
+    public DateOnly? StudentListFormationStartDate { get; set; }
+    public DateOnly? StudentListFormationEndDate { get; set; }
 }

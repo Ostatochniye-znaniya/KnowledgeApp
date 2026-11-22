@@ -4,9 +4,13 @@ public class Order
 {
     public int Id { get; set; }
 
-    public string Number { get; set; } = null!;
+    public string? Number { get; set; }
+    // Идентификатор операции защищает создание от повторов транзакции после сбоя соединения.
+    public string? CreationToken { get; set; }
 
     public string Name { get; set; } = null!;
+
+    public string Status { get; set; } = "issued";
 
     public DateOnly OrderDate { get; set; }
 
@@ -23,7 +27,8 @@ public class Order
 
     public DateOnly SurveySummaryDeadline { get; set; }
 
-    public DateOnly PaperReportDeadline { get; set; }
+    public bool RequiresPaperReports { get; set; } = true;
+    public DateOnly? PaperReportDeadline { get; set; }
 
     public DateOnly ElectronicReportDeadline { get; set; }
 
@@ -31,15 +36,19 @@ public class Order
 
     public DateOnly TestingEndDate { get; set; }
 
-    public DateOnly SurveyStartDate { get; set; }
+    public DateOnly? SurveyStartDate { get; set; }
 
-    public DateOnly SurveyEndDate { get; set; }
+    public DateOnly? SurveyEndDate { get; set; }
 
-    public DateOnly PreparationStartDate { get; set; }
+    public DateOnly? PreparationStartDate { get; set; }
 
-    public DateOnly PreparationEndDate { get; set; }
+    public DateOnly? PreparationEndDate { get; set; }
 
-    public DateOnly ResultsProcessingStartDate { get; set; }
+    public DateOnly? ResultsProcessingStartDate { get; set; }
+
+    public DateOnly? TestingStageStartDate { get; set; }
+    public DateOnly? TestingStageEndDate { get; set; }
+    public DateOnly? OnlineSeminarDate { get; set; }
 
     public string FileKey { get; set; } = null!;
 
