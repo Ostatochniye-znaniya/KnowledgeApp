@@ -9,10 +9,31 @@ public partial class KnowledgeTestDbContext : DbContext
     {
     }
 
+    // Схема создаётся миграциями (Database.Migrate() в Program.cs), EnsureCreated здесь
+    // создал бы таблицы в обход истории миграций, и последующий Migrate упал бы.
     public KnowledgeTestDbContext(DbContextOptions<KnowledgeTestDbContext> options)
         : base(options)
     {
-        // Схему ведут миграции. EnsureCreated обходит их и ломает запуск на пустой БД.
+    }
+
+    public const string DefaultConnectionString =
+        "server=localhost;database=knowledge_test_db;user=root;password=admin";
+
+    public static string ConnectionStringFromEnvironment() =>
+        Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection") ?? DefaultConnectionString;
+
+    public static void ConfigureMySql(DbContextOptionsBuilder optionsBuilder, string connectionString)
+    {
+        var mysqlConnection = new MySqlConnector.MySqlConnectionStringBuilder(connectionString)
+        {
+            AllowUserVariables = true // Сохраняем поддержку SQL-переходов старых схем в миграциях.
+        };
+        optionsBuilder.UseMySql(mysqlConnection.ConnectionString,
+            new MySqlServerVersion(new Version(9, 1, 0)),
+            mysqlOptions => mysqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,                 // количество попыток
+                maxRetryDelay: TimeSpan.FromSeconds(10), // задержка между попытками
+                errorNumbersToAdd: null));         // можно указать коды ошибок MySQL, на которые ретраить
     }
 
     public virtual DbSet<Department> Departments { get; set; }
@@ -65,20 +86,14 @@ public partial class KnowledgeTestDbContext : DbContext
     public virtual DbSet<RecommendationHistory> RecommendationHistory { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        // Получаем строку подключения из переменных окружения или конфигурации
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection") 
-                            ?? "server=localhost;database=knowledge_test_db;user=root;password=admin";
-
-        var mysqlConnection = new MySqlConnector.MySqlConnectionStringBuilder(connectionString)
+        // Запасной путь для контекста без DI (new KnowledgeTestDbContext()):
+        // опции из AddDbContext сюда уже приходят настроенными.
+        if (optionsBuilder.IsConfigured)
         {
-            AllowUserVariables = true // SQL-переходы со служебными переменными MySQL.
-        };
-        optionsBuilder.UseMySql(mysqlConnection.ConnectionString,
-            new MySqlServerVersion(new Version(9, 1, 0)),
-            mysqlOptions => mysqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,                 // количество попыток
-                maxRetryDelay: TimeSpan.FromSeconds(10), // задержка между попытками
-                errorNumbersToAdd: null));         // можно указать коды ошибок MySQL, на которые ретраить
+            return;
+        }
+
+        ConfigureMySql(optionsBuilder, ConnectionStringFromEnvironment());
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

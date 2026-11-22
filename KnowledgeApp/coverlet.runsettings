@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Настройки сбора покрытия для coverlet (XPlat Code Coverage), подключаются через dotnet test с параметром settings -->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <!-- Тестовые сборки и сгенерированный код миграций в покрытие не входят -->
+          <Exclude>[KnowledgeApp.UnitTests]*,[KnowledgeApp.IntegrationTests]*</Exclude>
+          <ExcludeByFile>**/Data/Migrations/*.cs</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
