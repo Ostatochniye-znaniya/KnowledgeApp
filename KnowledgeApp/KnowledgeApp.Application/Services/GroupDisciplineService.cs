@@ -67,7 +67,7 @@ public class GroupDisciplineService
         return await _repository.GetGroupsAsync(resolvedSemesterId, departmentId);
     }
 
-    /// <summary>Дисциплины кафедры группы; группа должна относиться к кафедре пользователя.</summary>
+    /// <summary>Дисциплины программы группы; группа должна относиться к кафедре пользователя.</summary>
     public async Task<List<DisciplineModel>> GetAvailableDisciplinesAsync(int groupId)
     {
         int departmentId = CurrentDepartmentId;
@@ -77,7 +77,7 @@ public class GroupDisciplineService
         if (groupDepartmentId != departmentId)
             throw new UnauthorizedAccessException("Группа не относится к вашей кафедре");
 
-        return await _repository.GetDepartmentDisciplinesAsync(departmentId);
+        return await _repository.GetStudyProgramDisciplinesAsync(groupId);
     }
 
     /// <summary>
@@ -101,12 +101,14 @@ public class GroupDisciplineService
         var availableIds = (await GetAvailableDisciplinesAsync(groupId)).Select(d => d.Id).ToHashSet();
         if (!await _repository.IsSelectedAsync(groupId, resolvedSemesterId))
             throw new InvalidOperationException("Сначала подтвердите участие группы на странице выбора групп.");
-        var foreignIds = ids.Where(id => !availableIds.Contains(id)).ToList();
+        List<Testing> testings = await _repository.GetGroupTestingsAsync(groupId, resolvedSemesterId);
+        // Старые назначения можно сохранить, даже если перечень программы ещё не перенесён.
+        var existingIds = testings.Where(t => t.DisciplineId.HasValue).Select(t => t.DisciplineId!.Value).ToHashSet();
+        var foreignIds = ids.Where(id => !availableIds.Contains(id) && !existingIds.Contains(id)).ToList();
         if (foreignIds.Count > 0)
             throw new ArgumentException(
-                $"Дисциплины не относятся к кафедре группы: {string.Join(", ", foreignIds)}");
+                $"Дисциплины не входят в учебную программу профиля группы: {string.Join(", ", foreignIds)}");
 
-        List<Testing> testings = await _repository.GetGroupTestingsAsync(groupId, resolvedSemesterId);
         if (testings.Count == 0)
             throw new ArgumentException(
                 "Группа не выбрана для проверки в этом семестре: для неё нет тестирований");
@@ -141,10 +143,11 @@ public class GroupDisciplineService
                 changes.Add((freeSlots[i], newDisciplineId));
         }
 
-        Testing? withReport = changes.Select(c => c.Testing).FirstOrDefault(t => t.ReportId != null);
-        if (withReport != null)
+        var lockedIds = await _repository.GetLockedTestingIdsAsync(resolvedSemesterId, groupId);
+        Testing? locked = changes.Select(c => c.Testing).FirstOrDefault(t => lockedIds.Contains(t.Id));
+        if (locked != null)
             throw new InvalidOperationException(
-                $"Нельзя изменить дисциплину тестирования {withReport.Id}: по нему уже загружен отчёт");
+                $"Нельзя изменить дисциплину тестирования {locked.Id}: уже начата работа с преподавателями, графиком или отчётом");
 
         foreach (var (testing, newDisciplineId) in changes)
             testing.DisciplineId = newDisciplineId;

@@ -149,6 +149,8 @@ internal static class HodParticipationChecks
                 hod = await Save(new HodProfileDecisionRequest(profile.Id, groups[2].Id, "Участие восстановлено"));
                 var discipline = new Discipline { Name = "Дисциплина проверки", DepartmentId = department.Id };
                 db.Disciplines.Add(discipline); await db.SaveChangesAsync();
+                db.StudyProgramDisciplines.Add(new StudyProgramDiscipline { StudyProgramId = profile.Id, DisciplineId = discipline.Id });
+                await db.SaveChangesAsync();
                 await disciplines.SetDisciplinesAsync(groups[2].Id, [discipline.Id], null);
                 var oldVersion = hod.Plan!.Version;
                 await Reject<PlanningRuleException>(() => Save(new HodProfileDecisionRequest(profile.Id, groups[1].Id, "Устаревшая версия")));

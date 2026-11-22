@@ -116,10 +116,14 @@ public class GroupDisciplineController : BaseController
             GroupNumber = model.GroupNumber,
             StudyProgramId = model.StudyProgramId,
             StudyProgramName = model.StudyProgramName,
+            DirectionCode = model.DirectionCode,
             DepartmentId = model.DepartmentId,
             DepartmentName = model.DepartmentName,
             FacultyName = model.FacultyName,
             SemesterId = model.SemesterId,
+            SemesterYear = model.SemesterYear,
+            SemesterPart = model.SemesterPart,
+            AvailableDisciplinesCount = model.AvailableDisciplinesCount,
             MaxDisciplines = Math.Min(GroupDisciplineService.MaxDisciplinesPerGroup, model.SlotCount),
             Disciplines = model.Disciplines.Select(ToDisciplineResponse).ToList()
         };
@@ -131,7 +135,12 @@ public class GroupDisciplineController : BaseController
         {
             Id = model.Id,
             Name = model.Name,
-            DepartmentId = model.DepartmentId
+            DepartmentId = model.DepartmentId,
+            DepartmentName = model.DepartmentName,
+            FacultyId = model.FacultyId,
+            FacultyName = model.FacultyName,
+            IsInStudyProgram = model.IsInStudyProgram,
+            Locked = model.Locked
         };
     }
 }

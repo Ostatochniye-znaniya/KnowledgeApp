@@ -69,6 +69,8 @@ public class GroupDisciplineRepository
     /// </summary>
     public async Task<List<GroupDisciplinesModel>> GetGroupsAsync(int semesterId, int departmentId)
     {
+        var semester = await _context.Semesters.AsNoTracking().SingleAsync(s => s.Id == semesterId);
+        var lockedIds = await GetLockedTestingIdsAsync(semesterId);
         var rows = await SelectedGroups(semesterId)
             .AsNoTracking()
             .Where(g => g.Testings.Any(t => t.SemesterId == semesterId))
@@ -80,6 +82,8 @@ public class GroupDisciplineRepository
                 g.GroupNumber,
                 g.StudyProgramId,
                 StudyProgramName = g.StudyProgram!.Name,
+                DirectionCode = g.StudyProgram.CypherOfTheDirection,
+                AvailableDisciplinesCount = g.StudyProgram.StudyProgramDisciplines.Count,
                 DepartmentId = g.StudyProgram!.DepartmentId,
                 DepartmentName = g.StudyProgram!.Department!.Name,
                 FacultyName = g.StudyProgram!.Department!.Faculty!.FacultyName,
@@ -87,7 +91,15 @@ public class GroupDisciplineRepository
                 Disciplines = g.Testings
                     .Where(t => t.SemesterId == semesterId && t.DisciplineId != null)
                     .OrderBy(t => t.Id)
-                    .Select(t => new { t.Discipline!.Id, t.Discipline.Name, t.Discipline.DepartmentId })
+                    .Select(t => new {
+                        t.Discipline!.Id, t.Discipline.Name, t.Discipline.DepartmentId,
+                        DepartmentName = t.Discipline.Department != null ? t.Discipline.Department.Name : null,
+                        FacultyId = t.Discipline.Department != null ? t.Discipline.Department.FacultyId : null,
+                        FacultyName = t.Discipline.Department != null && t.Discipline.Department.Faculty != null
+                            ? t.Discipline.Department.Faculty.FacultyName : null,
+                        IsInStudyProgram = t.Discipline.StudyProgramDisciplines.Any(p => p.StudyProgramId == g.StudyProgramId),
+                        Locked = lockedIds.Contains(t.Id)
+                    })
                     .ToList()
             })
             .ToListAsync();
@@ -98,13 +110,24 @@ public class GroupDisciplineRepository
             GroupNumber = r.GroupNumber,
             StudyProgramId = r.StudyProgramId,
             StudyProgramName = r.StudyProgramName,
+            DirectionCode = r.DirectionCode,
+            AvailableDisciplinesCount = r.AvailableDisciplinesCount,
             DepartmentId = r.DepartmentId,
             DepartmentName = r.DepartmentName,
             FacultyName = r.FacultyName,
             SemesterId = semesterId,
+            SemesterYear = semester.SemesterYear,
+            SemesterPart = semester.SemesterPart,
             SlotCount = r.SlotCount,
             Disciplines = r.Disciplines
-                .Select(d => new DisciplineModel(d.Id, d.Name, d.DepartmentId))
+                .GroupBy(d => d.Id)
+                .Select(ds => {
+                    var d = ds.First();
+                    return new DisciplineModel(d.Id, d.Name, d.DepartmentId) {
+                        DepartmentName = d.DepartmentName, FacultyId = d.FacultyId, FacultyName = d.FacultyName,
+                        IsInStudyProgram = d.IsInStudyProgram, Locked = ds.Any(item => item.Locked)
+                    };
+                })
                 .ToList()
         }).ToList();
     }
@@ -124,20 +147,36 @@ public class GroupDisciplineRepository
         return group == null ? (false, null) : (true, group.DepartmentId);
     }
 
-    /// <summary>Дисциплины кафедры (группа → программа → кафедра → дисциплины).</summary>
-    public async Task<List<DisciplineModel>> GetDepartmentDisciplinesAsync(int departmentId)
+    /// <summary>Дисциплины программы группы, включая дисциплины других кафедр и факультетов.</summary>
+    public async Task<List<DisciplineModel>> GetStudyProgramDisciplinesAsync(int groupId)
     {
         var disciplines = await _context.Disciplines
             .AsNoTracking()
-            .Where(d => d.DepartmentId == departmentId)
+            .Where(d => d.StudyProgramDisciplines.Any(p =>
+                _context.StudyGroups.Any(g => g.Id == groupId && g.StudyProgramId == p.StudyProgramId)))
             .OrderBy(d => d.Name)
-            .Select(d => new { d.Id, d.Name, d.DepartmentId })
+            .Select(d => new {
+                d.Id, d.Name, d.DepartmentId,
+                DepartmentName = d.Department != null ? d.Department.Name : null,
+                FacultyId = d.Department != null ? d.Department.FacultyId : null,
+                FacultyName = d.Department != null && d.Department.Faculty != null ? d.Department.Faculty.FacultyName : null
+            })
             .ToListAsync();
 
         return disciplines
-            .Select(d => new DisciplineModel(d.Id, d.Name, d.DepartmentId))
+            .Select(d => new DisciplineModel(d.Id, d.Name, d.DepartmentId) {
+                DepartmentName = d.DepartmentName, FacultyId = d.FacultyId, FacultyName = d.FacultyName
+            })
             .ToList();
     }
+
+    // Смена дисциплины не должна оставлять назначения преподавателей и отчёты от прежней дисциплины.
+    public Task<List<int>> GetLockedTestingIdsAsync(int semesterId, int? groupId = null) =>
+        _context.Testings.Where(t => t.SemesterId == semesterId && (!groupId.HasValue || t.GroupId == groupId))
+            .Where(t => t.ReportId != null || t.ScheduledDate != null || t.ScheduledTime != null
+                || t.SelectionPeriodStart != null || t.SelectionPeriodEnd != null || t.ExternalRequestSentAt != null
+                || _context.TestingTeacherApprovals.Any(a => a.TestingId == t.Id))
+            .Select(t => t.Id).ToListAsync();
 
     /// <summary>Тестирования группы в семестре (с отслеживанием изменений), по порядку создания.</summary>
     public Task<List<Testing>> GetGroupTestingsAsync(int groupId, int semesterId)

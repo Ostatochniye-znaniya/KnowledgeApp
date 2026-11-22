@@ -445,6 +445,12 @@ if (args.Contains("--report-integration"))
             ?? throw new InvalidOperationException("Укажите LPR_REPORT_TEST_SERVER для временной тестовой БД"))
         .GetAwaiter().GetResult());
 
+if (args.Contains("--disciplines-integration"))
+    Test("HOD: дисциплины учебной программы на временной БД", () => StudyProgramDisciplineChecks.Integration(
+        Environment.GetEnvironmentVariable("LPR_REPORT_TEST_SERVER")
+            ?? throw new InvalidOperationException("Укажите LPR_REPORT_TEST_SERVER для временной тестовой БД"))
+        .GetAwaiter().GetResult());
+
 var failed = 0;
 foreach (var (name, run) in tests)
 {

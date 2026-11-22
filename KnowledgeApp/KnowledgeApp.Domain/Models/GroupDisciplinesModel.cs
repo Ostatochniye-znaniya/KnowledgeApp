@@ -10,10 +10,14 @@ public class GroupDisciplinesModel
     public string GroupNumber { get; set; } = null!;
     public int StudyProgramId { get; set; }
     public string? StudyProgramName { get; set; }
+    public string? DirectionCode { get; set; }
     public int? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
     public string? FacultyName { get; set; }
     public int SemesterId { get; set; }
+    public int SemesterYear { get; set; }
+    public int SemesterPart { get; set; }
+    public int AvailableDisciplinesCount { get; set; }
 
     /// <summary>Сколько тестирований создано для группы в семестре (слоты под дисциплины).</summary>
     public int SlotCount { get; set; }

@@ -890,6 +890,23 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.ToTable("study_programs", (string)null);
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.StudyProgramDiscipline", b =>
+                {
+                    b.Property<int>("StudyProgramId")
+                        .HasColumnType("int")
+                        .HasColumnName("study_program_id");
+
+                    b.Property<int>("DisciplineId")
+                        .HasColumnType("int")
+                        .HasColumnName("discipline_id");
+
+                    b.HasKey("StudyProgramId", "DisciplineId");
+
+                    b.HasIndex("DisciplineId");
+
+                    b.ToTable("study_program_disciplines", (string)null);
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.SystemLogEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -1671,6 +1688,25 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                     b.Navigation("Department");
                 });
 
+            modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.StudyProgramDiscipline", b =>
+                {
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.Discipline", "Discipline")
+                        .WithMany("StudyProgramDisciplines")
+                        .HasForeignKey("DisciplineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("KnowledgeApp.Infrastructure.Entities.StudyProgram", "StudyProgram")
+                        .WithMany("StudyProgramDisciplines")
+                        .HasForeignKey("StudyProgramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Discipline");
+
+                    b.Navigation("StudyProgram");
+                });
+
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.Testing", b =>
                 {
                     b.HasOne("KnowledgeApp.Infrastructure.Entities.Discipline", "Discipline")
@@ -1835,6 +1871,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
 
                     b.Navigation("Reports");
 
+                    b.Navigation("StudyProgramDisciplines");
+
                     b.Navigation("Testings");
                 });
 
@@ -1875,6 +1913,8 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.StudyProgram", b =>
                 {
                     b.Navigation("StudyGroups");
+
+                    b.Navigation("StudyProgramDisciplines");
                 });
 
             modelBuilder.Entity("KnowledgeApp.Infrastructure.Entities.User", b =>

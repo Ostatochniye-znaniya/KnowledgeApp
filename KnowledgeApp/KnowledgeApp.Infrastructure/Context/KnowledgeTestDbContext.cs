@@ -84,6 +84,7 @@ public partial class KnowledgeTestDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureTestingPlanning(modelBuilder);
+        ConfigureStudyProgramDisciplines(modelBuilder);
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
