@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
 
         _adminApiBase = Environment.GetEnvironmentVariable("ADMIN_API_BASE_URL")
                         ?? _configuration["Auth:AdminApiBaseUrl"]
-                        ?? "https://admin.kd.mospolytech.ru";
+                        ?? "https://admin.pd.dezzzmond.online";
     }
 
     [HttpPost("callback")]

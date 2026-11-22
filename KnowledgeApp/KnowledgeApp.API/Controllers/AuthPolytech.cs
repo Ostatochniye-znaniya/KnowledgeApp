@@ -25,7 +25,7 @@ public class AuthPolytechController : ControllerBase
 
         _authApiUrl = Environment.GetEnvironmentVariable("AUTH_API_URL")
                       ?? _configuration["Auth:AuthApiUrl"]
-                      ?? "https://admin.kd.mospolytech.ru/api/v1/users";
+                      ?? "https://admin.pd.dezzzmond.online/api/v1/users";
     }
 
     [HttpPost("login")]
