@@ -82,8 +82,7 @@ public class GroupDisciplineService
 
     /// <summary>
     /// Заменяет выбор дисциплин группы целиком: записывает их в тестирования группы за семестр.
-    /// Тестирования, где дисциплина уже стоит и остаётся выбранной, не трогаются;
-    /// новые дисциплины занимают сначала пустые тестирования; у убранных дисциплина обнуляется.
+    /// Для выбранных дисциплин создаёт недостающие отчёты и связывает их с тестированиями.
     /// </summary>
     public Task SetDisciplinesAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId) =>
         _repository.WithPlanLock(() => SetDisciplinesCoreAsync(groupId, disciplineIds, semesterId));
@@ -149,10 +148,21 @@ public class GroupDisciplineService
             throw new InvalidOperationException(
                 $"Нельзя изменить дисциплину тестирования {locked.Id}: уже начата работа с преподавателями, графиком или отчётом");
 
+        var discardedReportIds = new List<int>();
         foreach (var (testing, newDisciplineId) in changes)
+        {
+            if (testing.ReportId is int previousReportId)
+                discardedReportIds.Add(previousReportId);
             testing.DisciplineId = newDisciplineId;
+            testing.ReportId = null;
+            testing.Report = null;
+        }
 
-        if (changes.Count > 0)
-            await _repository.SaveChangesAsync();
+        foreach (var testing in testings)
+            if (testing.DisciplineId is int disciplineId && testing.ReportId is null)
+                testing.Report = new Report { DisciplineId = disciplineId };
+
+        if (discardedReportIds.Count > 0)
+            await _repository.RemoveUnusedEmptyReportsAsync(discardedReportIds);
     }
 }

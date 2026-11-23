@@ -170,10 +170,18 @@ public class GroupDisciplineRepository
             .ToList();
     }
 
-    // Смена дисциплины не должна оставлять назначения преподавателей и отчёты от прежней дисциплины.
+    private IQueryable<Report> EmptyReports() => _context.Reports
+        .Where(r => r.FilePath == null && r.FileName == null && r.UploadedAt == null
+            && r.Status == null && r.TeacherId == null && r.IsCorrect == null
+            && r.ResultOfAttestation == null && r.DoneInPaperForm == null
+            && r.DoneInElectronicForm == null && r.AllDone == null && r.ReviewComment == null
+            && r.ReviewedAt == null && r.ReviewedByUserId == null);
+
+    // Пустой отчёт относится к выбору дисциплины. Документ, с которым начали работу, защищён.
     public Task<List<int>> GetLockedTestingIdsAsync(int semesterId, int? groupId = null) =>
         _context.Testings.Where(t => t.SemesterId == semesterId && (!groupId.HasValue || t.GroupId == groupId))
-            .Where(t => t.ReportId != null || t.ScheduledDate != null || t.ScheduledTime != null
+            .Where(t => (t.ReportId != null && !EmptyReports().Any(r => r.Id == t.ReportId && r.Testings.Count == 1))
+                || t.ScheduledDate != null || t.ScheduledTime != null
                 || t.SelectionPeriodStart != null || t.SelectionPeriodEnd != null || t.ExternalRequestSentAt != null
                 || _context.TestingTeacherApprovals.Any(a => a.TestingId == t.Id))
             .Select(t => t.Id).ToListAsync();
@@ -187,8 +195,15 @@ public class GroupDisciplineRepository
             .ToListAsync();
     }
 
-    public Task<int> SaveChangesAsync()
+    public async Task RemoveUnusedEmptyReportsAsync(IReadOnlyCollection<int> reportIds)
     {
-        return _context.SaveChangesAsync();
+        // Удаляем отчёты после сохранения новых связей в той же транзакции.
+        // Условия защищают связанные тестирования и файлы, добавленные параллельной загрузкой.
+        await _context.SaveChangesAsync();
+        var removed = await EmptyReports()
+            .Where(r => reportIds.Contains(r.Id) && !r.Testings.Any())
+            .ExecuteDeleteAsync();
+        if (removed != reportIds.Count)
+            throw new InvalidOperationException("Отчёт изменился во время сохранения. Обновите список дисциплин.");
     }
 }
