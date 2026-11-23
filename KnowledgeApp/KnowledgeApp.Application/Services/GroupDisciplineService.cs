@@ -81,9 +81,8 @@ public class GroupDisciplineService
     }
 
     /// <summary>
-    /// Заменяет выбор дисциплин группы целиком: записывает их в тестирования группы за семестр.
-    /// Тестирования, где дисциплина уже стоит и остаётся выбранной, не трогаются;
-    /// новые дисциплины занимают сначала пустые тестирования; у убранных дисциплина обнуляется.
+    /// Сохраняет выбор и создаёт недостающие тестирования группы за семестр.
+    /// Тестирования по сохранённым дисциплинам сохраняют свои ID и данные.
     /// </summary>
     public Task SetDisciplinesAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId) =>
         _repository.WithPlanLock(() => SetDisciplinesCoreAsync(groupId, disciplineIds, semesterId));
@@ -109,50 +108,35 @@ public class GroupDisciplineService
             throw new ArgumentException(
                 $"Дисциплины не входят в учебную программу профиля группы: {string.Join(", ", foreignIds)}");
 
-        if (testings.Count == 0)
-            throw new ArgumentException(
-                "Группа не выбрана для проверки в этом семестре: для неё нет тестирований");
-
-        // Тестирования, где выбранная дисциплина уже стоит, остаются как есть
-        // (у них могут быть дата, преподаватель, отчёт). Остальные — свободные слоты.
+        // Для старых данных переиспользуем доступные записи, сохраняя прежний выбор и его ID.
+        var lockedIds = (await _repository.GetLockedTestingIdsAsync(resolvedSemesterId, groupId)).ToHashSet();
         var kept = new HashSet<int>();
         var freeSlots = new List<Testing>();
-        foreach (var testing in testings)
+        foreach (var testing in testings.OrderByDescending(t => lockedIds.Contains(t.Id)))
         {
             if (testing.DisciplineId is int current && ids.Contains(current) && kept.Add(current))
                 continue;
+            if (lockedIds.Contains(testing.Id))
+            {
+                if (testing.DisciplineId.HasValue)
+                    throw new InvalidOperationException(
+                        $"Нельзя изменить дисциплину тестирования {testing.Id}: уже начата работа с преподавателями, графиком или отчётом");
+                continue;
+            }
             freeSlots.Add(testing);
         }
 
         var toAssign = ids.Where(id => !kept.Contains(id)).ToList();
-        if (toAssign.Count > freeSlots.Count)
-            throw new ArgumentException(
-                $"Для группы в семестре создано только {testings.Count} тестирований — нельзя выбрать {ids.Count} дисциплин");
-
         // Сначала пустые слоты, чтобы без нужды не перезаписывать заполненные.
         freeSlots = freeSlots
             .OrderBy(t => t.DisciplineId.HasValue)
             .ThenBy(t => t.Id)
             .ToList();
 
-        var changes = new List<(Testing Testing, int? NewDisciplineId)>();
         for (int i = 0; i < freeSlots.Count; i++)
-        {
-            int? newDisciplineId = i < toAssign.Count ? toAssign[i] : null;
-            if (freeSlots[i].DisciplineId != newDisciplineId)
-                changes.Add((freeSlots[i], newDisciplineId));
-        }
+            freeSlots[i].DisciplineId = i < toAssign.Count ? toAssign[i] : null;
 
-        var lockedIds = await _repository.GetLockedTestingIdsAsync(resolvedSemesterId, groupId);
-        Testing? locked = changes.Select(c => c.Testing).FirstOrDefault(t => lockedIds.Contains(t.Id));
-        if (locked != null)
-            throw new InvalidOperationException(
-                $"Нельзя изменить дисциплину тестирования {locked.Id}: уже начата работа с преподавателями, графиком или отчётом");
-
-        foreach (var (testing, newDisciplineId) in changes)
-            testing.DisciplineId = newDisciplineId;
-
-        if (changes.Count > 0)
-            await _repository.SaveChangesAsync();
+        if (toAssign.Count > freeSlots.Count)
+            await _repository.AddTestingsAsync(groupId, resolvedSemesterId, toAssign.Skip(freeSlots.Count));
     }
 }

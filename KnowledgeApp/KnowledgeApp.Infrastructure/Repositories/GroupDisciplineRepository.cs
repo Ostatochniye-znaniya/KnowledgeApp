@@ -8,8 +8,7 @@ namespace KnowledgeApp.Infrastructure.Repositories;
 
 /// <summary>
 /// Выбор дисциплин для групп (ТЗ, п. 2.4).
-/// После подтверждения участия HOD создаются два места testing с группой и семестром.
-/// Выбранные дисциплины записываются в testing.discipline_id этих мест.
+/// Тестирования по дисциплинам создаются при сохранении выбора для подтверждённой группы.
 /// </summary>
 public class GroupDisciplineRepository
 {
@@ -73,7 +72,6 @@ public class GroupDisciplineRepository
         var lockedIds = await GetLockedTestingIdsAsync(semesterId);
         var rows = await SelectedGroups(semesterId)
             .AsNoTracking()
-            .Where(g => g.Testings.Any(t => t.SemesterId == semesterId))
             .Where(g => g.StudyProgram!.DepartmentId == departmentId)
             .OrderBy(g => g.GroupNumber)
             .Select(g => new
@@ -87,7 +85,6 @@ public class GroupDisciplineRepository
                 DepartmentId = g.StudyProgram!.DepartmentId,
                 DepartmentName = g.StudyProgram!.Department!.Name,
                 FacultyName = g.StudyProgram!.Department!.Faculty!.FacultyName,
-                SlotCount = g.Testings.Count(t => t.SemesterId == semesterId),
                 Disciplines = g.Testings
                     .Where(t => t.SemesterId == semesterId && t.DisciplineId != null)
                     .OrderBy(t => t.Id)
@@ -118,7 +115,6 @@ public class GroupDisciplineRepository
             SemesterId = semesterId,
             SemesterYear = semester.SemesterYear,
             SemesterPart = semester.SemesterPart,
-            SlotCount = r.SlotCount,
             Disciplines = r.Disciplines
                 .GroupBy(d => d.Id)
                 .Select(ds => {
@@ -187,8 +183,22 @@ public class GroupDisciplineRepository
             .ToListAsync();
     }
 
-    public Task<int> SaveChangesAsync()
+    public async Task AddTestingsAsync(int groupId, int semesterId, IEnumerable<int> disciplineIds)
     {
-        return _context.SaveChangesAsync();
+        var decisionId = await _context.GroupParticipationDecisions
+            .Where(d => d.SemesterId == semesterId && d.SelectedGroupId == groupId)
+            .Select(d => (int?)d.Id).SingleOrDefaultAsync();
+        var recommendationId = await _context.RecommendationHistory
+            .Where(r => r.SemesterId == semesterId && r.StudyGroupId == groupId)
+            .Select(r => (int?)r.Id).SingleOrDefaultAsync();
+
+        _context.Testings.AddRange(disciplineIds.Select(disciplineId => new Testing
+        {
+            GroupId = groupId,
+            SemesterId = semesterId,
+            DisciplineId = disciplineId,
+            GroupParticipationDecisionId = decisionId,
+            RecommendationHistoryId = recommendationId
+        }));
     }
 }

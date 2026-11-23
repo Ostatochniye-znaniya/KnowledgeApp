@@ -84,14 +84,16 @@ var mockAuthOptions = new MockAuthOptions
 services.AddSingleton(Microsoft.Extensions.Options.Options.Create(mockAuthOptions));
 services.AddSingleton<IMockAuthService>(new MockAuthService(mockAuthOptions));
 
-// Настройка схемы аутентификации и авторизации
-services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = MockAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = MockAuthenticationDefaults.AuthenticationScheme;
-})
-.AddScheme<AuthenticationSchemeOptions, MockAuthenticationHandler>(
-    MockAuthenticationDefaults.AuthenticationScheme, _ => { });
+// Реальный вход и тестовые роли используют разные источники личности.
+const string authScheme = "ApplicationAuth";
+services.AddAuthentication(authScheme)
+    .AddPolicyScheme(authScheme, displayName: null, options =>
+        options.ForwardDefaultSelector = context => context.RequestServices.GetRequiredService<IMockAuthService>().IsEnabled
+            ? MockAuthenticationDefaults.AuthenticationScheme
+            : EuzAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, MockAuthenticationHandler>(
+        MockAuthenticationDefaults.AuthenticationScheme, _ => { })
+    .AddScheme<AuthenticationSchemeOptions, EuzAuthenticationHandler>(EuzAuthenticationHandler.SchemeName, _ => { });
 
 services.AddAuthorization();
 
@@ -103,7 +105,14 @@ services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
-services.AddHttpClient(); // Для авторизации надо
+services.AddHttpClient(EuzAuthenticationHandler.ProfileClientName, client =>
+{
+    var baseUrl = Environment.GetEnvironmentVariable("ADMIN_API_BASE_URL")
+        ?? builder.Configuration["Auth:AdminApiBaseUrl"]
+        ?? "https://admin.kd.mospolytech.ru";
+    client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen(c =>
 {
@@ -176,7 +185,10 @@ services.AddScoped<ScheduleDocumentService>();
 services.AddScoped<OrderRepository>();
 services.AddScoped<OrderService>();
 services.AddSingleton<OrderPdfGenerator>();
-services.AddScoped<ICurrentUserProvider, TestCurrentUserProvider>();
+services.AddHttpContextAccessor();
+services.AddScoped<ICurrentUserProvider>(provider => provider.GetRequiredService<IMockAuthService>().IsEnabled
+    ? new TestCurrentUserProvider()
+    : new EuzCurrentUserProvider(provider.GetRequiredService<IHttpContextAccessor>()));
 
 // Регистрация PDF сервиса
 services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();

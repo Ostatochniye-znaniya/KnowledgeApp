@@ -19,8 +19,5 @@ public class GroupDisciplinesModel
     public int SemesterPart { get; set; }
     public int AvailableDisciplinesCount { get; set; }
 
-    /// <summary>Сколько тестирований создано для группы в семестре (слоты под дисциплины).</summary>
-    public int SlotCount { get; set; }
-
     public List<DisciplineModel> Disciplines { get; set; } = new();
 }

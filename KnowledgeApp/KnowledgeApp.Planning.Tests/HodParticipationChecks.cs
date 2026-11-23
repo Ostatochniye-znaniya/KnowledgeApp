@@ -112,8 +112,8 @@ internal static class HodParticipationChecks
                 Check((await db.RecommendationHistory.SingleAsync(r => r.StudyGroupId == groups[1].Id && r.SemesterId == current.Id)).Author == "manual",
                     "Исходная рекомендация ЛПР сохранена");
                 Check(!await db.RecommendationHistory.AnyAsync(r => r.StudyGroupId == groups[2].Id && r.SemesterId == current.Id), "Замена HOD не становится рекомендацией ЛПР");
-                Check(await db.Testings.CountAsync(t => t.GroupId == groups[2].Id && t.SemesterId == current.Id && t.GroupParticipationDecisionId != null) == 2,
-                    "У замены есть два места для дисциплин");
+                Check(!await db.Testings.AnyAsync(t => t.GroupId == groups[2].Id && t.SemesterId == current.Id),
+                    "Подтверждение участия сохраняет решение, а тестирования создаются при выборе дисциплин");
                 Check(!await db.Testings.AnyAsync(t => t.GroupId == singles[0].Id && t.SemesterId == current.Id), "Отказ не создаёт тестирования");
                 hod = await planning.GetForHod(default);
                 Check(!hod.Plan!.RequiresRecalculation, "Замена не создаёт ложной потребности пересчёта");
@@ -143,9 +143,9 @@ internal static class HodParticipationChecks
                 var firstDecision = await db.GroupParticipationDecisions.SingleAsync(d => d.StudyProgramId == profile.Id && d.SemesterId == current.Id);
                 Check(firstDecision.DecidedByUserId == user.Id && firstDecision.Reason == "Замена рекомендованной группы", "Сохраняются причина и автор");
 
-                // Пока места пустые, решение можно отменить; затем снова выбрать ту же группу.
+                // До выбора дисциплин решение можно отменить и восстановить.
                 hod = await Save(new HodProfileDecisionRequest(profile.Id, null, "Отмена до назначения дисциплин"));
-                Check(!await db.Testings.AnyAsync(t => t.GroupId == groups[2].Id && t.SemesterId == current.Id), "Пустые места отменённой группы удалены");
+                Check(!await db.Testings.AnyAsync(t => t.GroupId == groups[2].Id && t.SemesterId == current.Id), "Отмена участия не создаёт тестирования");
                 hod = await Save(new HodProfileDecisionRequest(profile.Id, groups[2].Id, "Участие восстановлено"));
                 var discipline = new Discipline { Name = "Дисциплина проверки", DepartmentId = department.Id };
                 db.Disciplines.Add(discipline); await db.SaveChangesAsync();

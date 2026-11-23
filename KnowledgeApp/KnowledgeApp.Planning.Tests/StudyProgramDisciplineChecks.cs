@@ -48,8 +48,6 @@ internal static class StudyProgramDisciplineChecks
                     db.GroupParticipationDecisions.Add(new GroupParticipationDecision {
                         StudyProgramId = selected.StudyProgramId, SemesterId = current.Id,
                         SelectedGroupId = selected.Id, DecidedAt = DateTime.UtcNow });
-                    db.Testings.AddRange(new Testing { GroupId = selected.Id, SemesterId = current.Id },
-                        new Testing { GroupId = selected.Id, SemesterId = current.Id });
                 }
                 db.StudyProgramDisciplines.AddRange(new[] { own, sameFaculty, crossFaculty }
                     .Select(d => new StudyProgramDiscipline { StudyProgramId = profile.Id, DisciplineId = d.Id }));
@@ -64,9 +62,18 @@ internal static class StudyProgramDisciplineChecks
                     "Пустая программа не подменяется дисциплинами своей кафедры");
                 await Reject<UnauthorizedAccessException>(() => service.GetAvailableDisciplinesAsync(foreignGroup.Id));
                 await Reject<UnauthorizedAccessException>(() => service.SetDisciplinesAsync(foreignGroup.Id, [own.Id], current.Id));
+                Check((await service.GetGroupsAsync(current.Id)).Any(r => r.GroupId == group.Id && r.Disciplines.Count == 0),
+                    "Подтверждённая группа видна до создания тестирований");
+                await service.SetDisciplinesAsync(group.Id, [own.Id], current.Id);
+                var first = await db.Testings.AsNoTracking().SingleAsync(t => t.GroupId == group.Id && t.SemesterId == current.Id);
+                Check(first.Id > 0 && first.DisciplineId == own.Id && first.GroupParticipationDecisionId != null,
+                    "Первое сохранение создаёт тестирование с ID, дисциплиной и ссылкой на решение кафедры");
                 await service.SetDisciplinesAsync(group.Id, [own.Id, crossFaculty.Id], current.Id);
-                Check(await db.Testings.CountAsync(t => t.GroupId == group.Id && t.DisciplineId != null) == 2,
-                    "Две дисциплины, включая внешнюю, сохраняются в тестирования");
+                await service.SetDisciplinesAsync(group.Id, [own.Id, crossFaculty.Id], current.Id);
+                var saved = await db.Testings.AsNoTracking().Where(t => t.GroupId == group.Id && t.SemesterId == current.Id).ToListAsync();
+                Check(saved.Count == 2 && saved.Any(t => t.Id == first.Id && t.DisciplineId == own.Id)
+                    && saved.Any(t => t.Id > 0 && t.DisciplineId == crossFaculty.Id),
+                    "Добавление второй дисциплины сохраняет первый ID, повтор не создаёт дубликаты");
                 await Reject<ArgumentException>(() => service.SetDisciplinesAsync(group.Id, [own.Id, sameFaculty.Id, crossFaculty.Id], current.Id));
                 await Reject<ArgumentException>(() => service.SetDisciplinesAsync(group.Id, [own.Id, own.Id], current.Id));
                 await Reject<ArgumentException>(() => service.SetDisciplinesAsync(group.Id, [unrelated.Id], current.Id));
