@@ -64,13 +64,9 @@ public class KnowledgeAppFactory : WebApplicationFactory<Program>, IAsyncLifetim
     public HttpClient CreateApiClient() => CreateApiClient(this);
 
     /// <summary>Клиент к приложению с выключенной MOCK-авторизацией.</summary>
-    public HttpClient CreateApiClientWithoutMockAuth(Action<IServiceCollection>? configure = null) =>
+    public HttpClient CreateApiClientWithoutMockAuth() =>
         CreateApiClient(WithWebHostBuilder(builder =>
-            builder.ConfigureTestServices(services =>
-            {
-                ReplaceMockAuth(services, enabled: false);
-                configure?.Invoke(services);
-            })));
+            builder.ConfigureTestServices(services => ReplaceMockAuth(services, enabled: false))));
 
     /// <summary>Удаляет данные из всех таблиц, кроме истории миграций.</summary>
     public async Task ResetDatabaseAsync()

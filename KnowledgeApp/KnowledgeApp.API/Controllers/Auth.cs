@@ -1,6 +1,7 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using KnowledgeApp.API.Authentication;
 using KnowledgeApp.Application.DTOs.MockAuth;
 using KnowledgeApp.Application.Services;
 using KnowledgeApp.Application.Services.MockAuth;
@@ -61,7 +62,7 @@ public class AuthController : ControllerBase
             return BadRequest(new { detail = "Missing tokens" });
         }
 
-        var decodedId = EuzAuthenticationHandler.ReadExternalId(request.Access);
+        var (decodedId, _) = DecodeJwt(request.Access);
         var userProfile = await FetchAdminUserProfile(request.Access);
         var userId = decodedId ?? userProfile?.Id ?? "unknown";
 
@@ -178,7 +179,7 @@ public class AuthController : ControllerBase
             return Unauthorized(new { detail = "Not authenticated" });
         }
 
-        var userId = EuzAuthenticationHandler.ReadExternalId(access);
+        var (userId, _) = DecodeJwt(access);
 
         // Ищем пользователя в нашей БД по external_id
         var dbUser = await _context.Users
@@ -217,7 +218,7 @@ public class AuthController : ControllerBase
                     SetCookie("refresh_token", refreshedTokens.RefreshToken);
                 }
 
-                var newUserId = EuzAuthenticationHandler.ReadExternalId(access);
+                var (newUserId, _) = DecodeJwt(access);
                 if (!string.IsNullOrEmpty(newUserId))
                 {
                     userId = newUserId;
@@ -345,7 +346,7 @@ public class AuthController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(userId))
         {
-            var decodedId = EuzAuthenticationHandler.ReadExternalId(access);
+            var (decodedId, _) = DecodeJwt(access);
             userId = decodedId ?? "";
         }
 
@@ -545,7 +546,21 @@ public class AuthController : ControllerBase
         Response.Cookies.Append("mock_role", user.RoleSlug, cookieOptions);
     }
 
-    private string? GetTokenFromRequest() => EuzAuthenticationHandler.ReadAccessToken(Request);
+    private string? GetTokenFromRequest()
+    {
+        if (Request.Cookies.TryGetValue("access_token", out var token) && !string.IsNullOrWhiteSpace(token))
+        {
+            return token;
+        }
+
+        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return authHeader["Bearer ".Length..].Trim();
+        }
+
+        return null;
+    }
 
     private string? GetRefreshTokenFromRequest()
     {
@@ -602,12 +617,29 @@ public class AuthController : ControllerBase
     private ObjectResult BlockedResult() =>
         StatusCode(StatusCodes.Status403Forbidden, new { detail = "Учётная запись заблокирована. Обратитесь в техподдержку." });
 
-    private async Task<EuzUserProfile?> FetchAdminUserProfile(string accessToken)
+    private async Task<UserProfileDto?> FetchAdminUserProfile(string accessToken)
     {
         try
         {
-            using var client = _httpClientFactory.CreateClient(EuzAuthenticationHandler.ProfileClientName);
-            return await EuzAuthenticationHandler.GetProfileAsync(client, accessToken, HttpContext.RequestAborted);
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            var endpoint = $"{_adminApiBase}/api/v1/users/me";
+            var response = await client.GetAsync(endpoint);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Failed to fetch profile from Admin API: {Error}", errorText);
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<UserProfileDto>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
         }
         catch (Exception ex)
         {
@@ -657,6 +689,44 @@ public class AuthController : ControllerBase
         }
     }
 
+    private static (string? userId, DateTime? exp) DecodeJwt(string token)
+    {
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            if (!handler.CanReadToken(token)) return (null, null);
+
+            var jwt = handler.ReadJwtToken(token);
+            var userId = jwt.Claims.FirstOrDefault(c =>
+                c.Type == "user_id" ||
+                c.Type == "sub" ||
+                c.Type == "id" ||
+                c.Type.EndsWith("/nameidentifier"))?.Value;
+
+            DateTime? exp = null;
+            if (jwt.Payload.Expiration.HasValue)
+            {
+                exp = jwt.ValidTo;
+            }
+            else if (jwt.Payload.TryGetValue("expires_at", out var expObj))
+            {
+                if (expObj is JsonElement je && je.ValueKind == JsonValueKind.String && DateTime.TryParse(je.GetString(), out var dt))
+                {
+                    exp = dt.ToUniversalTime();
+                }
+                else if (DateTime.TryParse(expObj?.ToString(), out var dt2))
+                {
+                    exp = dt2.ToUniversalTime();
+                }
+            }
+
+            return (userId, exp);
+        }
+        catch
+        {
+            return (null, null);
+        }
+    }
 }
 
 public class AuthCallbackRequest
@@ -666,6 +736,24 @@ public class AuthCallbackRequest
 
     [JsonPropertyName("refresh")]
     public string Refresh { get; set; } = string.Empty;
+}
+
+public class UserProfileDto
+{
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("surname")]
+    public string? Surname { get; set; }
+
+    [JsonPropertyName("patronymic")]
+    public string? Patronymic { get; set; }
+
+    [JsonPropertyName("email")]
+    public string? Email { get; set; }
 }
 
 public class AuthRefreshRequest

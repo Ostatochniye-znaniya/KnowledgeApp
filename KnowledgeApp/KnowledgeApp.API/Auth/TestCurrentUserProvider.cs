@@ -2,7 +2,7 @@
 
 namespace KnowledgeApp.API.Auth;
 
-// Локальные ID в БД для тестового режима.
+// заглушка, пока нет авторизации
 public class TestCurrentUserProvider : ICurrentUserProvider
 {
     public int? UserId { get; } = ReadInt("TEST_USER_ID");
