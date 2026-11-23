@@ -8,7 +8,8 @@ namespace KnowledgeApp.Infrastructure.Repositories;
 
 /// <summary>
 /// Выбор дисциплин для групп (ТЗ, п. 2.4).
-/// Тестирования по дисциплинам создаются при сохранении выбора для подтверждённой группы.
+/// После подтверждения участия HOD создаются два места testing с группой и семестром.
+/// Выбранные дисциплины записываются в testing.discipline_id этих мест.
 /// </summary>
 public class GroupDisciplineRepository
 {
@@ -72,6 +73,7 @@ public class GroupDisciplineRepository
         var lockedIds = await GetLockedTestingIdsAsync(semesterId);
         var rows = await SelectedGroups(semesterId)
             .AsNoTracking()
+            .Where(g => g.Testings.Any(t => t.SemesterId == semesterId))
             .Where(g => g.StudyProgram!.DepartmentId == departmentId)
             .OrderBy(g => g.GroupNumber)
             .Select(g => new
@@ -85,6 +87,7 @@ public class GroupDisciplineRepository
                 DepartmentId = g.StudyProgram!.DepartmentId,
                 DepartmentName = g.StudyProgram!.Department!.Name,
                 FacultyName = g.StudyProgram!.Department!.Faculty!.FacultyName,
+                SlotCount = g.Testings.Count(t => t.SemesterId == semesterId),
                 Disciplines = g.Testings
                     .Where(t => t.SemesterId == semesterId && t.DisciplineId != null)
                     .OrderBy(t => t.Id)
@@ -115,6 +118,7 @@ public class GroupDisciplineRepository
             SemesterId = semesterId,
             SemesterYear = semester.SemesterYear,
             SemesterPart = semester.SemesterPart,
+            SlotCount = r.SlotCount,
             Disciplines = r.Disciplines
                 .GroupBy(d => d.Id)
                 .Select(ds => {
@@ -166,10 +170,18 @@ public class GroupDisciplineRepository
             .ToList();
     }
 
-    // Смена дисциплины не должна оставлять назначения преподавателей и отчёты от прежней дисциплины.
+    private IQueryable<Report> EmptyReports() => _context.Reports
+        .Where(r => r.FilePath == null && r.FileName == null && r.UploadedAt == null
+            && r.Status == null && r.TeacherId == null && r.IsCorrect == null
+            && r.ResultOfAttestation == null && r.DoneInPaperForm == null
+            && r.DoneInElectronicForm == null && r.AllDone == null && r.ReviewComment == null
+            && r.ReviewedAt == null && r.ReviewedByUserId == null);
+
+    // Пустой отчёт относится к выбору дисциплины. Документ, с которым начали работу, защищён.
     public Task<List<int>> GetLockedTestingIdsAsync(int semesterId, int? groupId = null) =>
         _context.Testings.Where(t => t.SemesterId == semesterId && (!groupId.HasValue || t.GroupId == groupId))
-            .Where(t => t.ReportId != null || t.ScheduledDate != null || t.ScheduledTime != null
+            .Where(t => (t.ReportId != null && !EmptyReports().Any(r => r.Id == t.ReportId && r.Testings.Count == 1))
+                || t.ScheduledDate != null || t.ScheduledTime != null
                 || t.SelectionPeriodStart != null || t.SelectionPeriodEnd != null || t.ExternalRequestSentAt != null
                 || _context.TestingTeacherApprovals.Any(a => a.TestingId == t.Id))
             .Select(t => t.Id).ToListAsync();
@@ -183,22 +195,15 @@ public class GroupDisciplineRepository
             .ToListAsync();
     }
 
-    public async Task AddTestingsAsync(int groupId, int semesterId, IEnumerable<int> disciplineIds)
+    public async Task RemoveUnusedEmptyReportsAsync(IReadOnlyCollection<int> reportIds)
     {
-        var decisionId = await _context.GroupParticipationDecisions
-            .Where(d => d.SemesterId == semesterId && d.SelectedGroupId == groupId)
-            .Select(d => (int?)d.Id).SingleOrDefaultAsync();
-        var recommendationId = await _context.RecommendationHistory
-            .Where(r => r.SemesterId == semesterId && r.StudyGroupId == groupId)
-            .Select(r => (int?)r.Id).SingleOrDefaultAsync();
-
-        _context.Testings.AddRange(disciplineIds.Select(disciplineId => new Testing
-        {
-            GroupId = groupId,
-            SemesterId = semesterId,
-            DisciplineId = disciplineId,
-            GroupParticipationDecisionId = decisionId,
-            RecommendationHistoryId = recommendationId
-        }));
+        // Удаляем отчёты после сохранения новых связей в той же транзакции.
+        // Условия защищают связанные тестирования и файлы, добавленные параллельной загрузкой.
+        await _context.SaveChangesAsync();
+        var removed = await EmptyReports()
+            .Where(r => reportIds.Contains(r.Id) && !r.Testings.Any())
+            .ExecuteDeleteAsync();
+        if (removed != reportIds.Count)
+            throw new InvalidOperationException("Отчёт изменился во время сохранения. Обновите список дисциплин.");
     }
 }

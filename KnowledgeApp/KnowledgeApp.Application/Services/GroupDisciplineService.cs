@@ -81,8 +81,8 @@ public class GroupDisciplineService
     }
 
     /// <summary>
-    /// Сохраняет выбор и создаёт недостающие тестирования группы за семестр.
-    /// Тестирования по сохранённым дисциплинам сохраняют свои ID и данные.
+    /// Заменяет выбор дисциплин группы целиком: записывает их в тестирования группы за семестр.
+    /// Для выбранных дисциплин создаёт недостающие отчёты и связывает их с тестированиями.
     /// </summary>
     public Task SetDisciplinesAsync(int groupId, IReadOnlyCollection<int> disciplineIds, int? semesterId) =>
         _repository.WithPlanLock(() => SetDisciplinesCoreAsync(groupId, disciplineIds, semesterId));
@@ -108,35 +108,61 @@ public class GroupDisciplineService
             throw new ArgumentException(
                 $"Дисциплины не входят в учебную программу профиля группы: {string.Join(", ", foreignIds)}");
 
-        // Для старых данных переиспользуем доступные записи, сохраняя прежний выбор и его ID.
-        var lockedIds = (await _repository.GetLockedTestingIdsAsync(resolvedSemesterId, groupId)).ToHashSet();
+        if (testings.Count == 0)
+            throw new ArgumentException(
+                "Группа не выбрана для проверки в этом семестре: для неё нет тестирований");
+
+        // Тестирования, где выбранная дисциплина уже стоит, остаются как есть
+        // (у них могут быть дата, преподаватель, отчёт). Остальные — свободные слоты.
         var kept = new HashSet<int>();
         var freeSlots = new List<Testing>();
-        foreach (var testing in testings.OrderByDescending(t => lockedIds.Contains(t.Id)))
+        foreach (var testing in testings)
         {
             if (testing.DisciplineId is int current && ids.Contains(current) && kept.Add(current))
                 continue;
-            if (lockedIds.Contains(testing.Id))
-            {
-                if (testing.DisciplineId.HasValue)
-                    throw new InvalidOperationException(
-                        $"Нельзя изменить дисциплину тестирования {testing.Id}: уже начата работа с преподавателями, графиком или отчётом");
-                continue;
-            }
             freeSlots.Add(testing);
         }
 
         var toAssign = ids.Where(id => !kept.Contains(id)).ToList();
+        if (toAssign.Count > freeSlots.Count)
+            throw new ArgumentException(
+                $"Для группы в семестре создано только {testings.Count} тестирований — нельзя выбрать {ids.Count} дисциплин");
+
         // Сначала пустые слоты, чтобы без нужды не перезаписывать заполненные.
         freeSlots = freeSlots
             .OrderBy(t => t.DisciplineId.HasValue)
             .ThenBy(t => t.Id)
             .ToList();
 
+        var changes = new List<(Testing Testing, int? NewDisciplineId)>();
         for (int i = 0; i < freeSlots.Count; i++)
-            freeSlots[i].DisciplineId = i < toAssign.Count ? toAssign[i] : null;
+        {
+            int? newDisciplineId = i < toAssign.Count ? toAssign[i] : null;
+            if (freeSlots[i].DisciplineId != newDisciplineId)
+                changes.Add((freeSlots[i], newDisciplineId));
+        }
 
-        if (toAssign.Count > freeSlots.Count)
-            await _repository.AddTestingsAsync(groupId, resolvedSemesterId, toAssign.Skip(freeSlots.Count));
+        var lockedIds = await _repository.GetLockedTestingIdsAsync(resolvedSemesterId, groupId);
+        Testing? locked = changes.Select(c => c.Testing).FirstOrDefault(t => lockedIds.Contains(t.Id));
+        if (locked != null)
+            throw new InvalidOperationException(
+                $"Нельзя изменить дисциплину тестирования {locked.Id}: уже начата работа с преподавателями, графиком или отчётом");
+
+        var discardedReportIds = new List<int>();
+        foreach (var (testing, newDisciplineId) in changes)
+        {
+            if (testing.ReportId is int previousReportId)
+                discardedReportIds.Add(previousReportId);
+            testing.DisciplineId = newDisciplineId;
+            testing.ReportId = null;
+            testing.Report = null;
+        }
+
+        foreach (var testing in testings)
+            if (testing.DisciplineId is int disciplineId && testing.ReportId is null)
+                testing.Report = new Report { DisciplineId = disciplineId };
+
+        if (discardedReportIds.Count > 0)
+            await _repository.RemoveUnusedEmptyReportsAsync(discardedReportIds);
     }
 }

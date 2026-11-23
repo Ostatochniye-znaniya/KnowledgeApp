@@ -124,7 +124,7 @@ public class GroupDisciplineController : BaseController
             SemesterYear = model.SemesterYear,
             SemesterPart = model.SemesterPart,
             AvailableDisciplinesCount = model.AvailableDisciplinesCount,
-            MaxDisciplines = GroupDisciplineService.MaxDisciplinesPerGroup,
+            MaxDisciplines = Math.Min(GroupDisciplineService.MaxDisciplinesPerGroup, model.SlotCount),
             Disciplines = model.Disciplines.Select(ToDisciplineResponse).ToList()
         };
     }

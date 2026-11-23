@@ -86,7 +86,7 @@ public sealed partial class GroupsTestingService
             foreach (var input in request.Decisions)
             {
                 var decision = snapshot.Decisions.Single(d => d.StudyProgramId == input.StudyProgramId);
-                await UpdateExistingTestings(snapshot, decision, ct);
+                await UpdateDisciplineSlots(snapshot, decision, ct);
             }
             await context.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -94,14 +94,21 @@ public sealed partial class GroupsTestingService
         });
     }
 
-    private async Task UpdateExistingTestings(Snapshot snapshot, GroupParticipationDecision decision, CancellationToken ct)
+    private async Task UpdateDisciplineSlots(Snapshot snapshot, GroupParticipationDecision decision, CancellationToken ct)
     {
         var groupIds = snapshot.GroupPrograms.Where(p => p.Value == decision.StudyProgramId).Select(p => p.Key).ToArray();
         var testings = await context.Testings.Where(t => t.SemesterId == snapshot.Current.Id && groupIds.Contains(t.GroupId)).ToListAsync(ct);
         // Чужие пустые места можно убрать, заполненные записи защищены проверкой Started выше.
         context.Testings.RemoveRange(testings.Where(t => t.GroupId != decision.SelectedGroupId));
-        foreach (var test in testings.Where(t => t.GroupId == decision.SelectedGroupId))
-            test.GroupParticipationDecisionId = decision.Id;
+        if (decision.SelectedGroupId is not int selected) return;
+        var selectedTests = testings.Where(t => t.GroupId == selected).ToList();
+        foreach (var test in selectedTests) test.GroupParticipationDecisionId = decision.Id;
+        var recommendation = await context.RecommendationHistory.SingleOrDefaultAsync(r => r.SemesterId == snapshot.Current.Id
+            && r.StudyGroupId == selected, ct);
+        for (var index = selectedTests.Count; index < GroupDisciplineService.MaxDisciplinesPerGroup; index++)
+            context.Testings.Add(new Testing {
+                GroupId = selected, SemesterId = snapshot.Current.Id,
+                GroupParticipationDecisionId = decision.Id, RecommendationHistoryId = recommendation?.Id });
     }
 
     private static int[] EligibleGroups(Snapshot snapshot, StudyProgram program)
