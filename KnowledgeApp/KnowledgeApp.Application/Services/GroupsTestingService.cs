@@ -24,9 +24,9 @@ public sealed partial class GroupsTestingService(
         {
             context.ChangeTracker.Clear();
             await using var tx = await context.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
-            var state = await context.TestingPlanningStates.AsNoTracking().FirstOrDefaultAsync(s => s.Id == 1, ct);
+            var state = await context.TestingPlanningStates.AsNoTracking().SingleAsync(s => s.Id == 1, ct);
             var snapshot = await Load(ct);
-            if (state?.CurrentSemesterId != snapshot.Current.Id || state.InitializedAt is null) return null;
+            if (state.CurrentSemesterId != snapshot.Current.Id || state.InitializedAt is null) return null;
             var response = ToResponse(snapshot, state.Version, Evaluate(snapshot), facultyId, direction?.Trim());
             await tx.CommitAsync(ct);
             return response;
@@ -59,11 +59,11 @@ public sealed partial class GroupsTestingService(
             var locked = await context.TestingPlanningStates
                 .FromSqlRaw("SELECT * FROM testing_planning_state WHERE id = 1 FOR UPDATE")
                 .ToListAsync(ct);
-            var state = locked.SingleOrDefault();
+            var state = locked.Single();
             var snapshot = await Load(ct);
             if (request is not null)
             {
-                if (state?.InitializedAt is null || state.CurrentSemesterId != snapshot.Current.Id
+                if (state.InitializedAt is null || state.CurrentSemesterId != snapshot.Current.Id
                     || request.CurrentSemesterId != snapshot.Current.Id || request.Version != state.Version)
                     throw new PlanningRuleException("Период или версия плана изменились. Обновите список перед сохранением.");
                 ApplyChanges(snapshot, request.Changes!);
@@ -85,9 +85,9 @@ public sealed partial class GroupsTestingService(
                 }
             }
             var evaluation = Evaluate(snapshot);
-            var newPeriod = state?.CurrentSemesterId != snapshot.Current.Id || state.InitializedAt is null;
+            var newPeriod = state.CurrentSemesterId != snapshot.Current.Id || state.InitializedAt is null;
             var changed = await SynchronizeRecommendations(snapshot, evaluation, ct) || newPeriod || periodChanged;
-            if (changed && state != null)
+            if (changed)
             {
                 state.CurrentSemesterId = snapshot.Current.Id;
                 if (newPeriod) state.InitializedAt = clock.GetUtcNow().UtcDateTime;
