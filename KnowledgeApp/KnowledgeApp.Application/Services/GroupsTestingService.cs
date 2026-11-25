@@ -59,11 +59,11 @@ public sealed partial class GroupsTestingService(
             var locked = await context.TestingPlanningStates
                 .FromSqlRaw("SELECT * FROM testing_planning_state WHERE id = 1 FOR UPDATE")
                 .ToListAsync(ct);
-            var state = locked.Single();
+            var state = locked.SingleOrDefault();
             var snapshot = await Load(ct);
             if (request is not null)
             {
-                if (state.InitializedAt is null || state.CurrentSemesterId != snapshot.Current.Id
+                if (state?.InitializedAt is null || state.CurrentSemesterId != snapshot.Current.Id
                     || request.CurrentSemesterId != snapshot.Current.Id || request.Version != state.Version)
                     throw new PlanningRuleException("Период или версия плана изменились. Обновите список перед сохранением.");
                 ApplyChanges(snapshot, request.Changes!);
@@ -85,9 +85,9 @@ public sealed partial class GroupsTestingService(
                 }
             }
             var evaluation = Evaluate(snapshot);
-            var newPeriod = state.CurrentSemesterId != snapshot.Current.Id || state.InitializedAt is null;
+            var newPeriod = state?.CurrentSemesterId != snapshot.Current.Id || state.InitializedAt is null;
             var changed = await SynchronizeRecommendations(snapshot, evaluation, ct) || newPeriod || periodChanged;
-            if (changed)
+            if (changed && state != null)
             {
                 state.CurrentSemesterId = snapshot.Current.Id;
                 if (newPeriod) state.InitializedAt = clock.GetUtcNow().UtcDateTime;
