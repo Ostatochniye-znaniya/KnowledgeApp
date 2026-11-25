@@ -11,6 +11,8 @@ public sealed record TeacherTestingApprovalDto(
     int? ScheduledPair,
     DateOnly? SelectionPeriodStart,
     DateOnly? SelectionPeriodEnd,
+    DateOnly? RecommendedDate,
+    int? RecommendedPair,
     bool? IsInPerson,
     string? Room,
     string? LmsUrl,

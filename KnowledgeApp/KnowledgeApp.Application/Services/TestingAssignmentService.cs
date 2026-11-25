@@ -48,6 +48,8 @@ public sealed class TestingAssignmentService
             testing.SelectionPeriodEnd.HasValue
                 ? DateOnly.FromDateTime(testing.SelectionPeriodEnd.Value)
                 : null,
+            testing.RecommendedDate.HasValue ? DateOnly.FromDateTime(testing.RecommendedDate.Value) : null,
+            testing.RecommendedPair,
             testing.ScheduledDate.HasValue ? DateOnly.FromDateTime(testing.ScheduledDate.Value) : null,
             testing.ScheduledTime.HasValue ? TimeOnly.FromTimeSpan(testing.ScheduledTime.Value) : null,
             testing.ScheduledPair,
@@ -86,6 +88,8 @@ public sealed class TestingAssignmentService
         DateOnly periodStart,
         DateOnly periodEnd,
         IReadOnlyList<int> teacherIds,
+        DateOnly? recommendedDate,
+        int? recommendedPair,
         CancellationToken cancellationToken)
     {
         if (periodEnd < periodStart)
@@ -94,6 +98,14 @@ public sealed class TestingAssignmentService
             throw new DocumentValidationException("Назначьте хотя бы одного преподавателя.");
         if (teacherIds.Any(id => id <= 0) || teacherIds.Distinct().Count() != teacherIds.Count)
             throw new DocumentValidationException("Список преподавателей содержит некорректные или повторяющиеся ID.");
+        if (recommendedDate.HasValue != recommendedPair.HasValue)
+            throw new DocumentValidationException("Рекомендуемые дата и пара задаются вместе.");
+        if (recommendedDate < periodStart || recommendedDate > periodEnd)
+            throw new DocumentValidationException("Рекомендуемая дата должна входить в период проверки.");
+        var recommendedSlot = recommendedPair.HasValue
+            ? TestingPairSchedule.All.SingleOrDefault(slot => slot.PairNumber == recommendedPair)
+              ?? throw new DocumentValidationException("Указан несуществующий номер пары.")
+            : null;
 
         var testing = await GetTestingInDepartment(testingId, cancellationToken);
         if (!testing.DisciplineId.HasValue)
@@ -116,13 +128,16 @@ public sealed class TestingAssignmentService
         var endDate = periodEnd.ToDateTime(TimeOnly.MinValue);
         var periodChanged = testing.SelectionPeriodStart != startDate ||
                             testing.SelectionPeriodEnd != endDate;
+        var newRecommendedDate = recommendedDate?.ToDateTime(TimeOnly.MinValue);
+        var recommendationChanged = testing.RecommendedDate != newRecommendedDate ||
+                                    testing.RecommendedPair != recommendedPair;
         var existing = await _context.TestingTeacherApprovals
             .Where(a => a.TestingId == testingId)
             .ToListAsync(cancellationToken);
         var existingTeacherIds = existing.Select(a => a.TeacherId).ToHashSet();
         var assignmentsChanged = !existingTeacherIds.SetEquals(teacherIds);
 
-        if (periodChanged || assignmentsChanged)
+        if (periodChanged || assignmentsChanged || recommendationChanged)
         {
             await _context.InTransactionAsync(async () =>
             {
@@ -155,20 +170,51 @@ public sealed class TestingAssignmentService
 
                 testing.SelectionPeriodStart = startDate;
                 testing.SelectionPeriodEnd = endDate;
-                var notificationTeacherIds = periodChanged
-                    ? teacherIds
-                    : teacherIds.Where(id => !existingTeacherIds.Contains(id));
-                foreach (var teacherId in notificationTeacherIds)
+                // Рекомендация ни к чему не обязывает: выбранное преподавателем время и ответы она не сбрасывает
+                testing.RecommendedDate = newRecommendedDate;
+                testing.RecommendedPair = recommendedPair;
+                var recommendationText = recommendedSlot is null
+                    ? null
+                    : $"{recommendedDate:dd.MM.yyyy}, {recommendedSlot.PairNumber}-я пара " +
+                      $"({recommendedSlot.StartsAt:HH:mm}–{recommendedSlot.EndsAt:HH:mm})";
+                var recommendationSuffix = recommendationText is null
+                    ? string.Empty
+                    : $" Кафедра рекомендует: {recommendationText}.";
+                foreach (var teacherId in teacherIds)
                 {
+                    string type, title, message;
+                    if (periodChanged)
+                    {
+                        type = "testing_period_updated";
+                        title = "Изменился период проверки";
+                        message = $"Период выбора времени: {periodStart:dd.MM.yyyy}–{periodEnd:dd.MM.yyyy}.{recommendationSuffix}";
+                    }
+                    else if (!existingTeacherIds.Contains(teacherId))
+                    {
+                        type = "testing_assigned";
+                        title = "Назначена проверка";
+                        message = $"Вам назначена проверка. Выберите пару с {periodStart:dd.MM.yyyy} по {periodEnd:dd.MM.yyyy}.{recommendationSuffix}";
+                    }
+                    else if (recommendationChanged)
+                    {
+                        type = "testing_recommendation_updated";
+                        title = "Изменилась рекомендация по времени проверки";
+                        message = recommendationText is null
+                            ? "Кафедра сняла рекомендацию по дате и времени проверки."
+                            : $"Кафедра рекомендует провести проверку: {recommendationText}.";
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
                     _context.WorkflowNotifications.Add(new WorkflowNotification
                     {
                         RecipientUserId = teacherId,
                         TestingId = testingId,
-                        Type = periodChanged ? "testing_period_updated" : "testing_assigned",
-                        Title = periodChanged ? "Изменился период проверки" : "Назначена проверка",
-                        Message = periodChanged
-                            ? $"Период выбора времени: {periodStart:dd.MM.yyyy}–{periodEnd:dd.MM.yyyy}."
-                            : $"Вам назначена проверка. Выберите пару с {periodStart:dd.MM.yyyy} по {periodEnd:dd.MM.yyyy}.",
+                        Type = type,
+                        Title = title,
+                        Message = message,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
@@ -222,6 +268,8 @@ public sealed class TestingAssignmentService
                 t.ExternalRequestSentAt,
                 t.SelectionPeriodStart,
                 t.SelectionPeriodEnd,
+                t.RecommendedDate,
+                t.RecommendedPair,
                 t.ScheduledDate,
                 t.ScheduledTime,
                 t.ScheduledPair
@@ -261,6 +309,8 @@ public sealed class TestingAssignmentService
                     r.ExternalRequestSentAt.HasValue ? ToUtc(r.ExternalRequestSentAt.Value) : null,
                     r.SelectionPeriodStart.HasValue ? DateOnly.FromDateTime(r.SelectionPeriodStart.Value) : null,
                     r.SelectionPeriodEnd.HasValue ? DateOnly.FromDateTime(r.SelectionPeriodEnd.Value) : null,
+                    r.RecommendedDate.HasValue ? DateOnly.FromDateTime(r.RecommendedDate.Value) : null,
+                    r.RecommendedPair,
                     r.ScheduledDate.HasValue ? DateOnly.FromDateTime(r.ScheduledDate.Value) : null,
                     r.ScheduledTime.HasValue ? TimeOnly.FromTimeSpan(r.ScheduledTime.Value) : null,
                     r.ScheduledPair,

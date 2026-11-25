@@ -574,6 +574,10 @@ public partial class KnowledgeTestDbContext : DbContext
             entity.Property(e => e.SelectionPeriodEnd)
                 .HasColumnType("date")
                 .HasColumnName("selection_period_end");
+            entity.Property(e => e.RecommendedDate)
+                .HasColumnType("date")
+                .HasColumnName("recommended_date");
+            entity.Property(e => e.RecommendedPair).HasColumnName("recommended_pair");
             entity.Property(e => e.ExternalRequestSentAt)
                 .HasColumnType("datetime(6)")
                 .HasColumnName("external_request_sent_at");

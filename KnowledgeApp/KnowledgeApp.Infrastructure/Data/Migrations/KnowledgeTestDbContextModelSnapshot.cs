@@ -1060,6 +1060,14 @@ namespace KnowledgeApp.Infrastructure.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("recommendation_history_id");
 
+                    b.Property<DateTime?>("RecommendedDate")
+                        .HasColumnType("date")
+                        .HasColumnName("recommended_date");
+
+                    b.Property<int?>("RecommendedPair")
+                        .HasColumnType("int")
+                        .HasColumnName("recommended_pair");
+
                     b.Property<int?>("ReportId")
                         .HasColumnType("int")
                         .HasColumnName("report_id");
