@@ -25,6 +25,12 @@ public partial class Testing
 
     public DateTime? SelectionPeriodEnd { get; set; }
 
+    /// <summary>Дата, которую заведующий кафедрой рекомендует преподавателю; лежит внутри периода выбора.</summary>
+    public DateTime? RecommendedDate { get; set; }
+
+    /// <summary>Рекомендуемая пара; задаётся только вместе с датой.</summary>
+    public int? RecommendedPair { get; set; }
+
     /// <summary>Когда кафедра группы отправила заявку кафедре другого факультета (дисциплина чужого факультета).</summary>
     public DateTime? ExternalRequestSentAt { get; set; }
 

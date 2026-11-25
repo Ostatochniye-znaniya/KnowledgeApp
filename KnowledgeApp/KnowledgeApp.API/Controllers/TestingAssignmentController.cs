@@ -60,7 +60,7 @@ public sealed class TestingAssignmentController : DocumentControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public IResult GetPairSlots() => Results.Json(_assignmentService.GetPairSlots());
 
-    /// <summary>Задаёт период проверки и заменяет список назначенных преподавателей.</summary>
+    /// <summary>Задаёт период проверки, рекомендуемые дату и пару и заменяет список назначенных преподавателей.</summary>
     [HttpPut("~/Testing/{testingId:int}/teacher-assignments")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -75,6 +75,8 @@ public sealed class TestingAssignmentController : DocumentControllerBase
             request.PeriodStart,
             request.PeriodEnd,
             request.TeacherIds,
+            request.RecommendedDate,
+            request.RecommendedPair,
             cancellationToken)));
 
     /// <summary>Возвращает уведомления по проверкам кафедры.</summary>

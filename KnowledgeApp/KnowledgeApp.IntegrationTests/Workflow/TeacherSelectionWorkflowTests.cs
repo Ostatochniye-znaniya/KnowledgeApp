@@ -234,6 +234,58 @@ public class TeacherSelectionWorkflowTests : IntegrationTestBase
         await Ok(await ChooseTime(SecondOwnTestingId, TestingDate, pairNumber: 3));
     }
 
+    [Fact]
+    public async Task Recommendation_IsShownToTeacherAndDoesNotResetChosenTime()
+    {
+        ActAsHeadOf(TestSeed.IiitDepartmentId);
+        var assigned = await Ok(await AssignWithRecommendation(TestingDate, 2));
+        Assert.Equal("2026-11-24", assigned.GetProperty("recommendedDate").GetString());
+        Assert.Equal(2, assigned.GetProperty("recommendedPair").GetInt32());
+        Assert.Equal(1, await CountNotifications(n =>
+            n.RecipientUserId == TestSeed.TeacherUserId &&
+            n.Message.Contains("24.11.2026, 2-я пара (10:40–12:10)")));
+
+        // Преподаватель видит рекомендацию, но вправе выбрать другое время
+        ActAsTeacher(TestSeed.TeacherUserId);
+        var testings = await Ok(await _client.GetAsync("TeacherWorkflow/GetTestings"));
+        var testing = testings.EnumerateArray().Single(t => t.GetProperty("testingId").GetInt32() == OwnTestingId);
+        Assert.Equal("2026-11-24", testing.GetProperty("recommendedDate").GetString());
+        Assert.Equal(2, testing.GetProperty("recommendedPair").GetInt32());
+        Assert.Equal(JsonValueKind.Null, testing.GetProperty("scheduledDate").ValueKind);
+        await Ok(await ChooseTime(OwnTestingId, TestingDate.AddDays(1), pairNumber: 3));
+
+        // Новая рекомендация уведомляет преподавателя, но не сбрасывает выбранное им время
+        ActAsHeadOf(TestSeed.IiitDepartmentId);
+        var updated = await Ok(await AssignWithRecommendation(TestingDate, 5));
+        Assert.Equal(5, updated.GetProperty("recommendedPair").GetInt32());
+        Assert.Equal("2026-11-25", updated.GetProperty("scheduledDate").GetString());
+        Assert.Equal(3, updated.GetProperty("scheduledPair").GetInt32());
+        Assert.Equal(1, await CountNotifications(n => n.Type == "testing_recommendation_updated"));
+
+        // Повторное сохранение без изменений не шлёт новых уведомлений, запрос без рекомендации её снимает
+        await Ok(await AssignWithRecommendation(TestingDate, 5));
+        Assert.Equal(1, await CountNotifications(n => n.Type == "testing_recommendation_updated"));
+        var cleared = await Ok(await AssignTeachers(OwnTestingId, TestSeed.TeacherUserId));
+        Assert.Equal(JsonValueKind.Null, cleared.GetProperty("recommendedDate").ValueKind);
+        Assert.Equal(JsonValueKind.Null, cleared.GetProperty("recommendedPair").ValueKind);
+        Assert.Equal(2, await CountNotifications(n => n.Type == "testing_recommendation_updated"));
+    }
+
+    [Fact]
+    public async Task Recommendation_IncompleteOrOutsidePeriod_IsRejected()
+    {
+        ActAsHeadOf(TestSeed.IiitDepartmentId);
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await AssignWithRecommendation(TestingDate, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await AssignWithRecommendation(null, 2)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await AssignWithRecommendation(PeriodStart.AddDays(-1), 2)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await AssignWithRecommendation(PeriodEnd.AddDays(1), 2)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await AssignWithRecommendation(TestingDate, 8)).StatusCode);
+
+        await using var db = Factory.CreateDbContext();
+        Assert.False(await db.TestingTeacherApprovals.AnyAsync());
+    }
+
     private void ActAsHeadOf(int departmentId)
     {
         _currentUser.UserId = TestSeed.HodUserId;
@@ -249,6 +301,14 @@ public class TeacherSelectionWorkflowTests : IntegrationTestBase
     private Task<HttpResponseMessage> AssignTeachers(int testingId, params int[] teacherIds) =>
         _client.PutAsJsonAsync($"Testing/{testingId}/teacher-assignments",
             new { periodStart = PeriodStart, periodEnd = PeriodEnd, teacherIds });
+
+    private Task<HttpResponseMessage> AssignWithRecommendation(DateOnly? recommendedDate, int? recommendedPair) =>
+        _client.PutAsJsonAsync($"Testing/{OwnTestingId}/teacher-assignments",
+            new
+            {
+                periodStart = PeriodStart, periodEnd = PeriodEnd,
+                teacherIds = new[] { TestSeed.TeacherUserId }, recommendedDate, recommendedPair
+            });
 
     private Task<HttpResponseMessage> ChooseTime(int testingId, DateOnly date, int pairNumber) =>
         _client.PutAsJsonAsync($"TeacherWorkflow/ChooseTestingTime/{testingId}/choose-time",
