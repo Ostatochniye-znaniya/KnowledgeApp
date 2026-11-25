@@ -24,9 +24,9 @@ public sealed partial class GroupsTestingService(
         {
             context.ChangeTracker.Clear();
             await using var tx = await context.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
-            var state = await context.TestingPlanningStates.AsNoTracking().SingleAsync(s => s.Id == 1, ct);
+            var state = await context.TestingPlanningStates.AsNoTracking().FirstOrDefaultAsync(s => s.Id == 1, ct);
             var snapshot = await Load(ct);
-            if (state.CurrentSemesterId != snapshot.Current.Id || state.InitializedAt is null) return null;
+            if (state?.CurrentSemesterId != snapshot.Current.Id || state.InitializedAt is null) return null;
             var response = ToResponse(snapshot, state.Version, Evaluate(snapshot), facultyId, direction?.Trim());
             await tx.CommitAsync(ct);
             return response;
