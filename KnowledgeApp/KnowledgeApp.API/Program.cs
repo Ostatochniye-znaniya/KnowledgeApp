@@ -162,6 +162,7 @@ services.AddScoped<AdminUserService>();
 services.AddScoped<AuditLogService>();
 services.AddScoped<TechLogService>();
 services.AddScoped<SystemSettingsService>();
+services.AddScoped<StatisticsService>();
 services.AddHttpContextAccessor();
 services.AddSingleton<DatabaseLoggerProvider>();
 services.AddSingleton<ILoggerProvider>(sp => sp.GetRequiredService<DatabaseLoggerProvider>());
