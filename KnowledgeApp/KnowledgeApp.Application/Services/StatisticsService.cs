@@ -96,7 +96,7 @@ public sealed class StatisticsService
                 {
                     Id = facultyIdValue,
                     Name = facultyName,
-                    Code = ShortCode(facultyName),
+                    Code = StatisticsCalculations.ShortCode(facultyName),
                     Departments = g.Select(dept => BuildDepartment(dept, testings, programDisciplineCounts, isSpring)).ToList()
                 };
             })
@@ -153,12 +153,12 @@ public sealed class StatisticsService
                     {
                         var testing = gg.First();
                         var report = testing.Report;
-                        var eStatus = MapElectronicStatus(report);
-                        var pStatus = MapPaperStatus(report);
+                        var eStatus = StatisticsCalculations.MapElectronicStatus(report);
+                        var pStatus = StatisticsCalculations.MapPaperStatus(report);
                         return new DisciplineGroupStatisticsDto
                         {
                             GroupNumber = testing.Group?.GroupNumber ?? $"#{testing.GroupId}",
-                            Course = GuessCourse(testing.Group?.GroupNumber),
+                            Course = StatisticsCalculations.GuessCourse(testing.Group?.GroupNumber),
                             Teacher = TeacherName(discipline),
                             EReportStatus = eStatus,
                             PReportStatus = pStatus,
@@ -197,7 +197,7 @@ public sealed class StatisticsService
         {
             DepartmentId = department.Id,
             DepartmentName = department.Name,
-            FacultyCode = ShortCode(department.Faculty?.FacultyName ?? ""),
+            FacultyCode = StatisticsCalculations.ShortCode(department.Faculty?.FacultyName ?? ""),
             SemesterId = semester.Id,
             RequiresPaperReports = order?.RequiresPaperReports ?? true,
             Disciplines = disciplines
@@ -244,7 +244,7 @@ public sealed class StatisticsService
             ProfilesCount = profilesCount,
             CoursesCount = coursesCount,
             MagistracyCount = magistracyCount,
-            GroupNorm = CalculateGroupNorm(bachelorProfiles, coursesCount, isSpring, magistracyCount),
+            GroupNorm = StatisticsCalculations.CalculateGroupNorm(bachelorProfiles, coursesCount, isSpring, magistracyCount),
             GroupFact = groupFact,
             ClassNorm = classNorm,
             ClassFact = classFact,
@@ -284,50 +284,11 @@ public sealed class StatisticsService
     private static bool IsSpring(Semester semester) =>
         semester.YearPart == 2 || ((semester.YearPart is 0) && semester.SemesterPart == 1) || semester.SemesterPart == 1;
 
-    private static int CalculateGroupNorm(int profilesCount, int coursesCount, bool isSpring, int magistracyCount)
-    {
-        var springFirstCourseAdd = isSpring ? 1 : 0;
-        return profilesCount * (2 * coursesCount + springFirstCourseAdd) + magistracyCount;
-    }
-
-    private static string ShortCode(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "—";
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 1) return parts[0].Length <= 6 ? parts[0].ToUpperInvariant() : parts[0][..3].ToUpperInvariant();
-        return string.Concat(parts.Where(p => p.Length > 0).Select(p => char.ToUpperInvariant(p[0])));
-    }
-
     private static string TeacherName(Discipline discipline)
     {
         var teacher = discipline.DisciplineTeachers?
             .Select(dt => dt.ResponsibleTeacher?.Name)
             .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
         return teacher ?? "—";
-    }
-
-    private static int GuessCourse(string? groupNumber)
-    {
-        if (string.IsNullOrWhiteSpace(groupNumber)) return 0;
-        var digits = new string(groupNumber.Where(char.IsDigit).ToArray());
-        if (digits.Length >= 3 && int.TryParse(digits.AsSpan(0, 1), out var course))
-            return course;
-        return 0;
-    }
-
-    private static string MapElectronicStatus(Report? report)
-    {
-        if (report is null) return "pending";
-        if (report.Status == DocumentStatus.Rejected) return "remarks";
-        if (report.DoneInElectronicForm == true || report.Status == DocumentStatus.Signed) return "done";
-        return "pending";
-    }
-
-    private static string MapPaperStatus(Report? report)
-    {
-        if (report is null) return "pending";
-        if (report.DoneInPaperForm == true) return "done";
-        if (report.Status == DocumentStatus.Rejected && report.DoneInPaperForm == false) return "remarks";
-        return "pending";
     }
 }
